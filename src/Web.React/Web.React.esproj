@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.VisualStudio.JavaScript.Sdk/1.0.5277448">
+
+  <PropertyGroup>
+    <!-- Vite dev script — used when launching this project standalone from VS.
+         Aspire's AddViteApp(...) starts its own copy when AppHost is the startup project. -->
+    <StartupCommand>npm run dev</StartupCommand>
+    <DevelopmentServerPort>5173</DevelopmentServerPort>
+
+    <!-- Build via npm. ShouldRunBuildScript=false keeps `dotnet build` at the solution
+         root from invoking npm; explicit Build on this project (or the publish pipeline)
+         still runs it. -->
+    <BuildCommand>npm run build</BuildCommand>
+    <ProductionBuildCommand>npm run build</ProductionBuildCommand>
+    <ShouldRunBuildScript>false</ShouldRunBuildScript>
+    <ShouldRunNpmInstall>true</ShouldRunNpmInstall>
+
+    <JavaScriptTestRoot>src\</JavaScriptTestRoot>
+  </PropertyGroup>
+
+</Project>

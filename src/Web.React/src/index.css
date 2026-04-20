@@ -1,0 +1,222 @@
+@import "tailwindcss";
+
+/* Switch the `dark:` variant from media-query to class-based, so we can flip
+   themes via JS (system + user override). */
+@variant dark (&:where(.dark, .dark *));
+
+@theme {
+  /* Cookbook palette — warm cream paper, espresso ink, paprika accent.
+     The values below are the LIGHT theme; .dark below overrides each token. */
+  --color-cream: #f5f0e8;
+  --color-cream-deep: #ede4d3;
+  --color-cream-shadow: #e8ddc8;
+  --color-ink: #1a1410;
+  --color-ink-soft: #3a2e25;
+  --color-chestnut: #7b5e3f;
+  --color-chestnut-soft: #a08868;
+  --color-paprika: #e85a1a;
+  --color-paprika-deep: #c4480f;
+  --color-paprika-tint: rgba(232, 90, 26, 0.08);
+  --color-sage: #6b7d4e;
+
+  /* Distinctive type pairing */
+  --font-display: "Fraunces", "Times New Roman", serif;
+  --font-body: "Fraunces", "Times New Roman", serif;
+  --font-mono: "JetBrains Mono", "Consolas", monospace;
+
+  /* Editorial scale — generous, optical-size aware */
+  --text-headline: 5.5rem;
+  --text-headline--line-height: 0.95;
+  --text-headline--letter-spacing: -0.04em;
+
+  --text-display: 3.5rem;
+  --text-display--line-height: 1;
+  --text-display--letter-spacing: -0.025em;
+
+  --text-title: 2rem;
+  --text-title--line-height: 1.15;
+  --text-title--letter-spacing: -0.015em;
+
+  --text-eyebrow: 0.75rem;
+  --text-eyebrow--line-height: 1;
+  --text-eyebrow--letter-spacing: 0.18em;
+}
+
+@layer base {
+  /* Dark theme: every component that uses var(--color-cream/ink/etc.) auto-themes.
+     No `dark:` prefixes needed throughout the codebase. */
+  html.dark {
+    --color-cream: #15110d;        /* the new "paper" — deep espresso */
+    --color-cream-deep: #1f1a14;   /* slightly raised panel */
+    --color-cream-shadow: #2c241c; /* dividers, borders */
+    --color-ink: #f4ece0;          /* primary text — warm off-white */
+    --color-ink-soft: #c5b8a1;     /* secondary text */
+    --color-chestnut: #cfa97f;     /* eyebrow / mono labels — readable on dark */
+    --color-chestnut-soft: #8e7858;
+    --color-paprika: #ff7440;      /* slightly brighter accent on dark bg */
+    --color-paprika-deep: #e85a1a;
+    --color-paprika-tint: rgba(255, 116, 64, 0.14);
+    --color-sage: #9caf7f;
+    color-scheme: dark;
+  }
+  html:not(.dark) {
+    color-scheme: light;
+  }
+
+  html {
+    background: var(--color-cream);
+    color: var(--color-ink);
+    font-family: var(--font-body);
+    font-feature-settings: "ss01", "kern", "liga";
+    font-variation-settings: "opsz" 14, "SOFT" 50, "WONK" 0;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    margin: 0;
+    line-height: 1.55;
+    background:
+      radial-gradient(1200px 600px at 80% -10%, rgba(232, 90, 26, 0.06), transparent 60%),
+      radial-gradient(900px 500px at -10% 110%, rgba(123, 94, 63, 0.06), transparent 55%),
+      var(--color-cream);
+    min-height: 100svh;
+  }
+
+  h1, h2, h3, h4 {
+    font-family: var(--font-display);
+    font-variation-settings: "opsz" 144, "SOFT" 30, "WONK" 1;
+    color: var(--color-ink);
+    margin: 0;
+  }
+
+  /* Numerical / measurement treatment */
+  .num, .measure {
+    font-family: var(--font-mono);
+    font-feature-settings: "tnum", "zero";
+    letter-spacing: -0.02em;
+  }
+
+  /* Eyebrow label */
+  .eyebrow {
+    font-family: var(--font-mono);
+    font-size: var(--text-eyebrow);
+    line-height: var(--text-eyebrow--line-height);
+    letter-spacing: var(--text-eyebrow--letter-spacing);
+    text-transform: uppercase;
+    color: var(--color-chestnut);
+  }
+
+  /* Hand-set drop cap utility */
+  .dropcap::first-letter {
+    font-family: var(--font-display);
+    font-variation-settings: "opsz" 144, "SOFT" 80, "WONK" 1;
+    font-size: 5em;
+    line-height: 0.85;
+    float: left;
+    margin: 0.05em 0.08em -0.05em 0;
+    color: var(--color-paprika);
+  }
+
+  ::selection {
+    background: var(--color-paprika);
+    color: var(--color-cream);
+  }
+
+  /* Tailwind preflight resets cursor on buttons; restore the affordance everywhere unless disabled. */
+  button:not(:disabled),
+  [role="button"]:not(:disabled),
+  summary {
+    cursor: pointer;
+  }
+
+  button:disabled,
+  [role="button"][aria-disabled="true"] {
+    cursor: not-allowed;
+  }
+
+  /* Hide horizontal scrollbar on scroll-snap carousels while keeping the scroll behaviour. */
+  .no-scrollbar {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Cookbook-styled range slider — thin paprika track, paprika thumb with cream halo. */
+  .slider-paprika {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 4px;
+    border-radius: 9999px;
+    outline: none;
+    background: var(--color-cream-shadow);
+  }
+  .slider-paprika::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 20px;
+    height: 20px;
+    border-radius: 9999px;
+    background: var(--color-paprika);
+    border: 3px solid var(--color-cream);
+    box-shadow: 0 1px 3px rgba(26, 20, 16, 0.25);
+    cursor: grab;
+    transition: transform 0.15s ease;
+  }
+  .slider-paprika::-webkit-slider-thumb:active {
+    cursor: grabbing;
+    transform: scale(1.08);
+  }
+  .slider-paprika::-moz-range-thumb {
+    width: 20px;
+    height: 20px;
+    border-radius: 9999px;
+    background: var(--color-paprika);
+    border: 3px solid var(--color-cream);
+    box-shadow: 0 1px 3px rgba(26, 20, 16, 0.25);
+    cursor: grab;
+    transition: transform 0.15s ease;
+  }
+  .slider-paprika::-moz-range-thumb:active {
+    cursor: grabbing;
+    transform: scale(1.08);
+  }
+}
+
+@layer utilities {
+  .grain {
+    position: relative;
+    isolation: isolate;
+  }
+  .grain::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: -1;
+    opacity: 0.35;
+    mix-blend-mode: multiply;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.42  0 0 0 0 0.36  0 0 0 0 0.25  0 0 0 0.5 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+  }
+  /* In dark mode the multiply blend would almost erase the noise. Swap to screen
+     and dial down opacity for a faint warm grain. */
+  .dark .grain::before {
+    mix-blend-mode: screen;
+    opacity: 0.08;
+  }
+
+  .rule-warm {
+    background: linear-gradient(
+      to right,
+      transparent,
+      var(--color-cream-shadow) 12%,
+      var(--color-chestnut-soft) 50%,
+      var(--color-cream-shadow) 88%,
+      transparent
+    );
+  }
+}

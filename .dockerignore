@@ -1,0 +1,19 @@
+# Used as the build context root for the API Dockerfile (src/Web/Dockerfile).
+**/bin
+**/obj
+**/.vs
+**/.vscode
+**/.idea
+**/node_modules
+**/dist
+artifacts
+src/Web.React
+tests
+.git
+.github
+deploy
+.aspire
+*.md
+*.user
+*.swp
+.DS_Store

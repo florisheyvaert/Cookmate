@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dotnet --version)",
+      "Bash(dotnet new *)",
+      "Bash(dotnet build *)",
+      "WebFetch(domain:www.nuget.org)",
+      "Bash(dotnet test *)",
+      "Bash(dotnet ef)",
+      "Bash(dotnet ef *)",
+      "Bash(npm create *)",
+      "Bash(npm install *)",
+      "Bash(npm run *)",
+      "Bash(dotnet sln *)"
+    ]
+  }
+}

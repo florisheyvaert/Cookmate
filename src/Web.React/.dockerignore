@@ -1,0 +1,10 @@
+node_modules
+dist
+.vite
+.cache
+.eslintcache
+*.log
+.git
+.gitignore
+.DS_Store
+README.md
