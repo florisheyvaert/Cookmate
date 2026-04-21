@@ -274,15 +274,13 @@ export default function Recipes() {
               >
                 <Link
                   to={`/recipes/${recipe.id}`}
-                  className="group grid grid-cols-12 gap-4 py-6 items-baseline no-underline"
+                  className="group grid grid-cols-[4.5rem_1fr_auto] md:grid-cols-[5.5rem_1fr_auto] gap-4 md:gap-5 py-4 md:py-5 items-center no-underline"
                 >
-                  <span className="num text-chestnut text-sm col-span-2 sm:col-span-1">
-                    {String(i + 1).padStart(2, '0')}
-                  </span>
+                  <Thumb url={recipe.coverImageUrl} ordinal={i + 1} />
 
-                  <div className="col-span-10 sm:col-span-7 lg:col-span-6">
+                  <div className="min-w-0">
                     <h2
-                      className="font-display text-ink text-2xl md:text-3xl group-hover:text-paprika transition-colors"
+                      className="font-display text-ink text-xl md:text-2xl group-hover:text-paprika transition-colors truncate"
                       style={{
                         fontVariationSettings: '"opsz" 96, "SOFT" 50, "WONK" 1',
                         letterSpacing: '-0.015em',
@@ -291,25 +289,26 @@ export default function Recipes() {
                       {recipe.title}
                     </h2>
                     {recipe.tags.length > 0 && (
-                      <p className="font-mono text-[0.65rem] uppercase tracking-[0.18em] text-chestnut-soft mt-1">
-                        {recipe.tags.join(' · ')}
+                      <p className="font-mono text-[0.62rem] uppercase tracking-[0.18em] text-chestnut-soft mt-0.5 truncate">
+                        {recipe.tags.slice(0, 4).join(' · ')}
+                      </p>
+                    )}
+                    {recipe.summary && (
+                      <p className="hidden md:block text-chestnut text-sm leading-snug truncate mt-1">
+                        {recipe.summary}
                       </p>
                     )}
                   </div>
 
-                  <p className="hidden lg:block lg:col-span-3 text-chestnut text-sm leading-snug truncate">
-                    {recipe.summary ?? '—'}
-                  </p>
-
-                  <span className="col-span-12 sm:col-span-4 lg:col-span-2 text-right flex flex-col items-end gap-0.5">
-                    <span>
+                  <span className="text-right flex flex-col items-end gap-0.5 shrink-0">
+                    <span className="whitespace-nowrap">
                       <span className="num text-paprika text-base">{recipe.baseServings}</span>
-                      <span className="font-mono text-[0.7rem] uppercase tracking-[0.18em] text-chestnut ml-2">
+                      <span className="font-mono text-[0.66rem] uppercase tracking-[0.18em] text-chestnut ml-1.5">
                         serves
                       </span>
                     </span>
                     {formatDuration(recipe.totalTimeMinutes) && (
-                      <span className="num text-chestnut text-xs">
+                      <span className="num text-chestnut text-xs whitespace-nowrap">
                         {formatDuration(recipe.totalTimeMinutes)}
                       </span>
                     )}
@@ -328,6 +327,53 @@ function clampTime(n: number): number {
   if (!Number.isFinite(n) || n <= 0) return TIME_MAX
   if (n > TIME_MAX) return TIME_MAX
   return n
+}
+
+/**
+ * Square thumbnail for a recipe row. Always same dimensions so no layout shift
+ * between recipes with and without a photo — the placeholder is a paper-textured
+ * block with a small paprika ❦ glyph. Ordinal number sits in the corner as a stamp.
+ */
+function Thumb({ url, ordinal }: { url: string | null; ordinal: number }) {
+  return (
+    <div className="relative w-[4.5rem] h-[4.5rem] md:w-[5.5rem] md:h-[5.5rem] shrink-0 overflow-hidden rounded-sm bg-cream-deep">
+      {url ? (
+        <img
+          src={url}
+          alt=""
+          loading="lazy"
+          className="w-full h-full object-cover"
+        />
+      ) : (
+        <div
+          className="w-full h-full flex items-center justify-center"
+          style={{
+            background:
+              'radial-gradient(120% 80% at 20% 20%, rgba(232,90,26,0.14), transparent 60%),' +
+              'linear-gradient(180deg, var(--color-cream-deep) 0%, var(--color-cream-shadow) 100%)',
+          }}
+        >
+          <span
+            aria-hidden
+            className="text-paprika/40 leading-none select-none"
+            style={{
+              fontFamily: 'var(--font-display)',
+              fontSize: '3rem',
+              fontVariationSettings: '"opsz" 144, "SOFT" 80, "WONK" 1',
+            }}
+          >
+            ❦
+          </span>
+        </div>
+      )}
+      <span
+        className="absolute top-0 left-0 px-1.5 py-0.5 bg-cream/80 text-chestnut font-mono text-[0.6rem] tabular-nums"
+        style={{ fontFeatureSettings: '"tnum"' }}
+      >
+        {String(ordinal).padStart(2, '0')}
+      </span>
+    </div>
+  )
 }
 
 function ChevronGlyph({ open }: { open: boolean }) {

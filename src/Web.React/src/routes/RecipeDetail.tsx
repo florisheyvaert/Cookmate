@@ -46,7 +46,7 @@ export default function RecipeDetail() {
   const heroImage = recipe.media.find((m) => m.type === 1) ?? null
 
   return (
-    <article>
+    <article className="overflow-x-hidden">
       <TopBar recipeId={recipe.id} />
 
       {heroImage ? (
@@ -78,7 +78,10 @@ export default function RecipeDetail() {
 
         <Ornament />
 
-        <div className="grid grid-cols-12 gap-x-10 gap-y-16">
+        {/* Block stack on mobile (grid gaps × 11 would otherwise exceed the viewport
+            and force the col-span-12 children wider than the screen). Only switch
+            to the 12-col grid from lg. */}
+        <div className="space-y-14 lg:space-y-0 lg:grid lg:grid-cols-12 lg:gap-x-10 lg:gap-y-16">
           <Ingredients ingredients={recipe.ingredients} factor={scaleFactor} />
           <Method
             steps={recipe.steps}
@@ -122,14 +125,16 @@ function CookCta({ href }: { href: string }) {
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.7, duration: 0.6, ease }}
-      className="absolute right-6 md:right-12 lg:right-20 bottom-8 md:bottom-12 z-10"
+      className="absolute right-4 md:right-12 lg:right-20 bottom-4 md:bottom-12 z-10"
     >
       <Link
         to={href}
-        className="group inline-flex items-center gap-3 px-6 md:px-7 py-3.5 md:py-4 bg-ink text-cream font-mono uppercase tracking-[0.18em] text-[0.78rem] no-underline shadow-[0_8px_24px_-8px_rgba(26,20,16,0.45)] hover:bg-paprika transition-colors"
+        aria-label="Start cooking"
+        className="group inline-flex items-center gap-1.5 md:gap-3 px-3 md:px-7 py-2 md:py-4 bg-ink text-cream font-mono uppercase tracking-[0.18em] text-[0.62rem] md:text-[0.78rem] no-underline shadow-[0_8px_24px_-8px_rgba(26,20,16,0.45)] hover:bg-paprika transition-colors"
       >
         <span aria-hidden className="text-paprika group-hover:text-cream transition-colors">▷</span>
-        Start cooking
+        <span className="hidden md:inline">Start cooking</span>
+        <span className="md:hidden">Cook</span>
         <span aria-hidden className="transition-transform group-hover:translate-x-0.5">→</span>
       </Link>
     </motion.div>
@@ -181,7 +186,7 @@ function FullBleedHero({ image, title, sourceHost, sourceUrl, cookHref }: FullBl
               <p className="eyebrow text-paprika mb-3">From the kitchen</p>
             )}
             <h1
-              className="font-display text-ink max-w-[calc(100%-12rem)]"
+              className="font-display text-ink max-w-[calc(100%-6rem)] md:max-w-[calc(100%-13rem)]"
               style={{
                 fontSize: 'clamp(2.6rem, 7vw, 6rem)',
                 lineHeight: 0.92,
@@ -256,7 +261,7 @@ function PlainHeader({
               <p className="eyebrow text-paprika mb-3">From the kitchen</p>
             )}
             <h1
-              className="font-display text-ink max-w-[calc(100%-12rem)]"
+              className="font-display text-ink max-w-[calc(100%-6rem)] md:max-w-[calc(100%-13rem)]"
               style={{
                 fontSize: 'clamp(2.6rem, 7vw, 6rem)',
                 lineHeight: 0.92,
@@ -454,7 +459,7 @@ function Ingredients({
               <span className="font-mono text-[0.66rem] uppercase tracking-[0.16em] text-chestnut-soft">
                 {hasAmount ? ing.unit || '' : ''}
               </span>
-              <span>
+              <span className="min-w-0 break-words">
                 <span
                   className="font-display text-ink leading-snug text-lg"
                   style={{ fontVariationSettings: '"opsz" 24, "SOFT" 50, "WONK" 0' }}
@@ -499,10 +504,13 @@ function Method({
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.04 * i + 0.5, duration: 0.5, ease }}
-                className="group grid grid-cols-[3.5rem_1fr] md:grid-cols-[5rem_1fr] gap-x-5 relative"
+                className="group space-y-3 md:space-y-0 md:grid md:grid-cols-[5rem_1fr] md:gap-x-5 relative"
               >
+                <span className="eyebrow text-paprika md:hidden flex items-center gap-3 before:content-[''] before:flex-1 before:max-w-[3rem] before:h-px before:bg-paprika/40 after:content-[''] after:flex-1 after:h-px after:bg-paprika/20">
+                  Step {String(i + 1).padStart(2, '0')}
+                </span>
                 <span
-                  className="num text-paprika leading-none text-5xl md:text-6xl text-right select-none transition-opacity group-hover:opacity-100 opacity-70"
+                  className="num text-paprika leading-none text-6xl text-right select-none transition-opacity group-hover:opacity-100 opacity-70 hidden md:block"
                   style={{
                     fontFamily: 'var(--font-display)',
                     fontVariationSettings: '"opsz" 144, "SOFT" 30, "WONK" 1',
@@ -511,12 +519,12 @@ function Method({
                 >
                   {String(i + 1).padStart(2, '0')}
                 </span>
-                <div>
+                <div className="min-w-0">
                   {stepIngs.length > 0 && (
                     <MiseLine ingredients={stepIngs} factor={factor} />
                   )}
                   <p
-                    className="font-display text-ink-soft text-lg md:text-xl leading-relaxed"
+                    className="font-display text-ink-soft text-lg md:text-xl leading-relaxed break-words"
                     style={{
                       fontVariationSettings: '"opsz" 24, "SOFT" 50, "WONK" 0',
                     }}

@@ -12,6 +12,7 @@ export type RecipeSummaryDto = {
   baseServings: number
   totalTimeMinutes: number | null
   tags: string[]
+  coverImageUrl: string | null
 }
 
 export type RecipeIngredientDto = {

@@ -1,4 +1,5 @@
 using Cookmate.Application.Common.Interfaces;
+using Cookmate.Domain.Enums;
 
 namespace Cookmate.Application.Recipes.Queries.ListRecipes;
 
@@ -53,8 +54,29 @@ public class ListRecipesQueryHandler : IRequestHandler<ListRecipesQuery, IReadOn
             query = query.Where(r => r.TotalTimeMinutes == null || r.TotalTimeMinutes <= max);
         }
 
-        return await query
+        // Two-step projection: EF pulls each recipe + the id of its first photo
+        // (cheapest way, avoids string interpolation inside the translated query).
+        // Then we build the URL in memory.
+        var rows = await query
             .OrderBy(r => r.Title)
+            .Select(r => new
+            {
+                r.Id,
+                r.Title,
+                r.Summary,
+                r.SourceUrl,
+                r.BaseServings,
+                r.TotalTimeMinutes,
+                Tags = r.Tags.ToList(),
+                CoverMediaId = r.Media
+                    .Where(m => m.Type == MediaType.Photo)
+                    .OrderBy(m => m.Order)
+                    .Select(m => (int?)m.Id)
+                    .FirstOrDefault(),
+            })
+            .ToListAsync(cancellationToken);
+
+        return rows
             .Select(r => new RecipeSummaryDto
             {
                 Id = r.Id,
@@ -63,9 +85,12 @@ public class ListRecipesQueryHandler : IRequestHandler<ListRecipesQuery, IReadOn
                 SourceUrl = r.SourceUrl,
                 BaseServings = r.BaseServings,
                 TotalTimeMinutes = r.TotalTimeMinutes,
-                Tags = r.Tags.ToList()
+                Tags = r.Tags,
+                CoverImageUrl = r.CoverMediaId is int mediaId
+                    ? $"/api/Recipes/{r.Id}/media/{mediaId}/file"
+                    : null,
             })
-            .ToListAsync(cancellationToken);
+            .ToList();
     }
 }
 
@@ -84,4 +109,7 @@ public record RecipeSummaryDto
     public int? TotalTimeMinutes { get; init; }
 
     public IReadOnlyList<string> Tags { get; init; } = [];
+
+    /// <summary>URL (relative to the API) of the first photo, or null when the recipe has no photo.</summary>
+    public string? CoverImageUrl { get; init; }
 }

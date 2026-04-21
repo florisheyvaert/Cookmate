@@ -139,8 +139,14 @@ export default function CookMode() {
             {recipe.title}
           </p>
         </div>
-        <div className="flex items-center gap-3 md:gap-4">
-          <ServingsCompact base={recipe.baseServings} current={targetServings} onChange={setServings} />
+        <div className="flex items-center gap-3 md:gap-5">
+          <div className="flex items-center gap-2.5">
+            <span className="eyebrow hidden md:inline">Serves</span>
+            <ServingsCompact base={recipe.baseServings} current={targetServings} onChange={setServings} />
+          </div>
+
+          <span aria-hidden className="h-5 w-px bg-cream-shadow" />
+
           <button
             type="button"
             onClick={() => setShowIngredients((v) => !v)}
@@ -151,15 +157,19 @@ export default function CookMode() {
             ].join(' ')}
           >
             <ListGlyph />
-            <span className="hidden sm:inline">All ingredients</span>
+            <span className="hidden sm:inline">{showIngredients ? 'Hide' : 'Ingredients'}</span>
           </button>
+
+          <span aria-hidden className="h-5 w-px bg-cream-shadow" />
+
           <button
             type="button"
             onClick={exit}
             aria-label="Exit cook mode"
-            className="w-8 h-8 flex items-center justify-center font-mono text-paprika border border-paprika/40 hover:bg-paprika hover:text-cream transition-colors"
+            className="inline-flex items-center gap-1.5 font-mono uppercase tracking-[0.2em] text-[0.7rem] md:text-[0.72rem] text-chestnut hover:text-paprika transition-colors"
           >
-            ×
+            <span className="hidden sm:inline">Exit</span>
+            <span aria-hidden className="text-base leading-none">×</span>
           </button>
         </div>
       </header>
@@ -233,9 +243,10 @@ export default function CookMode() {
                   type="button"
                   onClick={() => setShowIngredients(false)}
                   aria-label="Close ingredients"
-                  className="font-mono text-[0.72rem] uppercase tracking-[0.2em] text-chestnut hover:text-paprika transition-colors"
+                  className="inline-flex items-center gap-1.5 font-mono text-[0.72rem] uppercase tracking-[0.2em] text-chestnut hover:text-paprika transition-colors"
                 >
-                  Close ×
+                  <span>Close</span>
+                  <span aria-hidden className="text-base leading-none">×</span>
                 </button>
               </div>
               <ul className="px-6 md:px-8 pb-10 space-y-3">
