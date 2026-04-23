@@ -49,6 +49,12 @@ export const recipesApi = {
     })
   },
 
+  importMediaFromUrl: (id: number, url: string, caption?: string) =>
+    api<number>(`/api/Recipes/${id}/media/import`, {
+      method: 'POST',
+      json: { recipeId: id, url, caption },
+    }),
+
   removeMedia: (id: number, mediaId: number) =>
     api<void>(`/api/Recipes/${id}/media/${mediaId}`, { method: 'DELETE' }),
 }

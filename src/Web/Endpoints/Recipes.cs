@@ -3,6 +3,7 @@ using Cookmate.Application.Recipes.Commands.CreateRecipe;
 using Cookmate.Application.Recipes.Commands.DeleteRecipe;
 using Cookmate.Application.Recipes.Commands.DeleteRecipeMedia;
 using Cookmate.Application.Recipes.Commands.ImportRecipeFromUrl;
+using Cookmate.Application.Recipes.Commands.ImportRecipeMediaFromUrl;
 using Cookmate.Application.Recipes.Commands.UpdateRecipe;
 using Cookmate.Application.Recipes.Commands.UploadRecipeMedia;
 using Cookmate.Application.Recipes.Queries.GetRecipe;
@@ -28,6 +29,7 @@ public class Recipes : IEndpointGroup
 
         groupBuilder.MapPost(UploadRecipeMedia, "{id:int}/media")
             .DisableAntiforgery();
+        groupBuilder.MapPost(ImportRecipeMediaFromUrl, "{id:int}/media/import");
         groupBuilder.MapGet(GetRecipeMediaFile, "{id:int}/media/{mediaId:int}/file");
         groupBuilder.MapDelete(DeleteRecipeMedia, "{id:int}/media/{mediaId:int}");
     }
@@ -113,6 +115,17 @@ public class Recipes : IEndpointGroup
             LengthBytes = file.Length,
             Caption = caption
         });
+
+        return TypedResults.Created($"/api/Recipes/{id}/media/{mediaId}/file", mediaId);
+    }
+
+    [EndpointSummary("Import a photo from a URL")]
+    [EndpointDescription("Downloads the image at the supplied URL to local storage and attaches it to the recipe. Allowed types: image/jpeg, image/png, image/webp. Max size 50 MB.")]
+    public static async Task<Created<int>> ImportRecipeMediaFromUrl(ISender sender, int id, ImportRecipeMediaFromUrlCommand command)
+    {
+        if (id != command.RecipeId) command = command with { RecipeId = id };
+
+        var mediaId = await sender.Send(command);
 
         return TypedResults.Created($"/api/Recipes/{id}/media/{mediaId}/file", mediaId);
     }
