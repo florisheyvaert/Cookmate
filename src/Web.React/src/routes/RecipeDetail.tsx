@@ -495,7 +495,7 @@ function Method({
       {steps.length === 0 ? (
         <p className="text-chestnut italic mt-6">No steps yet.</p>
       ) : (
-        <ol className="mt-8 space-y-12">
+        <ol className="mt-6 md:mt-8 space-y-9 md:space-y-12">
           {steps.map((step, i) => {
             const stepIngs = findStepIngredients(step.instruction, ingredients)
             return (
@@ -504,9 +504,9 @@ function Method({
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.04 * i + 0.5, duration: 0.5, ease }}
-                className="group space-y-3 md:space-y-0 md:grid md:grid-cols-[5rem_1fr] md:gap-x-5 relative"
+                className="group space-y-2 md:space-y-0 md:grid md:grid-cols-[5rem_1fr] md:gap-x-5 relative"
               >
-                <span className="eyebrow text-paprika md:hidden flex items-center gap-3 before:content-[''] before:flex-1 before:max-w-[3rem] before:h-px before:bg-paprika/40 after:content-[''] after:flex-1 after:h-px after:bg-paprika/20">
+                <span className="eyebrow text-paprika md:hidden flex items-center gap-3 before:content-[''] before:flex-1 before:max-w-[2.5rem] before:h-px before:bg-paprika/40 after:content-[''] after:flex-1 after:h-px after:bg-paprika/20">
                   Step {String(i + 1).padStart(2, '0')}
                 </span>
                 <span
@@ -524,7 +524,7 @@ function Method({
                     <MiseLine ingredients={stepIngs} factor={factor} />
                   )}
                   <p
-                    className="font-display text-ink-soft text-lg md:text-xl leading-relaxed break-words"
+                    className="font-display text-ink-soft text-base md:text-xl leading-relaxed break-words"
                     style={{
                       fontVariationSettings: '"opsz" 24, "SOFT" 50, "WONK" 0',
                     }}

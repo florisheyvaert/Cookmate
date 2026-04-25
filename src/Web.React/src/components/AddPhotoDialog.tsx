@@ -21,6 +21,7 @@ export function AddPhotoDialog({ recipeId, open, onClose }: AddPhotoDialogProps)
   const [url, setUrl] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [mode, setMode] = useState<'menu' | 'url'>('menu')
+  const hasCamera = useHasCamera()
 
   const uploadMutation = useMutation({
     mutationFn: (file: File) => recipesApi.uploadMedia(recipeId, file),
@@ -135,12 +136,14 @@ export function AddPhotoDialog({ recipeId, open, onClose }: AddPhotoDialogProps)
                       disabled={isWorking}
                       onClick={() => fileRef.current?.click()}
                     />
-                    <ChoiceButton
-                      label="Take a photo"
-                      hint="Open the camera and snap"
-                      disabled={isWorking}
-                      onClick={() => cameraRef.current?.click()}
-                    />
+                    {hasCamera && (
+                      <ChoiceButton
+                        label="Take a photo"
+                        hint="Open the camera and snap"
+                        disabled={isWorking}
+                        onClick={() => cameraRef.current?.click()}
+                      />
+                    )}
                     <ChoiceButton
                       label="Download from URL"
                       hint="Paste a link to an image on the web"
@@ -234,17 +237,19 @@ export function AddPhotoDialog({ recipeId, open, onClose }: AddPhotoDialogProps)
                 e.target.value = ''
               }}
             />
-            <input
-              ref={cameraRef}
-              type="file"
-              accept="image/*"
-              capture="environment"
-              className="hidden"
-              onChange={(e) => {
-                if (e.target.files?.length) uploadFiles(e.target.files)
-                e.target.value = ''
-              }}
-            />
+            {hasCamera && (
+              <input
+                ref={cameraRef}
+                type="file"
+                accept="image/*"
+                capture="environment"
+                className="hidden"
+                onChange={(e) => {
+                  if (e.target.files?.length) uploadFiles(e.target.files)
+                  e.target.value = ''
+                }}
+              />
+            )}
           </motion.div>
         </>
       )}
@@ -281,6 +286,22 @@ function ChoiceButton({
       </p>
     </button>
   )
+}
+
+// `capture` on a file input only does something useful on devices with a
+// camera the browser can drive — phones and tablets. `pointer: coarse`
+// (touch-primary input) is a close-enough proxy and avoids UA sniffing.
+function useHasCamera(): boolean {
+  const [hasCamera, setHasCamera] = useState(false)
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.matchMedia) return
+    const mq = window.matchMedia('(pointer: coarse)')
+    const update = () => setHasCamera(mq.matches)
+    update()
+    mq.addEventListener('change', update)
+    return () => mq.removeEventListener('change', update)
+  }, [])
+  return hasCamera
 }
 
 function extractError(err: unknown): string {

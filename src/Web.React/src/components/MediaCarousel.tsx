@@ -91,7 +91,7 @@ export function MediaCarousel({ recipeId, media }: MediaCarouselProps) {
               Add photo
             </span>
             <span className="font-mono text-[0.65rem] uppercase tracking-[0.2em] text-chestnut-soft">
-              file · camera · URL
+              file · URL<span className="hidden pointer-coarse:inline"> · camera</span>
             </span>
           </button>
         </div>
