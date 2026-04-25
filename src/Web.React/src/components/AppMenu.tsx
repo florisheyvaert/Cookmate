@@ -20,7 +20,7 @@ type AppMenuProps = {
 }
 
 export function AppMenu({ open, onClose }: AppMenuProps) {
-  const { user, logout } = useAuth()
+  const { user, isAdmin, logout } = useAuth()
   const { theme, setTheme } = useTheme()
   const navigate = useNavigate()
   const location = useLocation()
@@ -163,13 +163,24 @@ export function AppMenu({ open, onClose }: AppMenuProps) {
                       {user.email}
                     </span>
                   </div>
-                  <button
-                    type="button"
-                    onClick={handleLogout}
-                    className="font-mono text-[0.72rem] uppercase tracking-[0.2em] text-chestnut hover:text-paprika transition-colors"
-                  >
-                    Sign out →
-                  </button>
+                  <div className="flex items-baseline gap-5 flex-wrap">
+                    {isAdmin && (
+                      <Link
+                        to="/users"
+                        onClick={onClose}
+                        className="font-mono text-[0.72rem] uppercase tracking-[0.2em] text-chestnut hover:text-paprika transition-colors no-underline"
+                      >
+                        Members →
+                      </Link>
+                    )}
+                    <button
+                      type="button"
+                      onClick={handleLogout}
+                      className="font-mono text-[0.72rem] uppercase tracking-[0.2em] text-chestnut hover:text-paprika transition-colors"
+                    >
+                      Sign out →
+                    </button>
+                  </div>
                 </>
               ) : (
                 <>

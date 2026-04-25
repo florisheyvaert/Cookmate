@@ -1,19 +1,22 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
 import { api, ApiError } from '@/lib/api'
+import { usersApi } from '@/api/users'
 
-type User = { email: string }
+const ADMIN_ROLE = 'Administrator'
+
+type User = { id: string; email: string; roles: string[] }
 
 type AuthContextValue = {
   user: User | null
   isLoading: boolean
+  isAdmin: boolean
   login: (email: string, password: string) => Promise<void>
   logout: () => Promise<void>
+  refresh: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null)
-
-type ManageInfoResponse = { email: string; isEmailConfirmed: boolean }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
@@ -21,8 +24,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const refresh = useCallback(async () => {
     try {
-      const info = await api<ManageInfoResponse>('/api/Users/manage/info')
-      setUser({ email: info.email })
+      const me = await usersApi.me()
+      setUser({ id: me.id, email: me.email, roles: me.roles })
     } catch (err) {
       if (err instanceof ApiError && err.status === 401) {
         setUser(null)
@@ -63,8 +66,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const value = useMemo(
-    () => ({ user, isLoading, login, logout }),
-    [user, isLoading, login, logout],
+    () => ({
+      user,
+      isLoading,
+      isAdmin: user?.roles.includes(ADMIN_ROLE) ?? false,
+      login,
+      logout,
+      refresh,
+    }),
+    [user, isLoading, login, logout, refresh],
   )
 
   return <AuthContext value={value}>{children}</AuthContext>

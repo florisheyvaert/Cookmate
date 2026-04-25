@@ -3,6 +3,7 @@ import { Route, Routes } from 'react-router'
 import { useQuery } from '@tanstack/react-query'
 import { AuthProvider } from '@/auth/AuthContext'
 import { RequireAuth } from '@/auth/RequireAuth'
+import { RequireAdmin } from '@/auth/RequireAdmin'
 import { ConfirmProvider } from '@/components/confirm/ConfirmDialog'
 import { ThemeProvider } from '@/components/ThemeProvider'
 import { setupApi } from '@/api/setup'
@@ -15,6 +16,8 @@ import RecipeEdit from '@/routes/RecipeEdit'
 import CookMode from '@/routes/CookMode'
 import Login from '@/routes/Login'
 import Setup from '@/routes/Setup'
+import Users from '@/routes/Users'
+import Redeem from '@/routes/Redeem'
 
 export default function App() {
   return (
@@ -23,9 +26,18 @@ export default function App() {
         <AuthProvider>
           <ConfirmProvider>
             <Routes>
+              <Route path="redeem" element={<Redeem />} />
               <Route element={<Layout />}>
                 <Route index element={<Home />} />
                 <Route path="login" element={<Login />} />
+                <Route
+                  path="users"
+                  element={
+                    <RequireAdmin>
+                      <Users />
+                    </RequireAdmin>
+                  }
+                />
                 <Route
                   path="recipes"
                   element={

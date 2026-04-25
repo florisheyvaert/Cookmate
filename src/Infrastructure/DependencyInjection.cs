@@ -1,4 +1,5 @@
 ﻿using Cookmate.Application.Common.Interfaces;
+using Cookmate.Domain.Constants;
 using Cookmate.Infrastructure.Data;
 using Cookmate.Infrastructure.Data.Interceptors;
 using Cookmate.Infrastructure.Identity;
@@ -43,11 +44,19 @@ public static class DependencyInjection
             .AddIdentityCookies();
 
         // Default policy accepts either scheme so RequireAuthorization() works for both.
+        // Named policies must specify schemes too — without them the framework
+        // falls back to the (unset) DefaultChallengeScheme and throws on 401.
         builder.Services.AddAuthorizationBuilder()
             .SetDefaultPolicy(new AuthorizationPolicyBuilder(
                     IdentityConstants.BearerScheme,
                     IdentityConstants.ApplicationScheme)
                 .RequireAuthenticatedUser()
+                .Build())
+            .AddPolicy(Roles.Administrator, new AuthorizationPolicyBuilder(
+                    IdentityConstants.BearerScheme,
+                    IdentityConstants.ApplicationScheme)
+                .RequireAuthenticatedUser()
+                .RequireRole(Roles.Administrator)
                 .Build());
 
         // Personal-app password rules: minimum 8 characters, no enforced complexity.

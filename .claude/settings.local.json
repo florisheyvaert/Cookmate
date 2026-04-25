@@ -12,7 +12,8 @@
       "Bash(npm install *)",
       "Bash(npm run *)",
       "Bash(dotnet sln *)",
-      "Bash(npx tsc *)"
+      "Bash(npx tsc *)",
+      "Bash(dotnet list *)"
     ]
   }
 }
