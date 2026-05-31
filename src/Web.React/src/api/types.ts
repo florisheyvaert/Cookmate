@@ -15,6 +15,22 @@ export type RecipeSummaryDto = {
   coverImageUrl: string | null
 }
 
+export type IngredientStoreLinkDto = {
+  /** Link row id — used to unlink a specific binding. */
+  id: number
+  storeCode: string
+  sku: string
+  productName: string
+  brandOrSubtitle: string | null
+  imageUrl: string | null
+  canonicalUrl: string | null
+  packSizeAmount: number
+  packSizeUnit: string
+  unitPrice: number | null
+  currency: string | null
+  defaultPackQuantity: number
+}
+
 export type RecipeIngredientDto = {
   id: number
   order: number
@@ -22,6 +38,7 @@ export type RecipeIngredientDto = {
   amount: number
   unit: string
   notes: string | null
+  storeLinks: IngredientStoreLinkDto[]
 }
 
 export type RecipeStepDto = {
@@ -53,6 +70,8 @@ export type RecipeDto = {
 }
 
 export type CreateRecipeIngredientInput = {
+  /** Existing row id when sent as part of an UpdateRecipeInput. Omitted on create. */
+  id?: number
   name: string
   amount: number
   unit: string | null

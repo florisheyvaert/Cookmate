@@ -6,6 +6,7 @@ import { ApiError } from '@/lib/api'
 import { RecipeForm } from '@/components/RecipeForm'
 import type { RecipeFormValues } from '@/components/RecipeForm'
 import { MediaCarousel } from '@/components/MediaCarousel'
+import { ShoppingSection } from '@/components/ShoppingSection'
 import { useConfirm } from '@/components/confirm/ConfirmDialog'
 
 export default function RecipeEdit() {
@@ -63,6 +64,7 @@ export default function RecipeEdit() {
     ingredients: [...query.data.ingredients]
       .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }))
       .map((i) => ({
+        id: i.id,
         name: i.name,
         amount: i.amount,
         unit: i.unit,
@@ -105,6 +107,9 @@ export default function RecipeEdit() {
           </button>
         }
       />
+      <div className="px-6 md:px-12 lg:px-20 pb-32 -mt-16">
+        <ShoppingSection recipe={query.data} servings={query.data.baseServings} />
+      </div>
     </>
   )
 }

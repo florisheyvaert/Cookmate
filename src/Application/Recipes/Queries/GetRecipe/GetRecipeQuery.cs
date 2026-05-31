@@ -1,4 +1,5 @@
 using Cookmate.Application.Common.Interfaces;
+using Cookmate.Application.Shopping.Common;
 using Cookmate.Domain.Entities;
 using Cookmate.Domain.Enums;
 
@@ -34,6 +35,16 @@ public class GetRecipeQueryHandler : IRequestHandler<GetRecipeQuery, RecipeDto>
         var servedFor = request.Servings ?? recipe.BaseServings;
         var factor = recipe.ScaleFactorFor(servedFor);
 
+        var ingredientIds = recipe.Ingredients.Select(i => i.Id).ToArray();
+        var linksByIngredient = ingredientIds.Length == 0
+            ? new Dictionary<int, List<RecipeIngredientProductLink>>()
+            : await _context.RecipeIngredientProductLinks
+                .AsNoTracking()
+                .Include(l => l.Product)
+                .Where(l => ingredientIds.Contains(l.IngredientId))
+                .GroupBy(l => l.IngredientId)
+                .ToDictionaryAsync(g => g.Key, g => g.ToList(), cancellationToken);
+
         return new RecipeDto
         {
             Id = recipe.Id,
@@ -53,7 +64,24 @@ public class GetRecipeQueryHandler : IRequestHandler<GetRecipeQuery, RecipeDto>
                     Name = i.Name,
                     Amount = i.Quantity.Scale(factor).Amount,
                     Unit = i.Quantity.Unit,
-                    Notes = i.Notes
+                    Notes = i.Notes,
+                    StoreLinks = linksByIngredient.TryGetValue(i.Id, out var links)
+                        ? links.Select(l => new IngredientStoreLinkDto
+                        {
+                            Id = l.Id,
+                            StoreCode = l.StoreCode,
+                            Sku = l.Product.Sku,
+                            ProductName = l.Product.Name,
+                            BrandOrSubtitle = l.Product.BrandOrSubtitle,
+                            ImageUrl = l.Product.ImageUrl,
+                            CanonicalUrl = l.Product.CanonicalUrl,
+                            PackSizeAmount = l.Product.PackSize.Amount,
+                            PackSizeUnit = l.Product.PackSize.Unit,
+                            UnitPrice = l.Product.UnitPrice,
+                            Currency = l.Product.Currency,
+                            DefaultPackQuantity = l.DefaultPackQuantity,
+                        }).ToList()
+                        : []
                 })
                 .ToList(),
             Steps = recipe.Steps
@@ -118,6 +146,8 @@ public record RecipeIngredientDto
     public string Unit { get; init; } = string.Empty;
 
     public string? Notes { get; init; }
+
+    public IReadOnlyList<IngredientStoreLinkDto> StoreLinks { get; init; } = [];
 }
 
 public record RecipeStepDto

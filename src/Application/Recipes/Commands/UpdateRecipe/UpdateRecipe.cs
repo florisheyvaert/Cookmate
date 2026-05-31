@@ -50,14 +50,16 @@ public class UpdateRecipeCommandHandler : IRequestHandler<UpdateRecipeCommand>
         recipe.SetSourceUrl(request.SourceUrl);
         recipe.SetTotalTimeMinutes(request.TotalTimeMinutes);
 
-        recipe.ClearIngredients();
-        foreach (var ingredient in request.Ingredients)
-        {
-            recipe.AddIngredient(
-                ingredient.Name,
-                new Quantity(ingredient.Amount, ingredient.Unit),
-                ingredient.Notes);
-        }
+        // In-place upsert so existing ingredient rows keep their Id —
+        // RecipeIngredientProductLink rows hang off those Ids and would be
+        // cascade-deleted by a Clear+Add cycle.
+        recipe.ReplaceIngredients(request.Ingredients
+            .Select(i => new IngredientUpdate(
+                i.Id,
+                i.Name,
+                new Quantity(i.Amount, i.Unit),
+                i.Notes))
+            .ToArray());
 
         recipe.ClearSteps();
         foreach (var step in request.Steps)

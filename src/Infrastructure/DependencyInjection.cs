@@ -4,6 +4,7 @@ using Cookmate.Infrastructure.Data;
 using Cookmate.Infrastructure.Data.Interceptors;
 using Cookmate.Infrastructure.Identity;
 using Cookmate.Infrastructure.Scraping;
+using Cookmate.Infrastructure.Shopping;
 using Cookmate.Infrastructure.Storage;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
@@ -97,5 +98,31 @@ public static class DependencyInjection
             client.DefaultRequestHeaders.UserAgent.ParseAdd("Cookmate/1.0");
             client.DefaultRequestHeaders.Accept.ParseAdd("image/*");
         });
+
+        // Grocery stores. AH's web product search is gated by a browser
+        // session (403 without cookies); the mobile API issues anonymous
+        // bearer tokens and returns the same data, so we go through there.
+        // The token source is singleton so the bearer is shared across
+        // requests and refreshed on its own.
+        //
+        // Headers: AH's mobile API rejects calls without `x-application` and
+        // a recognisable mobile UA (returns 500). `x-dynatrace` is a tracing
+        // tag the real app sends — we copy a stable value, which AH appears
+        // to accept indefinitely.
+        builder.Services.AddHttpClient(AlbertHeijnTokenSource.ClientName, client =>
+        {
+            client.BaseAddress = new Uri("https://api.ah.nl");
+            client.Timeout = TimeSpan.FromSeconds(15);
+            client.DefaultRequestHeaders.UserAgent.ParseAdd("Appie/8.22.3 Model/phone Android/7.0-API24");
+            client.DefaultRequestHeaders.Accept.ParseAdd("application/json");
+            client.DefaultRequestHeaders.Add("x-application", "AHWEBSHOP");
+            client.DefaultRequestHeaders.Add(
+                "x-dynatrace",
+                "MT_3_4_772337796_1_fae7f753-3422-4a18-83c1-b8e8d21caace_0_1589_109");
+        });
+        builder.Services.AddSingleton<AlbertHeijnTokenSource>();
+        builder.Services.AddTransient<AlbertHeijnStore>();
+        builder.Services.AddTransient<IGroceryStore>(sp => sp.GetRequiredService<AlbertHeijnStore>());
+        builder.Services.AddTransient<IGroceryStoreRegistry, GroceryStoreRegistry>();
     }
 }

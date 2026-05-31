@@ -9,6 +9,8 @@ export type RecipeFormValues = CreateRecipeInput
 
 type IngredientRow = {
   key: string
+  /** Set when editing — preserved across save so product links survive. */
+  id?: number
   name: string
   amount: string
   unit: string
@@ -54,6 +56,7 @@ export function RecipeForm({
     initial?.ingredients?.length
       ? initial.ingredients.map((i) => ({
           key: nextKey(),
+          id: i.id,
           name: i.name,
           amount: i.amount ? String(i.amount) : '',
           unit: i.unit ?? '',
@@ -98,6 +101,7 @@ export function RecipeForm({
       ingredients: ingredients
         .filter((i) => i.name.trim().length > 0)
         .map((i) => ({
+          id: i.id,
           name: i.name.trim(),
           amount: Number(i.amount) || 0,
           unit: i.unit.trim() || null,
@@ -132,6 +136,9 @@ export function RecipeForm({
           maxLength={200}
           placeholder="Untitled recipe"
           aria-label="Title"
+          spellCheck={false}
+          autoCorrect="off"
+          autoCapitalize="off"
           className="w-full bg-transparent border-0 border-b-2 border-transparent focus:border-paprika focus:outline-none py-2 font-display text-ink placeholder:text-chestnut-soft transition-colors"
           style={{
             fontSize: 'clamp(2.4rem, 6.5vw, 5.5rem)',
@@ -145,10 +152,11 @@ export function RecipeForm({
           value={summary}
           onChange={(e) => setSummary(e.target.value)}
           maxLength={2000}
-          rows={2}
+          rows={3}
           placeholder="A short, honest description."
           aria-label="Summary"
-          className="w-full bg-transparent border-0 focus:outline-none py-2 mt-2 max-w-3xl font-display text-ink-soft placeholder:text-chestnut-soft transition-colors resize-none"
+          spellCheck={false}
+          className="w-full bg-transparent border-0 focus:outline-none py-2 mt-2 max-w-3xl font-display text-ink-soft placeholder:text-chestnut-soft transition-colors resize-none [field-sizing:content]"
           style={{
             fontSize: '1.25rem',
             lineHeight: 1.5,
@@ -164,18 +172,18 @@ export function RecipeForm({
           <ServingsField value={baseServings} onChange={setBaseServings} />
         </div>
 
-        <label className="col-span-6 md:col-span-3 block">
+        <label className="col-span-6 md:col-span-3 block group">
           <span className="eyebrow block mb-1.5">Total time · min</span>
           <input
             value={totalTime}
             onChange={(e) => setTotalTime(e.target.value.replace(/[^\d]/g, ''))}
             inputMode="numeric"
             placeholder="—"
-            className="w-full bg-transparent border-0 border-b border-chestnut/30 focus:border-paprika focus:outline-none py-1 num text-paprika text-3xl placeholder:text-chestnut-soft transition-colors"
+            className="w-full bg-transparent border-0 border-b border-transparent group-hover:border-cream-shadow focus:border-paprika focus:outline-none py-1 num text-paprika text-3xl placeholder:text-chestnut-soft transition-colors"
           />
         </label>
 
-        <label className="col-span-12 md:col-span-6 block">
+        <label className="col-span-12 md:col-span-6 block group">
           <span className="eyebrow block mb-1.5">Source URL</span>
           <input
             value={sourceUrl}
@@ -183,13 +191,14 @@ export function RecipeForm({
             type="url"
             maxLength={2048}
             placeholder="https://dagelijksekost.vrt.be/…"
-            className="w-full bg-transparent border-0 border-b border-chestnut/30 focus:border-paprika focus:outline-none py-1 font-mono text-sm text-ink placeholder:text-chestnut-soft transition-colors"
+            spellCheck={false}
+            className="w-full bg-transparent border-0 border-b border-transparent group-hover:border-cream-shadow focus:border-paprika focus:outline-none py-1 font-mono text-sm text-ink placeholder:text-chestnut-soft transition-colors"
           />
         </label>
 
         <div className="col-span-12">
           <p className="eyebrow block mb-2">Tags</p>
-          <div className="flex flex-wrap items-center gap-2 border-b border-chestnut/30 focus-within:border-paprika py-1 transition-colors">
+          <div className="flex flex-wrap items-center gap-2 border-b border-transparent hover:border-cream-shadow focus-within:border-paprika py-1 transition-colors">
             {tags.map((tag) => (
               <span
                 key={tag}
@@ -256,12 +265,18 @@ export function RecipeForm({
                     onChange={(e) => updateRow(setIngredients, i, { unit: e.target.value })}
                     placeholder="unit"
                     maxLength={50}
+                    spellCheck={false}
+                    autoCapitalize="off"
+                    autoCorrect="off"
                     className="bg-transparent border-0 focus:outline-none font-mono text-[0.7rem] uppercase tracking-[0.14em] text-chestnut placeholder:text-chestnut-soft"
                   />
                   <input
                     value={row.name}
                     onChange={(e) => updateRow(setIngredients, i, { name: e.target.value })}
                     placeholder="ingredient"
+                    spellCheck={false}
+                    autoCapitalize="off"
+                    autoCorrect="off"
                     className="bg-transparent border-0 focus:outline-none font-display text-ink text-lg placeholder:text-chestnut-soft"
                     style={{ fontVariationSettings: '"opsz" 24, "SOFT" 50, "WONK" 0' }}
                   />
@@ -279,7 +294,8 @@ export function RecipeForm({
                   placeholder=""
                   maxLength={500}
                   aria-label="Notes"
-                  className="w-full pl-[5.5rem] bg-transparent border-0 focus:outline-none -mt-1 mb-2 text-chestnut text-sm italic placeholder:text-chestnut-soft"
+                  spellCheck={false}
+                  className="w-full pl-[5.5rem] bg-transparent border-0 focus:outline-none -mt-1 text-chestnut text-sm italic placeholder:text-chestnut-soft"
                 />
               </li>
             ))}
@@ -321,7 +337,8 @@ export function RecipeForm({
                   rows={2}
                   maxLength={2000}
                   placeholder="What happens at this step…"
-                  className="bg-transparent border-0 border-b border-transparent group-hover:border-cream-shadow focus:border-paprika focus:outline-none py-2 font-display text-ink-soft text-lg md:text-xl leading-relaxed placeholder:text-chestnut-soft resize-none transition-colors"
+                  spellCheck={false}
+                  className="bg-transparent border-0 border-b border-transparent group-hover:border-cream-shadow focus:border-paprika focus:outline-none py-2 font-display text-ink-soft text-lg md:text-xl leading-relaxed placeholder:text-chestnut-soft resize-none transition-colors [field-sizing:content]"
                   style={{ fontVariationSettings: '"opsz" 24, "SOFT" 50, "WONK" 0' }}
                 />
                 <RowActions
@@ -428,16 +445,16 @@ function SectionMark({
 }
 
 function Ornament() {
+  // Plain centred glyph — the masthead/section borders are doing enough
+  // structural work; an extra horizontal rule pair is just noise.
   return (
-    <div className="flex items-center gap-6 my-12 max-w-3xl mx-auto" aria-hidden>
-      <span className="flex-1 h-px bg-cream-shadow" />
+    <div className="flex justify-center my-10" aria-hidden>
       <span
         className="text-paprika text-2xl font-display leading-none"
         style={{ fontVariationSettings: '"opsz" 144, "SOFT" 80, "WONK" 1' }}
       >
         ❦
       </span>
-      <span className="flex-1 h-px bg-cream-shadow" />
     </div>
   )
 }

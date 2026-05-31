@@ -118,6 +118,53 @@ public class Recipe : BaseAuditableEntity
 
     public void ClearIngredients() => _ingredients.Clear();
 
+    /// <summary>
+    /// Replaces the ingredient list with the supplied set, preserving entity
+    /// identity for items the caller marks with an existing <c>Id</c>. Items
+    /// not referenced are removed; new items (Id = null/0) are inserted.
+    /// Order is taken from the input list. Used by the recipe-update flow so
+    /// per-ingredient product links survive a save.
+    /// </summary>
+    public void ReplaceIngredients(IReadOnlyList<IngredientUpdate> updates)
+    {
+        ArgumentNullException.ThrowIfNull(updates);
+
+        var preserveIds = updates
+            .Where(u => u.Id is > 0)
+            .Select(u => u.Id!.Value)
+            .ToHashSet();
+
+        // Remove existing ingredients no longer present.
+        _ingredients.RemoveAll(e => e.Id > 0 && !preserveIds.Contains(e.Id));
+
+        // Match-or-create per input position.
+        var rebuilt = new List<Ingredient>(updates.Count);
+        for (var idx = 0; idx < updates.Count; idx++)
+        {
+            var u = updates[idx];
+            Ingredient? entity = u.Id is { } id and > 0
+                ? _ingredients.FirstOrDefault(e => e.Id == id)
+                : null;
+
+            if (entity is null)
+            {
+                entity = new Ingredient(u.Name, u.Quantity, idx, u.Notes);
+            }
+            else
+            {
+                entity.Rename(u.Name);
+                entity.SetQuantity(u.Quantity);
+                entity.SetNotes(u.Notes);
+                entity.SetOrder(idx);
+            }
+
+            rebuilt.Add(entity);
+        }
+
+        _ingredients.Clear();
+        foreach (var e in rebuilt) _ingredients.Add(e);
+    }
+
     public RecipeStep AddStep(string instruction)
     {
         var step = new RecipeStep(_steps.Count, instruction);

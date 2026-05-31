@@ -22,6 +22,72 @@ namespace Cookmate.Infrastructure.Data.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("Cookmate.Domain.Entities.GroceryProduct", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("BrandOrSubtitle")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("CanonicalUrl")
+                        .HasMaxLength(2048)
+                        .HasColumnType("character varying(2048)");
+
+                    b.Property<DateTimeOffset>("Created")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Currency")
+                        .HasMaxLength(8)
+                        .HasColumnType("character varying(8)");
+
+                    b.Property<string>("ImageUrl")
+                        .HasMaxLength(2048)
+                        .HasColumnType("character varying(2048)");
+
+                    b.Property<DateTimeOffset>("LastModified")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("LastModifiedBy")
+                        .HasColumnType("text");
+
+                    b.Property<DateTimeOffset?>("LastVerifiedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("Sku")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("StoreCode")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<decimal?>("UnitPrice")
+                        .HasPrecision(12, 2)
+                        .HasColumnType("numeric(12,2)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("StoreCode", "Sku")
+                        .IsUnique();
+
+                    b.ToTable("GroceryProducts", (string)null);
+                });
+
             modelBuilder.Entity("Cookmate.Domain.Entities.Ingredient", b =>
                 {
                     b.Property<int>("Id")
@@ -50,6 +116,55 @@ namespace Cookmate.Infrastructure.Data.Migrations
                     b.HasIndex("RecipeId");
 
                     b.ToTable("Ingredients", (string)null);
+                });
+
+            modelBuilder.Entity("Cookmate.Domain.Entities.MealEntry", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTimeOffset>("Created")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<DateOnly>("Date")
+                        .HasColumnType("date");
+
+                    b.Property<string>("FreeText")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<DateTimeOffset>("LastModified")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("LastModifiedBy")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<int?>("RecipeId")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("Servings")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("Slot")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Date");
+
+                    b.HasIndex("RecipeId");
+
+                    b.ToTable("MealEntries", (string)null);
                 });
 
             modelBuilder.Entity("Cookmate.Domain.Entities.Recipe", b =>
@@ -100,6 +215,57 @@ namespace Cookmate.Infrastructure.Data.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("Recipes");
+                });
+
+            modelBuilder.Entity("Cookmate.Domain.Entities.RecipeIngredientProductLink", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTimeOffset>("Created")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<decimal>("DefaultPackQuantity")
+                        .HasPrecision(12, 4)
+                        .HasColumnType("numeric(12,4)");
+
+                    b.Property<int>("GroceryProductId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("IngredientId")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset>("LastModified")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("LastModifiedBy")
+                        .HasColumnType("text");
+
+                    b.Property<string>("StoreCode")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("UserNote")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("GroceryProductId");
+
+                    b.HasIndex("IngredientId", "GroceryProductId")
+                        .IsUnique();
+
+                    b.HasIndex("IngredientId", "StoreCode");
+
+                    b.ToTable("RecipeIngredientProductLinks", (string)null);
                 });
 
             modelBuilder.Entity("Cookmate.Domain.Entities.RecipeMedia", b =>
@@ -357,6 +523,36 @@ namespace Cookmate.Infrastructure.Data.Migrations
                     b.ToTable("AspNetUserTokens", (string)null);
                 });
 
+            modelBuilder.Entity("Cookmate.Domain.Entities.GroceryProduct", b =>
+                {
+                    b.OwnsOne("Cookmate.Domain.ValueObjects.Quantity", "PackSize", b1 =>
+                        {
+                            b1.Property<int>("GroceryProductId")
+                                .HasColumnType("integer");
+
+                            b1.Property<decimal>("Amount")
+                                .HasPrecision(12, 4)
+                                .HasColumnType("numeric(12,4)")
+                                .HasColumnName("PackSizeAmount");
+
+                            b1.Property<string>("Unit")
+                                .IsRequired()
+                                .HasMaxLength(50)
+                                .HasColumnType("character varying(50)")
+                                .HasColumnName("PackSizeUnit");
+
+                            b1.HasKey("GroceryProductId");
+
+                            b1.ToTable("GroceryProducts");
+
+                            b1.WithOwner()
+                                .HasForeignKey("GroceryProductId");
+                        });
+
+                    b.Navigation("PackSize")
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("Cookmate.Domain.Entities.Ingredient", b =>
                 {
                     b.HasOne("Cookmate.Domain.Entities.Recipe", null)
@@ -391,6 +587,31 @@ namespace Cookmate.Infrastructure.Data.Migrations
 
                     b.Navigation("Quantity")
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("Cookmate.Domain.Entities.MealEntry", b =>
+                {
+                    b.HasOne("Cookmate.Domain.Entities.Recipe", null)
+                        .WithMany()
+                        .HasForeignKey("RecipeId")
+                        .OnDelete(DeleteBehavior.SetNull);
+                });
+
+            modelBuilder.Entity("Cookmate.Domain.Entities.RecipeIngredientProductLink", b =>
+                {
+                    b.HasOne("Cookmate.Domain.Entities.GroceryProduct", "Product")
+                        .WithMany()
+                        .HasForeignKey("GroceryProductId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Cookmate.Domain.Entities.Ingredient", null)
+                        .WithMany()
+                        .HasForeignKey("IngredientId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Product");
                 });
 
             modelBuilder.Entity("Cookmate.Domain.Entities.RecipeMedia", b =>

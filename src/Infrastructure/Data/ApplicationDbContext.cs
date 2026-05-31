@@ -13,6 +13,12 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>, IApplica
 
     public DbSet<Recipe> Recipes => Set<Recipe>();
 
+    public DbSet<GroceryProduct> GroceryProducts => Set<GroceryProduct>();
+
+    public DbSet<RecipeIngredientProductLink> RecipeIngredientProductLinks => Set<RecipeIngredientProductLink>();
+
+    public DbSet<MealEntry> MealEntries => Set<MealEntry>();
+
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);

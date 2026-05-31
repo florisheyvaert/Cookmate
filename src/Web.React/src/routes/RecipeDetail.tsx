@@ -431,16 +431,17 @@ function Ingredients({
             const scaled = ing.amount * factor
             const hasAmount = scaled > 0
             const display = hasAmount ? formatAmount(scaled) : ''
+            const productImage = ing.storeLinks.find((l) => l.imageUrl)?.imageUrl ?? null
             return (
             <motion.li
               key={ing.id}
               initial={{ opacity: 0, y: 6 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.05 * i + 0.4, duration: 0.4, ease }}
-              className="grid grid-cols-[4.5rem_2.5rem_1fr] items-baseline gap-x-3"
+              className="grid grid-cols-[4.5rem_2.5rem_1fr_auto] items-center gap-x-3"
             >
               <span
-                className="num text-paprika text-base text-right tabular-nums"
+                className="num text-paprika text-base text-right tabular-nums self-baseline"
                 style={{ fontFeatureSettings: '"tnum"' }}
               >
                 <AnimatePresence mode="popLayout" initial={false}>
@@ -456,10 +457,10 @@ function Ingredients({
                   </motion.span>
                 </AnimatePresence>
               </span>
-              <span className="font-mono text-[0.66rem] uppercase tracking-[0.16em] text-chestnut-soft">
+              <span className="font-mono text-[0.66rem] uppercase tracking-[0.16em] text-chestnut-soft self-baseline">
                 {hasAmount ? ing.unit || '' : ''}
               </span>
-              <span className="min-w-0 break-words">
+              <span className="min-w-0 break-words self-baseline">
                 <span
                   className="font-display text-ink leading-snug text-lg"
                   style={{ fontVariationSettings: '"opsz" 24, "SOFT" 50, "WONK" 0' }}
@@ -470,6 +471,17 @@ function Ingredients({
                   <span className="text-chestnut text-sm italic ml-2">— {ing.notes}</span>
                 )}
               </span>
+              {productImage ? (
+                <img
+                  src={productImage}
+                  alt=""
+                  loading="lazy"
+                  aria-hidden
+                  className="w-10 h-10 object-contain bg-cream-deep/50 border border-cream-shadow rounded-sm shrink-0"
+                />
+              ) : (
+                <span aria-hidden className="w-10 h-10 shrink-0" />
+              )}
             </motion.li>
             )
           })}

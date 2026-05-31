@@ -10,8 +10,9 @@ const ease = [0.22, 1, 0.36, 1] as const
 
 const chapters = [
   { to: '/recipes', label: 'Recipes', numeral: 'I' },
-  { to: '/pantry', label: 'Pantry', numeral: 'II' },
-  { to: '/shop', label: 'Shop', numeral: 'III' },
+  { to: '/meal-plan', label: 'Meal Plan', numeral: 'II' },
+  // Pantry & Shop are hidden from the menu until they work as intended.
+  // The /shop route still exists — just not surfaced here yet.
 ]
 
 type AppMenuProps = {

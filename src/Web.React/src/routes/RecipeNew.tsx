@@ -16,7 +16,10 @@ export default function RecipeNew() {
     mutationFn: (values: RecipeFormValues) => recipesApi.create(values),
     onSuccess: async (id) => {
       await qc.invalidateQueries({ queryKey: ['recipes'] })
-      navigate(`/recipes/${id}`, { replace: true })
+      // Land in edit so the user can link shopping products immediately —
+      // ingredients only have IDs (and so the shopping section only works)
+      // after the first save.
+      navigate(`/recipes/${id}/edit`, { replace: true })
     },
     onError: (err) => setError(extractError(err)),
   })

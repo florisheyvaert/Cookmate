@@ -25,6 +25,9 @@ public record CreateRecipeCommand : IRequest<int>
 
 public record CreateRecipeIngredient
 {
+    /// <summary>Existing ingredient row id when called from the update path; null on create.</summary>
+    public int? Id { get; init; }
+
     public string Name { get; init; } = string.Empty;
 
     public decimal Amount { get; init; }

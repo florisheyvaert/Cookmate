@@ -18,6 +18,8 @@ import Login from '@/routes/Login'
 import Setup from '@/routes/Setup'
 import Users from '@/routes/Users'
 import Redeem from '@/routes/Redeem'
+import Shop from '@/routes/Shop'
+import MealPlan from '@/routes/MealPlan'
 
 export default function App() {
   return (
@@ -36,6 +38,22 @@ export default function App() {
                     <RequireAdmin>
                       <Users />
                     </RequireAdmin>
+                  }
+                />
+                <Route
+                  path="shop"
+                  element={
+                    <RequireAuth>
+                      <Shop />
+                    </RequireAuth>
+                  }
+                />
+                <Route
+                  path="meal-plan"
+                  element={
+                    <RequireAuth>
+                      <MealPlan />
+                    </RequireAuth>
                   }
                 />
                 <Route
