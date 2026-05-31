@@ -8,6 +8,7 @@ import type { ShoppingDeeplinkResultDto } from '@/api/shopping'
 import type { RecipeSummaryDto } from '@/api/types'
 import { ApiError } from '@/lib/api'
 import { btnPrimary } from '@/lib/ui'
+import { PageHeader } from '@/components/PageHeader'
 
 const ease = [0.22, 1, 0.36, 1] as const
 
@@ -70,25 +71,12 @@ export default function Shop() {
   }
 
   return (
-    <div className="px-6 md:px-12 lg:px-20 pt-8 pb-16 grain min-h-[80vh]">
-      <header className="mb-10 pb-4 border-b border-cream-shadow">
-        <p className="eyebrow mb-2">Cookbook · Shop</p>
-        <h1
-          className="font-display text-ink"
-          style={{
-            fontSize: 'clamp(2.4rem, 6vw, 4.6rem)',
-            lineHeight: 0.95,
-            letterSpacing: '-0.03em',
-            fontVariationSettings: '"opsz" 144, "SOFT" 30, "WONK" 1',
-          }}
-        >
-          Pick your week.
-        </h1>
-        <p className="font-display text-ink-soft text-base md:text-lg mt-3 max-w-2xl">
-          Tick the recipes you'll cook, set the servings, and consolidate everything into a
-          single Albert Heijn list.
-        </p>
-      </header>
+    <div className="px-5 sm:px-6 md:px-12 lg:px-20 pt-14 md:pt-16 pb-16 grain min-h-[80vh]">
+      <PageHeader
+        eyebrow="Cookbook · Shop"
+        title="Pick your week."
+        subtitle="Tick the recipes you'll cook, set the servings, and consolidate everything into a single Albert Heijn list."
+      />
 
       {stores.data && stores.data.length > 1 && (
         <div className="mb-6 flex items-center gap-3 flex-wrap">

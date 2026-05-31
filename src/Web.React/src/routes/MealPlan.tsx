@@ -9,6 +9,7 @@ import {
 } from '@/api/mealPlan'
 import type { MealEntryDto } from '@/api/mealPlan'
 import { MealEntryDialog } from '@/components/MealEntryDialog'
+import { PageHeader } from '@/components/PageHeader'
 
 const ease = [0.22, 1, 0.36, 1] as const
 
@@ -116,24 +117,12 @@ export default function MealPlan() {
   const today = todayISO()
 
   return (
-    <div className="px-6 md:px-12 lg:px-20 pt-8 pb-16 grain min-h-[80vh]">
-      <header className="mb-8 pb-4 border-b border-cream-shadow">
-        <p className="eyebrow mb-2">Cookbook · Meal Plan</p>
-        <h1
-          className="font-display text-ink"
-          style={{
-            fontSize: 'clamp(2.4rem, 6vw, 4.6rem)',
-            lineHeight: 0.95,
-            letterSpacing: '-0.03em',
-            fontVariationSettings: '"opsz" 144, "SOFT" 30, "WONK" 1',
-          }}
-        >
-          What's cooking.
-        </h1>
-        <p className="font-display text-ink-soft text-base md:text-lg mt-3 max-w-2xl">
-          Pin a recipe or jot a quick note to any day — spaghetti from the freezer counts too.
-        </p>
-      </header>
+    <div className="px-5 sm:px-6 md:px-12 lg:px-20 pt-14 md:pt-16 pb-16 grain min-h-[80vh]">
+      <PageHeader
+        eyebrow="Cookbook · Meal Plan"
+        title="What's cooking."
+        subtitle="Pin a recipe or jot a quick note to any day — spaghetti from the freezer counts too."
+      />
 
       {/* Controls */}
       <div className="mb-8 flex items-center justify-between gap-4 flex-wrap">

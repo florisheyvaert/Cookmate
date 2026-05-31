@@ -5,6 +5,7 @@ import { AnimatePresence, motion } from 'motion/react'
 import { recipesApi } from '@/api/recipes'
 import { ApiError } from '@/lib/api'
 import { formatDuration } from '@/lib/format'
+import { PageHeader } from '@/components/PageHeader'
 
 const ease = [0.22, 1, 0.36, 1] as const
 const TIME_MAX = 180 // minutes — anything ≥ this is treated as "any time"
@@ -83,30 +84,17 @@ export default function Recipes() {
   }
 
   return (
-    <div className="px-5 sm:px-6 md:px-12 lg:px-20 py-14 md:py-16">
-      {/* Masthead */}
-      <header className="mb-10 md:mb-14">
-        <div className="flex items-start justify-between gap-4 flex-wrap">
-          <div>
-            <p className="eyebrow mb-3">Cookbook · Recipes</p>
-            <motion.h1
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, ease }}
-              className="text-ink"
-              style={{ fontSize: 'clamp(2.6rem, 6vw, 5rem)', lineHeight: 1, fontWeight: 800, letterSpacing: '-0.035em' }}
-            >
-              Recipes
-            </motion.h1>
-          </div>
-          <Link to="/recipes/new" className={`${btnGreen} mt-1`}>
+    <div className="px-5 sm:px-6 md:px-12 lg:px-20 pt-14 md:pt-16 pb-16">
+      <PageHeader
+        eyebrow="Cookbook · Recipes"
+        title="Recipes"
+        subtitle="Everything on the shelf, alphabetical. Pick one to scale to today's table."
+        action={
+          <Link to="/recipes/new" className={btnGreen}>
             + New recipe
           </Link>
-        </div>
-        <p className="text-ink-soft text-lg leading-relaxed mt-4 max-w-2xl">
-          Everything on the shelf, alphabetical. Pick one to scale to today's table.
-        </p>
-      </header>
+        }
+      />
 
       {/* Search + refine toggle */}
       <div className="grid grid-cols-12 gap-4 items-end mb-6">

@@ -6,6 +6,7 @@ import { usersApi, redemptionUrl } from '@/api/users'
 import type { RedemptionLink, UserSummary } from '@/api/users'
 import { ApiError } from '@/lib/api'
 import { btnPrimary } from '@/lib/ui'
+import { PageHeader } from '@/components/PageHeader'
 import { ShareLink } from '@/components/ShareLink'
 import { useConfirm } from '@/components/confirm/ConfirmDialog'
 
@@ -78,31 +79,17 @@ export default function UsersPage() {
   }
 
   return (
-    <div className="px-6 md:px-12 lg:px-20 pt-8 pb-16 grain min-h-[80vh]">
-      <header className="flex items-baseline justify-between gap-6 flex-wrap mb-10 pb-4 border-b border-cream-shadow">
-        <div>
-          <p className="eyebrow mb-2">Cookbook · Keys</p>
-          <h1
-            className="font-display text-ink"
-            style={{
-              fontSize: 'clamp(2.4rem, 6vw, 4.6rem)',
-              lineHeight: 0.95,
-              letterSpacing: '-0.03em',
-              fontVariationSettings: '"opsz" 144, "SOFT" 30, "WONK" 1',
-            }}
-          >
-            Members
-          </h1>
-        </div>
-        <button
-          type="button"
-          onClick={() => setInviteOpen(true)}
-          className={btnPrimary}
-        >
-          <span aria-hidden>+</span>
-          Invite someone
-        </button>
-      </header>
+    <div className="px-5 sm:px-6 md:px-12 lg:px-20 pt-14 md:pt-16 pb-16 grain min-h-[80vh]">
+      <PageHeader
+        eyebrow="Cookbook · Keys"
+        title="Members"
+        action={
+          <button type="button" onClick={() => setInviteOpen(true)} className={btnPrimary}>
+            <span aria-hidden>+</span>
+            Invite someone
+          </button>
+        }
+      />
 
       <AnimatePresence>
         {issuedLink && (
