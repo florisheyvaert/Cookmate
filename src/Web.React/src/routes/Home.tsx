@@ -390,7 +390,7 @@ function FromTheShelf({ recipes }: { recipes: RecipeSummaryDto[] }) {
     <section className="mb-20 md:mb-28">
       <SectionHeader title="From the garden" caption="Recently added" />
 
-      <ul className="border-y border-cream-shadow divide-y divide-cream-shadow">
+      <ul className="divide-y divide-cream-shadow">
         {recipes.map((recipe, i) => (
           <motion.li
             key={recipe.id}
@@ -398,25 +398,40 @@ function FromTheShelf({ recipes }: { recipes: RecipeSummaryDto[] }) {
             animate={{ opacity: 1 }}
             transition={{ delay: 0.28 + i * 0.05, duration: 0.4, ease }}
           >
-            <Link to={`/recipes/${recipe.id}`} className="group flex items-baseline gap-5 py-5 no-underline">
-              <span className="num text-chestnut-soft text-sm shrink-0 w-6">{String(i + 1).padStart(2, '0')}</span>
-              <h3
-                className="flex-1 min-w-0 text-ink text-lg group-hover:text-paprika transition-colors truncate"
-                style={{ fontWeight: 700, letterSpacing: '-0.01em' }}
-              >
-                {recipe.title}
-              </h3>
-              {recipe.tags.length > 0 && (
-                <span className="hidden md:block font-mono text-[0.58rem] uppercase tracking-[0.14em] text-chestnut-soft truncate max-w-[12rem]">
-                  {recipe.tags.slice(0, 3).join(' · ')}
-                </span>
-              )}
+            <Link to={`/recipes/${recipe.id}`} className="group flex items-center gap-4 py-3.5 no-underline">
+              <span className="num text-chestnut-soft text-sm shrink-0 w-5">{String(i + 1).padStart(2, '0')}</span>
+              <RecipeThumb url={recipe.coverImageUrl} />
+              <div className="flex-1 min-w-0">
+                <h3
+                  className="text-ink text-lg group-hover:text-paprika transition-colors truncate"
+                  style={{ fontWeight: 700, letterSpacing: '-0.01em' }}
+                >
+                  {recipe.title}
+                </h3>
+                {recipe.tags.length > 0 && (
+                  <p className="font-mono text-[0.58rem] uppercase tracking-[0.14em] text-chestnut-soft mt-0.5 truncate">
+                    {recipe.tags.slice(0, 3).join(' · ')}
+                  </p>
+                )}
+              </div>
               <span className="shrink-0 num text-chestnut text-sm">{recipe.baseServings}p</span>
             </Link>
           </motion.li>
         ))}
       </ul>
     </section>
+  )
+}
+
+function RecipeThumb({ url }: { url: string | null }) {
+  return (
+    <span className="w-11 h-11 shrink-0 rounded-lg overflow-hidden bg-cream-deep border border-cream-shadow grid place-items-center">
+      {url ? (
+        <img src={url} alt="" loading="lazy" className="w-full h-full object-cover" />
+      ) : (
+        <span aria-hidden className="text-base leading-none opacity-70">🍽️</span>
+      )}
+    </span>
   )
 }
 

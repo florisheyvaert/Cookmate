@@ -84,11 +84,20 @@
   body {
     margin: 0;
     line-height: 1.55;
-    /* one soft herb-green glow — kept calm to avoid a busy backdrop */
-    background:
-      radial-gradient(950px 480px at 96% -12%, rgba(47, 125, 79, 0.07), transparent 62%),
-      var(--color-cream);
     min-height: 100svh;
+    /* A layered "garden at dawn" backdrop, not a flat colour:
+       — a faint dot grid that scrolls with the page (paper texture)
+       — three soft colour blobs (green / mustard / terracotta) pinned to the
+         viewport so ambient light stays put while you scroll. */
+    background-color: var(--color-cream);
+    background-image:
+      radial-gradient(circle at 1px 1px,
+        color-mix(in srgb, var(--color-ink) 7%, transparent) 1px, transparent 1.4px),
+      radial-gradient(44rem 34rem at 92% -8%, rgba(47, 125, 79, 0.11), transparent 68%),
+      radial-gradient(38rem 30rem at 2% 8%, rgba(224, 165, 46, 0.10), transparent 68%),
+      radial-gradient(48rem 36rem at 55% 118%, rgba(196, 96, 44, 0.05), transparent 70%);
+    background-size: 22px 22px, 100% 100%, 100% 100%, 100% 100%;
+    background-attachment: scroll, fixed, fixed, fixed;
   }
 
   h1, h2, h3, h4 {
