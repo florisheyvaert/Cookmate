@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query'
 import { motion } from 'motion/react'
 import { useAuth } from '@/auth/AuthContext'
 import { recipesApi } from '@/api/recipes'
-import { mealPlanApi, MEAL_SLOT_ORDER } from '@/api/mealPlan'
+import { mealPlanApi, MEAL_SLOT_ORDER, MEAL_SLOT_ICON, MEAL_SLOT_LABELS } from '@/api/mealPlan'
 import type { MealEntryDto } from '@/api/mealPlan'
 import { formatDuration } from '@/lib/format'
 import type { RecipeSummaryDto } from '@/api/types'
@@ -215,10 +215,13 @@ function ThisWeek({
             </p>
             {tonight ? (
               <span
-                className="text-ink leading-tight block"
+                className="text-ink leading-tight flex items-baseline gap-2.5"
                 style={{ fontSize: 'clamp(1.5rem, 4vw, 2.4rem)', fontWeight: 700, letterSpacing: '-0.02em' }}
               >
-                {entryLabel(tonight)}
+                <span aria-hidden className="text-[0.8em] leading-none shrink-0" title={MEAL_SLOT_LABELS[tonight.slot]}>
+                  {MEAL_SLOT_ICON[tonight.slot]}
+                </span>
+                <span className="min-w-0 truncate">{entryLabel(tonight)}</span>
               </span>
             ) : (
               <p className="text-ink-soft text-xl italic">Nothing planned yet.</p>
@@ -269,15 +272,11 @@ function ThisWeek({
                   <span className="num text-[0.95rem] leading-none text-ink-soft">{d.getDate()}</span>
                 </div>
                 {head ? (
-                  <div className="flex items-baseline gap-1.5">
-                    <span
-                      aria-hidden
-                      className={[
-                        'mt-1.5 w-1.5 h-1.5 rounded-full shrink-0',
-                        head.recipeId != null ? 'bg-paprika' : 'border border-chestnut-soft',
-                      ].join(' ')}
-                    />
-                    <span className="text-ink text-[0.9rem] leading-tight line-clamp-2">
+                  <div className="flex items-start gap-1.5">
+                    <span aria-hidden className="text-sm leading-snug shrink-0" title={MEAL_SLOT_LABELS[head.slot]}>
+                      {MEAL_SLOT_ICON[head.slot]}
+                    </span>
+                    <span className="text-ink text-[0.9rem] leading-snug line-clamp-2">
                       {entryLabel(head)}
                       {extra > 0 && <span className="text-chestnut-soft"> +{extra}</span>}
                     </span>
