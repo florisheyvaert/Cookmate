@@ -19,7 +19,7 @@ export default function Login() {
     try {
       await login(email, password)
       const state = location.state as LocationState
-      navigate(state?.from?.pathname ?? '/recipes', { replace: true })
+      navigate(state?.from?.pathname ?? '/', { replace: true })
     } catch (err) {
       if (err instanceof ApiError && err.status === 401) {
         setError('Email or password not recognised.')

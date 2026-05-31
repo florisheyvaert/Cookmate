@@ -29,9 +29,9 @@ export default function App() {
           <ConfirmProvider>
             <Routes>
               <Route path="redeem" element={<Redeem />} />
+              <Route path="login" element={<Login />} />
               <Route element={<Layout />}>
                 <Route index element={<Home />} />
-                <Route path="login" element={<Login />} />
                 <Route
                   path="users"
                   element={

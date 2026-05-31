@@ -7,6 +7,7 @@ import { shoppingApi } from '@/api/shopping'
 import type { ShoppingDeeplinkResultDto } from '@/api/shopping'
 import type { RecipeSummaryDto } from '@/api/types'
 import { ApiError } from '@/lib/api'
+import { btnPrimary } from '@/lib/ui'
 
 const ease = [0.22, 1, 0.36, 1] as const
 
@@ -192,7 +193,7 @@ export default function Shop() {
               type="button"
               onClick={() => buildPreview.mutate()}
               disabled={buildPreview.isPending}
-              className="inline-flex items-center gap-2 px-5 py-2.5 bg-ink text-cream font-mono uppercase tracking-[0.18em] text-[0.72rem] hover:bg-paprika transition-colors disabled:opacity-60"
+              className={btnPrimary}
             >
               {buildPreview.isPending ? 'Consolidating…' : 'Preview basket'}
               <span aria-hidden>→</span>
@@ -327,7 +328,7 @@ function PreviewPanel({
           <button
             type="button"
             onClick={onSend}
-            className="inline-flex items-center gap-2 px-5 py-2.5 bg-paprika text-cream font-mono uppercase tracking-[0.18em] text-[0.72rem] hover:bg-paprika-deep transition-colors"
+            className={btnPrimary}
           >
             Send to {preview.storeDisplayName}
             <span aria-hidden>→</span>

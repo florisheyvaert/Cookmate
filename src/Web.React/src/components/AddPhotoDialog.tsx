@@ -3,6 +3,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { AnimatePresence, motion } from 'motion/react'
 import { recipesApi } from '@/api/recipes'
 import { ApiError } from '@/lib/api'
+import { btnPrimary } from '@/lib/ui'
 
 const ACCEPTED = 'image/jpeg,image/png,image/webp,video/mp4,video/webm'
 const ease = [0.22, 1, 0.36, 1] as const
@@ -192,7 +193,7 @@ export function AddPhotoDialog({ recipeId, open, onClose }: AddPhotoDialogProps)
                       <button
                         type="submit"
                         disabled={isWorking || !url.trim()}
-                        className="inline-flex items-center gap-2 px-5 py-2.5 bg-paprika text-cream font-mono uppercase tracking-[0.18em] text-[0.72rem] hover:bg-paprika-deep transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                        className={btnPrimary}
                       >
                         {importMutation.isPending ? 'Downloading…' : 'Download'}
                         <span aria-hidden>→</span>

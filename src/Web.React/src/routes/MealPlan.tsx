@@ -5,7 +5,7 @@ import {
   mealPlanApi,
   MEAL_SLOT_ORDER,
   MEAL_SLOT_LABELS,
-  MEAL_SLOT_SHORT,
+  MEAL_SLOT_ICON,
 } from '@/api/mealPlan'
 import type { MealEntryDto } from '@/api/mealPlan'
 import { MealEntryDialog } from '@/components/MealEntryDialog'
@@ -32,17 +32,12 @@ function startOfWeek(d: Date) {
   const dow = (r.getDay() + 6) % 7 // 0 = Monday
   return addDays(r, -dow)
 }
-function startOfMonth(d: Date) {
-  return new Date(d.getFullYear(), d.getMonth(), 1)
-}
-function endOfMonth(d: Date) {
-  return new Date(d.getFullYear(), d.getMonth() + 1, 0)
-}
 function todayISO() {
   return toISO(new Date())
 }
 
 const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+const WEEKDAYS_FULL = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
 
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -54,18 +49,16 @@ export default function MealPlan() {
 
   const range = useMemo(() => {
     if (view === 'week') {
-      const start = startOfWeek(anchor)
+      // Rolling 7-day window starting at the anchor day (today by default).
+      const start = new Date(anchor.getFullYear(), anchor.getMonth(), anchor.getDate())
       const days = Array.from({ length: 7 }, (_, i) => addDays(start, i))
       return { from: toISO(days[0]), to: toISO(days[6]), days }
     }
-    // Month grid: full weeks covering the month, Monday-start.
-    const gridStart = startOfWeek(startOfMonth(anchor))
-    const monthEnd = endOfMonth(anchor)
-    const lastCellDow = (monthEnd.getDay() + 6) % 7
-    const gridEnd = addDays(monthEnd, 6 - lastCellDow)
-    const count = Math.round((+gridEnd - +gridStart) / 86_400_000) + 1
-    const days = Array.from({ length: count }, (_, i) => addDays(gridStart, i))
-    return { from: toISO(days[0]), to: toISO(days[days.length - 1]), days }
+    // Rolling 4-week window, week-aligned (Monday start) — advances one week at
+    // a time, so you slide weeks 1–4 → 2–5 → … instead of jumping a whole month.
+    const gridStart = startOfWeek(anchor)
+    const days = Array.from({ length: 28 }, (_, i) => addDays(gridStart, i))
+    return { from: toISO(days[0]), to: toISO(days[27]), days }
   }, [view, anchor])
 
   const entries = useQuery({
@@ -90,7 +83,8 @@ export default function MealPlan() {
   }, [entries.data])
 
   function step(direction: number) {
-    setAnchor((a) => addDays(a, direction * (view === 'week' ? 7 : 30)))
+    // Week view slides one day at a time; month view jumps a full week.
+    setAnchor((a) => addDays(a, direction * (view === 'week' ? 1 : 7)))
   }
   function goToday() {
     setAnchor(new Date())
@@ -98,7 +92,7 @@ export default function MealPlan() {
 
   const periodLabel = useMemo(() => {
     if (view === 'week') {
-      const start = startOfWeek(anchor)
+      const start = new Date(anchor.getFullYear(), anchor.getMonth(), anchor.getDate())
       const end = addDays(start, 6)
       const sameMonth = start.getMonth() === end.getMonth()
       const fmtDay = new Intl.DateTimeFormat(undefined, { day: 'numeric' })
@@ -111,14 +105,15 @@ export default function MealPlan() {
         ? `${fmtDay.format(start)}–${fmtDay.format(end)} ${fmtMonthYear.format(end)}`
         : `${fmtDay.format(start)} ${fmtMonth.format(start)} – ${fmtDay.format(end)} ${fmtMonthYear.format(end)}`
     }
-    return new Intl.DateTimeFormat(undefined, {
-      month: 'long',
-      year: 'numeric',
-    }).format(anchor)
+    const mStart = startOfWeek(anchor)
+    const mEnd = addDays(mStart, 27)
+    const fmtDay = new Intl.DateTimeFormat(undefined, { day: 'numeric' })
+    const fmtMonth = new Intl.DateTimeFormat(undefined, { month: 'short' })
+    const fmtMonthYear = new Intl.DateTimeFormat(undefined, { month: 'short', year: 'numeric' })
+    return `${fmtDay.format(mStart)} ${fmtMonth.format(mStart)} – ${fmtDay.format(mEnd)} ${fmtMonthYear.format(mEnd)}`
   }, [view, anchor])
 
   const today = todayISO()
-  const anchorMonth = anchor.getMonth()
 
   return (
     <div className="px-6 md:px-12 lg:px-20 pt-8 pb-16 grain min-h-[80vh]">
@@ -186,7 +181,6 @@ export default function MealPlan() {
           days={range.days}
           byDate={byDate}
           today={today}
-          anchorMonth={anchorMonth}
           onPick={setSelectedDate}
         />
       )}
@@ -214,12 +208,14 @@ function WeekView({
   today: string
   onPick: (iso: string) => void
 }) {
+  const wd = new Intl.DateTimeFormat(undefined, { weekday: 'long' })
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-7 gap-3">
       {days.map((d, i) => {
         const iso = toISO(d)
         const list = byDate.get(iso) ?? []
         const isToday = iso === today
+        const isWeekend = d.getDay() === 0 || d.getDay() === 6
         return (
           <motion.button
             key={iso}
@@ -229,19 +225,26 @@ function WeekView({
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.03 * i, duration: 0.4, ease }}
             className={[
-              'group text-left flex flex-col min-h-[8.5rem] p-3 rounded-sm border transition-colors',
+              'group text-left flex flex-col min-h-[8.5rem] p-3 rounded-sm border transition-colors hover:border-paprika/50 hover:bg-paprika-tint',
               isToday
-                ? 'border-paprika/60 bg-paprika-tint'
-                : 'border-cream-shadow bg-cream-deep/30 hover:border-paprika/50 hover:bg-paprika-tint',
+                ? 'border-paprika/70 bg-paprika-tint ring-1 ring-inset ring-paprika/40'
+                : isWeekend
+                  ? 'border-cream-shadow bg-butter-tint'
+                  : 'border-cream-shadow bg-cream-deep/30',
             ].join(' ')}
           >
-            <div className="flex items-baseline justify-between mb-2">
-              <span className="font-mono text-[0.6rem] uppercase tracking-[0.2em] text-chestnut">
-                {WEEKDAYS[i]}
+            <div className="flex items-baseline justify-between gap-2 mb-2">
+              <span
+                className={[
+                  'font-mono text-[0.6rem] uppercase tracking-[0.12em] truncate min-w-0',
+                  isToday ? 'text-paprika' : 'text-chestnut',
+                ].join(' ')}
+              >
+                {isToday ? 'Today' : wd.format(d)}
               </span>
               <span
                 className={[
-                  'num text-lg leading-none',
+                  'num text-lg leading-none shrink-0',
                   isToday ? 'text-paprika' : 'text-ink-soft',
                 ].join(' ')}
                 style={{ fontFeatureSettings: '"tnum"' }}
@@ -272,24 +275,24 @@ function MonthView({
   days,
   byDate,
   today,
-  anchorMonth,
   onPick,
 }: {
   days: Date[]
   byDate: Map<string, MealEntryDto[]>
   today: string
-  anchorMonth: number
   onPick: (iso: string) => void
 }) {
+  const mfmt = new Intl.DateTimeFormat(undefined, { month: 'short' })
   return (
     <div>
       <div className="grid grid-cols-7 gap-px mb-1">
-        {WEEKDAYS.map((w) => (
+        {WEEKDAYS.map((w, i) => (
           <div
             key={w}
-            className="font-mono text-[0.58rem] uppercase tracking-[0.18em] text-chestnut-soft text-center py-1"
+            className="font-mono text-[0.58rem] uppercase tracking-[0.14em] text-chestnut-soft text-center py-1 truncate"
           >
-            {w}
+            <span className="hidden md:inline">{WEEKDAYS_FULL[i]}</span>
+            <span className="md:hidden">{w}</span>
           </div>
         ))}
       </div>
@@ -298,31 +301,46 @@ function MonthView({
           const iso = toISO(d)
           const list = byDate.get(iso) ?? []
           const isToday = iso === today
-          const outside = d.getMonth() !== anchorMonth
+          const isWeekend = d.getDay() === 0 || d.getDay() === 6
+          const firstOfMonth = d.getDate() === 1
           return (
             <button
               key={iso}
               type="button"
               onClick={() => onPick(iso)}
               className={[
-                'group text-left min-h-[5.5rem] md:min-h-[7rem] p-1.5 flex flex-col transition-colors',
-                outside ? 'bg-cream/40' : 'bg-cream',
-                'hover:bg-paprika-tint',
+                'group text-left min-h-[5.5rem] md:min-h-[7rem] p-1.5 flex flex-col transition-colors hover:bg-paprika-tint',
+                isToday
+                  ? 'bg-paprika-tint ring-1 ring-inset ring-paprika/50'
+                  : isWeekend
+                    ? 'bg-butter-tint'
+                    : 'bg-cream',
               ].join(' ')}
             >
-              <span
-                className={[
-                  'num text-[0.82rem] leading-none mb-1 self-end',
-                  isToday
-                    ? 'text-cream bg-paprika rounded-full w-5 h-5 flex items-center justify-center'
-                    : outside
-                      ? 'text-chestnut-soft/50'
+              <div className="flex items-center justify-between mb-1 min-h-[1.25rem]">
+                {isToday ? (
+                  <span className="font-mono text-[0.5rem] uppercase tracking-[0.1em] text-paprika leading-none">
+                    Today
+                  </span>
+                ) : firstOfMonth ? (
+                  <span className="font-mono text-[0.52rem] uppercase tracking-[0.1em] text-chestnut-soft leading-none">
+                    {mfmt.format(d)}
+                  </span>
+                ) : (
+                  <span />
+                )}
+                <span
+                  className={[
+                    'num text-[0.82rem] leading-none',
+                    isToday
+                      ? 'text-cream bg-paprika rounded-full w-5 h-5 flex items-center justify-center'
                       : 'text-ink-soft',
-                ].join(' ')}
-                style={{ fontFeatureSettings: '"tnum"' }}
-              >
-                {d.getDate()}
-              </span>
+                  ].join(' ')}
+                  style={{ fontFeatureSettings: '"tnum"' }}
+                >
+                  {d.getDate()}
+                </span>
+              </div>
               <div className="flex-1 space-y-0.5 overflow-hidden">
                 {list.slice(0, 3).map((e) => (
                   <MonthChip key={e.id} entry={e} />
@@ -350,27 +368,14 @@ function entryLabel(entry: MealEntryDto) {
 }
 
 function EntryChip({ entry }: { entry: MealEntryDto }) {
-  const isRecipe = entry.recipeId != null
   return (
-    <div>
-      <span className="block font-mono text-[0.54rem] uppercase tracking-[0.16em] text-chestnut-soft mb-0.5">
-        {MEAL_SLOT_LABELS[entry.slot]}
+    <div className="flex items-start gap-1.5" title={`${MEAL_SLOT_LABELS[entry.slot]} — ${entryLabel(entry)}`}>
+      <span aria-hidden className="text-base leading-snug shrink-0">
+        {MEAL_SLOT_ICON[entry.slot]}
       </span>
-      <div className="flex items-baseline gap-1.5">
-        <span
-          aria-hidden
-          className={[
-            'mt-1 w-1.5 h-1.5 rounded-full shrink-0',
-            isRecipe ? 'bg-paprika' : 'border border-chestnut-soft',
-          ].join(' ')}
-        />
-        <span
-          className="font-display text-ink text-[0.92rem] leading-tight line-clamp-2"
-          style={{ fontVariationSettings: '"opsz" 18, "SOFT" 50, "WONK" 0' }}
-        >
-          {entryLabel(entry)}
-        </span>
-      </div>
+      <span className="font-display text-ink text-[1rem] leading-snug line-clamp-2">
+        {entryLabel(entry)}
+      </span>
     </div>
   )
 }
@@ -380,15 +385,15 @@ function MonthChip({ entry }: { entry: MealEntryDto }) {
   return (
     <div
       className={[
-        'text-[0.62rem] leading-tight px-1 py-0.5 rounded-sm truncate',
+        'flex items-center gap-1 text-[0.72rem] leading-tight px-1 py-0.5 rounded-sm',
         isRecipe
           ? 'bg-paprika/15 text-paprika-deep'
           : 'bg-cream-deep text-ink-soft',
       ].join(' ')}
       title={`${MEAL_SLOT_LABELS[entry.slot]} — ${entryLabel(entry)}`}
     >
-      <span className="font-mono opacity-60">{MEAL_SLOT_SHORT[entry.slot]}</span>{' '}
-      {entryLabel(entry)}
+      <span aria-hidden className="text-[0.95rem] leading-none shrink-0">{MEAL_SLOT_ICON[entry.slot]}</span>
+      <span className="truncate">{entryLabel(entry)}</span>
     </div>
   )
 }

@@ -2,10 +2,10 @@
   <title>Cookmate</title>
 
   <!-- Plate ring -->
-  <circle cx="160" cy="160" r="128" fill="none" stroke="#E85A1A" stroke-width="14"/>
+  <circle cx="160" cy="160" r="128" fill="none" stroke="#2F7D4F" stroke-width="14"/>
 
   <!-- Crossed utensils, rotated 45° around the centre -->
-  <g transform="rotate(45 160 160)" fill="#E85A1A">
+  <g transform="rotate(45 160 160)" fill="#2F7D4F">
 
     <!-- Fork (left of centre) -->
     <g>

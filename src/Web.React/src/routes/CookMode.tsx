@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query'
 import { motion, AnimatePresence } from 'motion/react'
 import { recipesApi } from '@/api/recipes'
 import { ApiError } from '@/lib/api'
+import { btnPrimary, btnGhost } from '@/lib/ui'
 import { formatAmount } from '@/lib/format'
 import { findStepIngredients } from '@/lib/stepIngredients'
 import { MiseLine } from '@/components/MiseLine'
@@ -134,7 +135,7 @@ export default function CookMode() {
           <p className="eyebrow">Cook mode</p>
           <p
             className="font-display text-ink text-xl md:text-2xl truncate max-w-[40vw]"
-            style={{ fontVariationSettings: '"opsz" 96, "SOFT" 50, "WONK" 1' }}
+            style={{ fontWeight: 700, letterSpacing: '-0.01em' }}
           >
             {recipe.title}
           </p>
@@ -336,13 +337,7 @@ function NavButton({
       onClick={onClick}
       disabled={disabled}
       aria-label={label}
-      className={[
-        'inline-flex items-center gap-2 px-6 py-3 font-mono uppercase tracking-[0.18em] text-[0.78rem] transition-colors',
-        primary
-          ? 'bg-ink text-cream hover:bg-paprika'
-          : 'border border-chestnut/40 text-chestnut hover:border-paprika hover:text-paprika',
-        'disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-ink disabled:hover:text-cream',
-      ].join(' ')}
+      className={primary ? btnPrimary : btnGhost}
     >
       {children}
     </button>

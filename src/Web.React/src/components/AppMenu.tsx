@@ -8,11 +8,23 @@ import type { Theme } from '@/lib/theme'
 
 const ease = [0.22, 1, 0.36, 1] as const
 
+// Fixed light colours — the menu is a branded dark-forest overlay, identical in
+// light and dark mode (matches the login brand panel).
+const LIGHT = '#f3efe4'
+const MUTED = 'rgba(243, 239, 228, 0.6)'
+const FAINT = 'rgba(243, 239, 228, 0.18)'
+
+// Small ghost-pill used for account actions (classes so :hover works on a
+// fixed-colour overlay).
+const ghostPill =
+  'inline-flex items-center gap-1.5 font-mono text-[0.64rem] uppercase tracking-[0.16em] rounded-lg px-3.5 py-2 ' +
+  'border border-[rgba(243,239,228,0.2)] text-[rgba(243,239,228,0.72)] ' +
+  'hover:border-[#e6b23e] hover:text-[#e6b23e] transition-colors no-underline'
+
 const chapters = [
   { to: '/recipes', label: 'Recipes', numeral: 'I' },
   { to: '/meal-plan', label: 'Meal Plan', numeral: 'II' },
   // Pantry & Shop are hidden from the menu until they work as intended.
-  // The /shop route still exists — just not surfaced here yet.
 ]
 
 type AppMenuProps = {
@@ -61,26 +73,35 @@ export function AppMenu({ open, onClose }: AppMenuProps) {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          transition={{ duration: 0.25, ease }}
-          className="fixed inset-0 z-50 overflow-y-auto"
+          transition={{ duration: 0.28, ease }}
+          className="fixed inset-0 z-50 flex flex-col overflow-hidden"
           style={{
+            color: LIGHT,
             background:
-              'radial-gradient(80% 60% at 100% 0%, rgba(232,90,26,0.15), transparent 60%),' +
-              'radial-gradient(70% 60% at 0% 100%, rgba(123,94,63,0.12), transparent 60%),' +
-              'var(--color-cream)',
+              'radial-gradient(70% 55% at 100% 0%, rgba(47,125,79,0.5), transparent 55%),' +
+              'radial-gradient(60% 55% at 0% 100%, rgba(224,165,46,0.18), transparent 55%),' +
+              'linear-gradient(155deg, #213b2b 0%, #15231a 100%)',
           }}
           role="dialog"
           aria-modal="true"
           aria-label="Main menu"
         >
-          <header className="px-6 md:px-12 lg:px-20 pt-8 pb-6 flex items-baseline justify-between">
-            <Link
-              to="/"
-              onClick={onClose}
-              className="flex items-baseline gap-3 text-paprika no-underline"
+          {/* decorative sprig, clipped so it never adds scroll */}
+          <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
+            <span
+              className="absolute -right-12 -bottom-24 select-none leading-none"
+              style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(18rem, 38vw, 36rem)', fontWeight: 800, color: 'rgba(243,239,228,0.04)' }}
             >
-              <Logo size={28} className="translate-y-1" />
-              <span className="font-display text-[1.6rem] tracking-tight text-ink leading-none">
+              ❧
+            </span>
+          </div>
+
+          {/* Header — matches the Layout header geometry exactly so the logo
+              doesn't move on open, it just recolours. */}
+          <header className="relative px-5 sm:px-6 md:px-12 lg:px-20 py-4 flex items-center justify-between gap-4 shrink-0">
+            <Link to="/" onClick={onClose} className="flex items-center gap-2.5 no-underline" style={{ color: LIGHT }}>
+              <Logo size={26} />
+              <span className="font-display leading-none" style={{ fontWeight: 800, fontSize: '1.4rem', letterSpacing: '-0.02em' }}>
                 Cookmate
               </span>
             </Link>
@@ -89,111 +110,95 @@ export function AppMenu({ open, onClose }: AppMenuProps) {
               type="button"
               onClick={onClose}
               aria-label="Close menu"
-              className="font-mono text-[0.78rem] uppercase tracking-[0.22em] text-chestnut hover:text-paprika transition-colors flex items-baseline gap-2"
+              className="font-mono text-[0.72rem] uppercase tracking-[0.2em] flex items-center gap-3 text-[rgba(243,239,228,0.62)] hover:text-[#e6b23e] transition-colors"
             >
-              Close
-              <span aria-hidden className="text-paprika text-base">×</span>
+              <span>Close</span>
+              <span aria-hidden className="text-base leading-none">×</span>
             </button>
           </header>
 
-          <nav className="px-6 md:px-12 lg:px-20 mt-8 md:mt-16">
-            <p className="eyebrow mb-8">Inside this issue</p>
-            <ul className="space-y-3 md:space-y-5">
-              {chapters.map((c, i) => (
-                <motion.li
-                  key={c.to}
-                  initial={{ opacity: 0, y: 16 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.08 + i * 0.07, duration: 0.55, ease }}
-                >
-                  <NavLink
-                    to={c.to}
-                    onClick={onClose}
-                    className={({ isActive }) =>
-                      [
-                        'group flex items-baseline gap-5 md:gap-8 no-underline transition-colors',
-                        isActive ? 'text-paprika' : 'text-ink hover:text-paprika',
-                      ].join(' ')
-                    }
+          {/* Chapters */}
+          <nav className="relative px-6 md:px-12 lg:px-20 flex-1 min-h-0 flex flex-col justify-center py-6">
+            <p className="font-mono text-[0.62rem] uppercase tracking-[0.24em] mb-5 text-[#e6b23e]">Inside the kitchen</p>
+
+            <ul className="space-y-1">
+              {chapters.map((c, i) => {
+                const active = location.pathname.startsWith(c.to)
+                return (
+                  <motion.li
+                    key={c.to}
+                    initial={{ opacity: 0, y: 14 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.08 + i * 0.08, duration: 0.5, ease }}
                   >
-                    <span
-                      className="num text-chestnut text-sm md:text-base w-10 text-right"
-                      style={{ fontFeatureSettings: '"tnum"' }}
+                    <NavLink
+                      to={c.to}
+                      onClick={onClose}
+                      className="group grid grid-cols-[2rem_1fr] gap-x-4 md:gap-x-6 items-baseline no-underline py-1.5"
                     >
-                      {c.numeral}.
-                    </span>
-                    <span
-                      className="font-display"
-                      style={{
-                        fontSize: 'clamp(2.6rem, 9vw, 7rem)',
-                        lineHeight: 0.9,
-                        letterSpacing: '-0.035em',
-                        fontVariationSettings: '"opsz" 144, "SOFT" 30, "WONK" 1',
-                      }}
-                    >
-                      {c.label}
-                    </span>
-                  </NavLink>
-                </motion.li>
-              ))}
+                      <span className="num text-right text-sm pt-2" style={{ color: active ? '#e6b23e' : MUTED }}>
+                        {c.numeral}
+                      </span>
+                      <span
+                        className={[
+                          'font-display flex items-baseline gap-4 transition-colors',
+                          active ? 'text-[#e6b23e]' : 'text-[#f3efe4] group-hover:text-[#e6b23e]',
+                        ].join(' ')}
+                        style={{ fontSize: 'clamp(2.2rem, 6vw, 4.5rem)', lineHeight: 0.98, fontWeight: 800, letterSpacing: '-0.035em' }}
+                      >
+                        {c.label}
+                        <span
+                          aria-hidden
+                          className="opacity-0 -translate-x-3 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-300 text-[0.42em] text-[#e6b23e]"
+                        >
+                          →
+                        </span>
+                      </span>
+                    </NavLink>
+                  </motion.li>
+                )
+              })}
             </ul>
           </nav>
 
+          {/* Footer: theme + account */}
           <motion.footer
-            initial={{ opacity: 0, y: 12 }}
+            initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.32, duration: 0.55, ease }}
-            className="absolute inset-x-0 bottom-0 px-6 md:px-12 lg:px-20 pb-10 pt-6 border-t border-cream-shadow space-y-5"
+            transition={{ delay: 0.28, duration: 0.5, ease }}
+            className="relative px-6 md:px-12 lg:px-20 pb-8 pt-5 shrink-0 flex flex-col sm:flex-row sm:items-end justify-between gap-5"
+            style={{ borderTop: `1px solid ${FAINT}` }}
           >
-            {/* Theme switch */}
-            <div className="flex items-center gap-4 flex-wrap">
-              <span className="eyebrow">Theme</span>
-              <ThemePill value={theme} onChange={setTheme} />
-            </div>
-
-            {/* User block */}
-            <div className="flex items-baseline justify-between gap-4 flex-wrap">
+            {/* account */}
+            <div className="min-w-0">
               {user ? (
                 <>
-                  <div className="flex items-baseline gap-3 flex-wrap min-w-0">
-                    <span className="eyebrow">Signed in as</span>
-                    <span
-                      className="font-display text-ink text-lg md:text-xl truncate max-w-[60vw]"
-                      style={{ fontVariationSettings: '"opsz" 24, "SOFT" 50, "WONK" 0' }}
-                    >
-                      {user.email}
-                    </span>
-                  </div>
-                  <div className="flex items-baseline gap-5 flex-wrap">
-                    {isAdmin && (
-                      <Link
-                        to="/users"
-                        onClick={onClose}
-                        className="font-mono text-[0.72rem] uppercase tracking-[0.2em] text-chestnut hover:text-paprika transition-colors no-underline"
-                      >
-                        Members →
-                      </Link>
-                    )}
-                    <button
-                      type="button"
-                      onClick={handleLogout}
-                      className="font-mono text-[0.72rem] uppercase tracking-[0.2em] text-chestnut hover:text-paprika transition-colors"
-                    >
-                      Sign out →
-                    </button>
-                  </div>
+                  <p className="font-mono text-[0.6rem] uppercase tracking-[0.2em] mb-1" style={{ color: MUTED }}>
+                    Signed in as
+                  </p>
+                  <p className="text-lg truncate max-w-[70vw] sm:max-w-[34vw]" style={{ color: LIGHT, fontFamily: 'var(--font-body)' }}>
+                    {user.email}
+                  </p>
                 </>
               ) : (
-                <>
-                  <span className="eyebrow">Not signed in</span>
-                  <Link
-                    to="/login"
-                    onClick={onClose}
-                    className="font-mono text-[0.72rem] uppercase tracking-[0.2em] text-paprika hover:underline no-underline"
-                  >
-                    Sign in →
-                  </Link>
-                </>
+                <Link to="/login" onClick={onClose} className={ghostPill}>
+                  Sign in →
+                </Link>
+              )}
+            </div>
+
+            {/* controls */}
+            <div className="flex items-center gap-2.5 flex-wrap">
+              <ThemePill value={theme} onChange={setTheme} />
+              {user && isAdmin && (
+                <Link to="/users" onClick={onClose} className={ghostPill}>
+                  Members
+                </Link>
+              )}
+              {user && (
+                <button type="button" onClick={handleLogout} className={ghostPill}>
+                  Sign out
+                </button>
               )}
             </div>
           </motion.footer>
@@ -204,7 +209,7 @@ export function AppMenu({ open, onClose }: AppMenuProps) {
 }
 
 const themeOptions: { value: Theme; label: string }[] = [
-  { value: 'system', label: 'System' },
+  { value: 'system', label: 'Sys' },
   { value: 'light', label: 'Light' },
   { value: 'dark', label: 'Dark' },
 ]
@@ -214,7 +219,8 @@ function ThemePill({ value, onChange }: { value: Theme; onChange: (t: Theme) => 
     <div
       role="radiogroup"
       aria-label="Theme"
-      className="inline-flex items-center gap-0.5 border border-chestnut/30 rounded-sm p-0.5 bg-cream-deep/40"
+      className="inline-flex items-center gap-0.5 rounded-lg p-0.5"
+      style={{ border: '1px solid rgba(243,239,228,0.18)', background: 'rgba(243,239,228,0.04)' }}
     >
       {themeOptions.map((o) => {
         const active = value === o.value
@@ -225,12 +231,8 @@ function ThemePill({ value, onChange }: { value: Theme; onChange: (t: Theme) => 
             role="radio"
             aria-checked={active}
             onClick={() => onChange(o.value)}
-            className={[
-              'px-2.5 py-1 font-mono uppercase tracking-[0.16em] text-[0.62rem] transition-colors rounded-sm',
-              active
-                ? 'bg-paprika text-cream'
-                : 'text-chestnut hover:text-paprika',
-            ].join(' ')}
+            className="px-2.5 py-1.5 font-mono uppercase tracking-[0.14em] text-[0.6rem] transition-colors rounded-md"
+            style={active ? { background: '#e6b23e', color: '#1f2417' } : { color: 'rgba(243,239,228,0.62)' }}
           >
             {o.label}
           </button>

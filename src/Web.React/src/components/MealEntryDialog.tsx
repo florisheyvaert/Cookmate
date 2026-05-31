@@ -7,6 +7,7 @@ import {
   MealSlots,
   MEAL_SLOT_LABELS,
   MEAL_SLOT_ORDER,
+  MEAL_SLOT_ICON,
 } from '@/api/mealPlan'
 import type { MealEntryDto, MealSlot } from '@/api/mealPlan'
 import { ApiError } from '@/lib/api'
@@ -15,7 +16,7 @@ const ease = [0.22, 1, 0.36, 1] as const
 
 type Mode = 'recipe' | 'text'
 
-type PickedRecipe = { id: number; title: string; baseServings?: number }
+type PickedRecipe = { id: number; title: string; baseServings?: number; image?: string | null }
 
 type Draft = {
   id: number | null
@@ -28,15 +29,7 @@ type Draft = {
 }
 
 function emptyDraft(): Draft {
-  return {
-    id: null,
-    slot: MealSlots.Dinner,
-    mode: 'recipe',
-    recipe: null,
-    servings: null,
-    text: '',
-    notes: '',
-  }
+  return { id: null, slot: MealSlots.Dinner, mode: 'recipe', recipe: null, servings: null, text: '', notes: '' }
 }
 
 function draftFromEntry(e: MealEntryDto): Draft {
@@ -64,7 +57,6 @@ export function MealEntryDialog({ open, date, entries, onClose }: Props) {
   const [draft, setDraft] = useState<Draft>(emptyDraft)
   const [error, setError] = useState<string | null>(null)
 
-  // Reset the form whenever the dialog opens on a (new) day.
   useEffect(() => {
     if (open) {
       setDraft(emptyDraft())
@@ -72,7 +64,6 @@ export function MealEntryDialog({ open, date, entries, onClose }: Props) {
     }
   }, [open, date])
 
-  // Scroll-lock + Escape.
   useEffect(() => {
     if (!open) return
     const original = document.body.style.overflow
@@ -133,6 +124,7 @@ export function MealEntryDialog({ open, date, entries, onClose }: Props) {
   }
 
   const dayTitle = useMemo(() => formatDay(date), [date])
+  const canSubmit = draft.mode === 'recipe' ? draft.recipe != null : draft.text.trim().length > 0
 
   return (
     <AnimatePresence>
@@ -144,88 +136,86 @@ export function MealEntryDialog({ open, date, entries, onClose }: Props) {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.18 }}
-            className="fixed inset-0 z-50 bg-ink/45 backdrop-blur-sm"
+            className="fixed inset-0 z-50 bg-ink/50 backdrop-blur-sm"
             onClick={onClose}
             aria-hidden
           />
           <motion.div
             key="card"
-            initial={{ opacity: 0, scale: 0.96, y: 8 }}
+            initial={{ opacity: 0, scale: 0.97, y: 8 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.96, y: 8 }}
+            exit={{ opacity: 0, scale: 0.97, y: 8 }}
             transition={{ duration: 0.22, ease }}
             className="fixed inset-0 z-50 flex items-center justify-center px-4 py-8 pointer-events-none"
             role="dialog"
             aria-modal="true"
             aria-label={`Meals for ${dayTitle}`}
           >
-            <div className="grain w-full max-w-md bg-cream border border-chestnut/30 shadow-[0_24px_60px_-12px_rgba(26,20,16,0.35)] pointer-events-auto rounded-sm flex flex-col max-h-[88vh]">
-              <header className="px-6 pt-6 pb-4 border-b border-cream-shadow">
-                <p className="eyebrow mb-2">Plan the day</p>
-                <h2
-                  className="font-display text-ink text-2xl"
-                  style={{
-                    fontVariationSettings: '"opsz" 96, "SOFT" 50, "WONK" 1',
-                    letterSpacing: '-0.02em',
-                  }}
+            <div className="w-full max-w-md bg-cream border border-cream-shadow shadow-[0_28px_70px_-18px_rgba(20,30,18,0.45)] pointer-events-auto rounded-2xl flex flex-col max-h-[88vh] overflow-hidden">
+              <header className="px-7 pt-7 pb-5 border-b border-cream-shadow flex items-start justify-between gap-4">
+                <div>
+                  <p className="eyebrow text-paprika mb-1.5">Plan the day</p>
+                  <h2 className="font-display text-ink text-2xl" style={{ fontWeight: 700, letterSpacing: '-0.02em' }}>
+                    {dayTitle}
+                  </h2>
+                </div>
+                <button
+                  type="button"
+                  onClick={onClose}
+                  aria-label="Close"
+                  className="shrink-0 grid place-items-center w-8 h-8 rounded-full border border-cream-shadow text-chestnut hover:border-paprika hover:text-paprika transition-colors"
                 >
-                  {dayTitle}
-                </h2>
+                  ×
+                </button>
               </header>
 
-              <div className="flex-1 overflow-y-auto px-6 py-5 space-y-6">
+              <div className="flex-1 overflow-y-auto px-7 py-7 space-y-9">
                 {/* Existing entries */}
                 {entries.length > 0 && (
-                  <ul className="divide-y divide-cream-shadow -mt-1">
-                    {entries.map((e) => (
-                      <li key={e.id} className="py-2.5 flex items-center gap-3">
-                        <span className="font-mono text-[0.56rem] uppercase tracking-[0.16em] text-chestnut w-16 shrink-0">
-                          {MEAL_SLOT_LABELS[e.slot]}
-                        </span>
-                        <span className="flex-1 min-w-0">
-                          <span
-                            className="block font-display text-ink leading-tight truncate"
-                            style={{ fontVariationSettings: '"opsz" 24, "SOFT" 50, "WONK" 0' }}
-                          >
-                            {e.recipeId != null ? e.recipeTitle : e.freeText}
-                            {e.recipeId != null && e.servings != null && (
-                              <span className="num text-chestnut-soft text-[0.8rem]">
-                                {' '}· {e.servings}p
-                              </span>
+                  <div>
+                    <p className="eyebrow mb-2.5">Planned</p>
+                    <ul className="divide-y divide-cream-shadow border-y border-cream-shadow">
+                      {entries.map((e) => (
+                        <li key={e.id} className="py-3.5 flex items-center gap-3">
+                          <span aria-hidden className="text-lg leading-none shrink-0" title={MEAL_SLOT_LABELS[e.slot]}>
+                            {MEAL_SLOT_ICON[e.slot]}
+                          </span>
+                          <span className="flex-1 min-w-0">
+                            <span className="block font-display text-ink leading-tight truncate" style={{ fontWeight: 600 }}>
+                              {e.recipeId != null ? e.recipeTitle : e.freeText}
+                              {e.recipeId != null && e.servings != null && (
+                                <span className="num text-chestnut-soft text-[0.8rem]"> · {e.servings}p</span>
+                              )}
+                            </span>
+                            {e.notes && (
+                              <span className="block font-mono text-[0.62rem] text-chestnut-soft truncate">{e.notes}</span>
                             )}
                           </span>
-                          {e.notes && (
-                            <span className="block font-mono text-[0.62rem] text-chestnut-soft truncate">
-                              {e.notes}
-                            </span>
-                          )}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => setDraft(draftFromEntry(e))}
-                          className="font-mono text-[0.6rem] uppercase tracking-[0.16em] text-chestnut hover:text-paprika transition-colors"
-                        >
-                          edit
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => remove.mutate(e.id)}
-                          aria-label="Delete entry"
-                          className="font-mono text-paprika/70 hover:text-paprika-deep transition-colors"
-                        >
-                          ×
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
+                          <button
+                            type="button"
+                            onClick={() => setDraft(draftFromEntry(e))}
+                            className="font-mono text-[0.6rem] uppercase tracking-[0.16em] text-chestnut hover:text-paprika transition-colors"
+                          >
+                            edit
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => remove.mutate(e.id)}
+                            aria-label="Delete entry"
+                            className="grid place-items-center w-6 h-6 rounded-full text-chestnut hover:bg-paprika/10 hover:text-paprika-deep transition-colors"
+                          >
+                            ×
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
                 )}
 
                 {/* Editor */}
-                <div className="space-y-4">
+                <div className="space-y-6">
                   <div className="flex items-baseline justify-between">
-                    <p className="eyebrow text-paprika">
-                      {draft.id == null ? 'Add a meal' : 'Edit meal'}
-                    </p>
+                    <p className="eyebrow text-paprika">{draft.id == null ? 'Add a meal' : 'Edit meal'}</p>
                     {draft.id != null && (
                       <button
                         type="button"
@@ -237,37 +227,20 @@ export function MealEntryDialog({ open, date, entries, onClose }: Props) {
                     )}
                   </div>
 
-                  <SlotSelector
-                    value={draft.slot}
-                    onChange={(slot) => setDraft((d) => ({ ...d, slot }))}
-                  />
+                  <SlotSelector value={draft.slot} onChange={(slot) => setDraft((d) => ({ ...d, slot }))} />
 
-                  <ModeTabs
-                    value={draft.mode}
-                    onChange={(mode) => setDraft((d) => ({ ...d, mode }))}
-                  />
+                  <ModeTabs value={draft.mode} onChange={(mode) => setDraft((d) => ({ ...d, mode }))} />
 
                   {draft.mode === 'recipe' ? (
                     <RecipeField
                       recipe={draft.recipe}
                       servings={draft.servings}
-                      onPick={(recipe) =>
-                        setDraft((d) => ({
-                          ...d,
-                          recipe,
-                          servings: recipe.baseServings ?? d.servings,
-                        }))
-                      }
-                      onClear={() =>
-                        setDraft((d) => ({ ...d, recipe: null, servings: null }))
-                      }
+                      onPick={(recipe) => setDraft((d) => ({ ...d, recipe, servings: recipe.baseServings ?? d.servings }))}
+                      onClear={() => setDraft((d) => ({ ...d, recipe: null, servings: null }))}
                       onServings={(servings) => setDraft((d) => ({ ...d, servings }))}
                     />
                   ) : (
-                    <FreeTextField
-                      value={draft.text}
-                      onChange={(text) => setDraft((d) => ({ ...d, text }))}
-                    />
+                    <FreeTextField value={draft.text} onChange={(text) => setDraft((d) => ({ ...d, text }))} />
                   )}
 
                   <input
@@ -275,36 +248,22 @@ export function MealEntryDialog({ open, date, entries, onClose }: Props) {
                     value={draft.notes}
                     onChange={(e) => setDraft((d) => ({ ...d, notes: e.target.value }))}
                     placeholder="Note (optional) — e.g. sauce from the freezer"
-                    className="w-full bg-transparent border-0 border-b border-cream-shadow focus:border-paprika focus:outline-none py-1.5 font-mono text-[0.72rem] text-ink placeholder:text-chestnut-soft transition-colors"
+                    className="w-full bg-transparent border-0 border-b border-cream-shadow focus:border-paprika focus:outline-none py-2.5 font-mono text-[0.72rem] text-ink placeholder:text-chestnut-soft transition-colors"
                   />
-
-                  {error && (
-                    <p className="font-mono text-[0.7rem] text-paprika-deep">{error}</p>
-                  )}
-
-                  <button
-                    type="button"
-                    onClick={submit}
-                    disabled={save.isPending}
-                    className="inline-flex items-center gap-2 px-5 py-2.5 bg-ink text-cream font-mono uppercase tracking-[0.18em] text-[0.72rem] hover:bg-paprika transition-colors disabled:opacity-60"
-                  >
-                    {save.isPending
-                      ? 'Saving…'
-                      : draft.id == null
-                        ? 'Add to day'
-                        : 'Save changes'}
-                    <span aria-hidden>→</span>
-                  </button>
                 </div>
               </div>
 
-              <footer className="px-6 py-3 border-t border-cream-shadow flex justify-end">
+              {/* Footer = the commit action (no more confusing "Done") */}
+              <footer className="px-7 py-5 border-t border-cream-shadow space-y-4">
+                {error && <p className="font-mono text-[0.72rem] text-paprika-deep">{error}</p>}
                 <button
                   type="button"
-                  onClick={onClose}
-                  className="font-mono text-[0.72rem] uppercase tracking-[0.2em] text-chestnut hover:text-paprika transition-colors"
+                  onClick={submit}
+                  disabled={save.isPending || !canSubmit}
+                  className="w-full inline-flex items-center justify-center gap-2 rounded-xl px-5 py-3 bg-paprika text-cream font-display font-semibold text-[0.95rem] leading-none hover:bg-paprika-deep transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  Done
+                  {save.isPending ? 'Saving…' : draft.id == null ? 'Add to day' : 'Save changes'}
+                  <span aria-hidden>→</span>
                 </button>
               </footer>
             </div>
@@ -317,15 +276,9 @@ export function MealEntryDialog({ open, date, entries, onClose }: Props) {
 
 // ── Slot selector ─────────────────────────────────────────────────────────────
 
-function SlotSelector({
-  value,
-  onChange,
-}: {
-  value: MealSlot
-  onChange: (s: MealSlot) => void
-}) {
+function SlotSelector({ value, onChange }: { value: MealSlot; onChange: (s: MealSlot) => void }) {
   return (
-    <div className="flex flex-wrap gap-1.5">
+    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
       {MEAL_SLOT_ORDER.map((slot) => {
         const active = slot === value
         return (
@@ -334,13 +287,14 @@ function SlotSelector({
             type="button"
             onClick={() => onChange(slot)}
             className={[
-              'font-mono text-[0.62rem] uppercase tracking-[0.16em] px-2.5 py-1 border rounded-sm transition-colors',
+              'flex items-center justify-center gap-1.5 font-mono text-[0.62rem] uppercase tracking-[0.12em] px-2.5 py-2.5 border rounded-lg transition-colors',
               active
                 ? 'bg-paprika text-cream border-paprika'
                 : 'text-chestnut border-cream-shadow hover:border-paprika hover:text-paprika',
             ].join(' ')}
           >
-            {MEAL_SLOT_LABELS[slot]}
+            <span aria-hidden className="text-sm leading-none">{MEAL_SLOT_ICON[slot]}</span>
+            <span className="truncate">{MEAL_SLOT_LABELS[slot]}</span>
           </button>
         )
       })}
@@ -365,10 +319,8 @@ function ModeTabs({ value, onChange }: { value: Mode; onChange: (m: Mode) => voi
             type="button"
             onClick={() => onChange(t.value)}
             className={[
-              'font-mono text-[0.66rem] uppercase tracking-[0.18em] px-3 py-2 -mb-px border-b-2 transition-colors',
-              active
-                ? 'border-paprika text-paprika'
-                : 'border-transparent text-chestnut hover:text-paprika',
+              'font-mono text-[0.66rem] uppercase tracking-[0.16em] px-4 py-2.5 -mb-px border-b-2 transition-colors',
+              active ? 'border-paprika text-paprika' : 'border-transparent text-chestnut hover:text-paprika',
             ].join(' ')}
           >
             {t.label}
@@ -411,22 +363,16 @@ function RecipeField({
 
   if (recipe) {
     return (
-      <div className="flex items-center gap-3 flex-wrap p-2.5 border border-paprika/30 bg-paprika-tint rounded-sm">
-        <span
-          className="flex-1 min-w-0 font-display text-ink truncate"
-          style={{ fontVariationSettings: '"opsz" 24, "SOFT" 50, "WONK" 0' }}
-        >
+      <div className="flex items-center gap-3 p-3 border border-paprika/30 bg-paprika-tint rounded-xl">
+        <RecipeThumb url={recipe.image ?? null} />
+        <span className="flex-1 min-w-0 font-display text-ink truncate" style={{ fontWeight: 600 }}>
           {recipe.title}
         </span>
-        <ServingsStepper
-          value={servings ?? recipe.baseServings ?? 2}
-          baseServings={recipe.baseServings}
-          onChange={onServings}
-        />
+        <ServingsStepper value={servings ?? recipe.baseServings ?? 2} baseServings={recipe.baseServings} onChange={onServings} />
         <button
           type="button"
           onClick={onClear}
-          className="font-mono text-[0.6rem] uppercase tracking-[0.16em] text-chestnut hover:text-paprika transition-colors"
+          className="font-mono text-[0.6rem] uppercase tracking-[0.16em] text-chestnut hover:text-paprika transition-colors shrink-0"
         >
           change
         </button>
@@ -436,44 +382,40 @@ function RecipeField({
 
   return (
     <div>
-      <input
-        type="text"
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-        placeholder="Search your recipes…"
-        className="w-full bg-transparent border-0 border-b-2 border-chestnut/40 focus:border-paprika focus:outline-none py-2 font-mono text-sm text-ink placeholder:text-chestnut-soft transition-colors"
-      />
-      <div className="mt-2 max-h-44 overflow-y-auto">
+      <p className="eyebrow mb-2">Your recipes</p>
+      <div className="relative">
+        <span aria-hidden className="absolute left-0 top-1/2 -translate-y-1/2 text-chestnut-soft text-sm pointer-events-none">
+          🔍
+        </span>
+        <input
+          type="text"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Search your recipes…"
+          className="w-full bg-transparent border-0 border-b-2 border-cream-shadow focus:border-paprika focus:outline-none py-2 pl-6 font-mono text-sm text-ink placeholder:text-chestnut-soft transition-colors"
+        />
+      </div>
+      <div className="mt-2 max-h-52 overflow-y-auto">
         {results.isPending ? (
-          <p className="font-mono text-[0.66rem] text-chestnut-soft py-2">Loading…</p>
+          <p className="font-mono text-[0.66rem] text-chestnut-soft py-2">Loading your recipes…</p>
         ) : results.isError ? (
-          <p className="font-mono text-[0.66rem] text-paprika-deep py-2">
-            Couldn’t load recipes.
-          </p>
+          <p className="font-mono text-[0.66rem] text-paprika-deep py-2">Couldn’t load recipes.</p>
         ) : results.data.length === 0 ? (
-          <p className="font-mono text-[0.66rem] text-chestnut-soft py-2">
-            No recipes match.
-          </p>
+          <p className="font-mono text-[0.66rem] text-chestnut-soft py-2">No recipes match.</p>
         ) : (
           <ul className="space-y-0.5">
             {results.data.slice(0, 12).map((r) => (
               <li key={r.id}>
                 <button
                   type="button"
-                  onClick={() =>
-                    onPick({ id: r.id, title: r.title, baseServings: r.baseServings })
-                  }
-                  className="w-full text-left px-2 py-1.5 hover:bg-paprika-tint rounded-sm transition-colors flex items-baseline justify-between gap-2"
+                  onClick={() => onPick({ id: r.id, title: r.title, baseServings: r.baseServings, image: r.coverImageUrl })}
+                  className="w-full text-left px-2 py-2 hover:bg-paprika-tint rounded-lg transition-colors flex items-center gap-3"
                 >
-                  <span
-                    className="font-display text-ink text-[0.95rem] truncate"
-                    style={{ fontVariationSettings: '"opsz" 20, "SOFT" 50, "WONK" 0' }}
-                  >
+                  <RecipeThumb url={r.coverImageUrl} />
+                  <span className="flex-1 min-w-0 font-display text-ink text-[0.95rem] truncate" style={{ fontWeight: 600 }}>
                     {r.title}
                   </span>
-                  <span className="num text-[0.66rem] text-chestnut-soft shrink-0">
-                    {r.baseServings}p
-                  </span>
+                  <span className="num text-[0.66rem] text-chestnut-soft shrink-0">{r.baseServings}p</span>
                 </button>
               </li>
             ))}
@@ -484,15 +426,19 @@ function RecipeField({
   )
 }
 
-function ServingsStepper({
-  value,
-  baseServings,
-  onChange,
-}: {
-  value: number
-  baseServings?: number
-  onChange: (v: number) => void
-}) {
+function RecipeThumb({ url }: { url: string | null }) {
+  return (
+    <span className="w-9 h-9 shrink-0 rounded-md overflow-hidden bg-cream-deep border border-cream-shadow grid place-items-center">
+      {url ? (
+        <img src={url} alt="" className="w-full h-full object-cover" />
+      ) : (
+        <span aria-hidden className="text-chestnut-soft text-sm leading-none">🍽️</span>
+      )}
+    </span>
+  )
+}
+
+function ServingsStepper({ value, baseServings, onChange }: { value: number; baseServings?: number; onChange: (v: number) => void }) {
   return (
     <div className="flex items-center gap-1.5">
       <button
@@ -500,21 +446,18 @@ function ServingsStepper({
         onClick={() => onChange(Math.max(1, value - 1))}
         disabled={value <= 1}
         aria-label="Fewer servings"
-        className="w-6 h-6 flex items-center justify-center font-mono text-paprika border border-paprika/40 hover:bg-paprika hover:text-cream transition-colors disabled:opacity-30"
+        className="w-6 h-6 flex items-center justify-center rounded-md font-mono text-paprika border border-paprika/40 hover:bg-paprika hover:text-cream transition-colors disabled:opacity-30"
       >
         −
       </button>
-      <span
-        className="num text-paprika text-base min-w-[1.4rem] text-center"
-        style={{ fontFeatureSettings: '"tnum"' }}
-      >
+      <span className="num text-paprika text-base min-w-[1.4rem] text-center" style={{ fontFeatureSettings: '"tnum"' }}>
         {value}
       </span>
       <button
         type="button"
         onClick={() => onChange(value + 1)}
         aria-label="More servings"
-        className="w-6 h-6 flex items-center justify-center font-mono text-paprika border border-paprika/40 hover:bg-paprika hover:text-cream transition-colors"
+        className="w-6 h-6 flex items-center justify-center rounded-md font-mono text-paprika border border-paprika/40 hover:bg-paprika hover:text-cream transition-colors"
       >
         +
       </button>
@@ -533,13 +476,7 @@ function ServingsStepper({
 
 // ── Free-text field (with autocomplete from history) ─────────────────────────
 
-function FreeTextField({
-  value,
-  onChange,
-}: {
-  value: string
-  onChange: (v: string) => void
-}) {
+function FreeTextField({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [debounced, setDebounced] = useState(value)
   const [focused, setFocused] = useState(false)
@@ -555,9 +492,7 @@ function FreeTextField({
     staleTime: 30_000,
   })
 
-  const filtered = (suggestions.data ?? []).filter(
-    (s) => s.toLowerCase() !== value.trim().toLowerCase(),
-  )
+  const filtered = (suggestions.data ?? []).filter((s) => s.toLowerCase() !== value.trim().toLowerCase())
 
   return (
     <div>
@@ -569,13 +504,11 @@ function FreeTextField({
         onFocus={() => setFocused(true)}
         onBlur={() => setTimeout(() => setFocused(false), 120)}
         placeholder="e.g. spaghetti, leftovers, takeaway…"
-        className="w-full bg-transparent border-0 border-b-2 border-chestnut/40 focus:border-paprika focus:outline-none py-2 font-mono text-sm text-ink placeholder:text-chestnut-soft transition-colors"
+        className="w-full bg-transparent border-0 border-b-2 border-cream-shadow focus:border-paprika focus:outline-none py-2 font-mono text-sm text-ink placeholder:text-chestnut-soft transition-colors"
       />
       {focused && filtered.length > 0 && (
         <div className="mt-2 flex flex-wrap gap-1.5">
-          <span className="font-mono text-[0.56rem] uppercase tracking-[0.16em] text-chestnut-soft self-center">
-            Again?
-          </span>
+          <span className="font-mono text-[0.56rem] uppercase tracking-[0.16em] text-chestnut-soft self-center">Again?</span>
           {filtered.slice(0, 8).map((s) => (
             <button
               key={s}
@@ -584,7 +517,7 @@ function FreeTextField({
                 e.preventDefault()
                 onChange(s)
               }}
-              className="font-mono text-[0.66rem] px-2 py-1 border border-cream-shadow rounded-sm text-ink-soft hover:border-paprika hover:text-paprika transition-colors"
+              className="font-mono text-[0.66rem] px-2 py-1 border border-cream-shadow rounded-lg text-ink-soft hover:border-paprika hover:text-paprika transition-colors"
             >
               {s}
             </button>
@@ -600,20 +533,12 @@ function FreeTextField({
 function formatDay(iso: string): string {
   const [y, m, d] = iso.split('-').map(Number)
   const date = new Date(y, m - 1, d)
-  return new Intl.DateTimeFormat(undefined, {
-    weekday: 'long',
-    day: 'numeric',
-    month: 'long',
-  }).format(date)
+  return new Intl.DateTimeFormat(undefined, { weekday: 'long', day: 'numeric', month: 'long' }).format(date)
 }
 
 function extractError(err: unknown): string {
   if (err instanceof ApiError) {
-    const body = err.body as {
-      errors?: Record<string, string[]>
-      detail?: string
-      title?: string
-    } | null
+    const body = err.body as { errors?: Record<string, string[]>; detail?: string; title?: string } | null
     const first = body?.errors ? Object.values(body.errors)[0]?.[0] : null
     return first ?? body?.detail ?? body?.title ?? `Request failed (HTTP ${err.status}).`
   }

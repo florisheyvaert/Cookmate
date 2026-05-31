@@ -8,6 +8,7 @@ import type {
   ShoppingDeeplinkResultDto,
 } from '@/api/shopping'
 import type { IngredientStoreLinkDto, RecipeDto, RecipeIngredientDto } from '@/api/types'
+import { btnPrimarySm } from '@/lib/ui'
 import { ApiError } from '@/lib/api'
 import { SearchProductDialog } from '@/components/SearchProductDialog'
 
@@ -424,7 +425,7 @@ function SendStoreButton({
       type="button"
       onClick={send}
       disabled={!url}
-      className="inline-flex items-center gap-2 px-4 py-2 bg-ink text-cream font-mono uppercase tracking-[0.18em] text-[0.7rem] hover:bg-paprika transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+      className={btnPrimarySm}
     >
       Send to {store.displayName}
       <span aria-hidden>→</span>

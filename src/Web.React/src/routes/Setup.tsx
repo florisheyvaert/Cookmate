@@ -3,6 +3,7 @@ import type { FormEvent } from 'react'
 import { motion } from 'motion/react'
 import { setupApi } from '@/api/setup'
 import { ApiError } from '@/lib/api'
+import { btnPrimary } from '@/lib/ui'
 import { Logo } from '@/components/Logo'
 
 const ease = [0.22, 1, 0.36, 1] as const
@@ -48,8 +49,8 @@ export default function Setup() {
       className="min-h-screen flex items-center justify-center grain px-6 py-10"
       style={{
         background:
-          'radial-gradient(80% 60% at 100% 0%, rgba(232,90,26,0.10), transparent 60%),' +
-          'radial-gradient(70% 60% at 0% 100%, rgba(123,94,63,0.10), transparent 60%),' +
+          'radial-gradient(80% 60% at 100% 0%, rgba(47,125,79,0.10), transparent 60%),' +
+          'radial-gradient(70% 60% at 0% 100%, rgba(224,165,46,0.10), transparent 60%),' +
           'var(--color-cream)',
       }}
     >
@@ -150,7 +151,7 @@ export default function Setup() {
             <button
               type="submit"
               disabled={isSubmitting}
-              className="mt-6 w-full inline-flex items-center justify-center gap-3 px-7 py-3 bg-ink text-cream font-mono uppercase tracking-[0.18em] text-[0.78rem] hover:bg-paprika transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+              className={`${btnPrimary} mt-6 w-full`}
             >
               {isSubmitting ? 'Planting the flag…' : 'Open the cookbook'}
               <span aria-hidden>→</span>

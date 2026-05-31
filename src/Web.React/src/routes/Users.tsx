@@ -5,6 +5,7 @@ import { useAuth } from '@/auth/AuthContext'
 import { usersApi, redemptionUrl } from '@/api/users'
 import type { RedemptionLink, UserSummary } from '@/api/users'
 import { ApiError } from '@/lib/api'
+import { btnPrimary } from '@/lib/ui'
 import { ShareLink } from '@/components/ShareLink'
 import { useConfirm } from '@/components/confirm/ConfirmDialog'
 
@@ -96,7 +97,7 @@ export default function UsersPage() {
         <button
           type="button"
           onClick={() => setInviteOpen(true)}
-          className="inline-flex items-center gap-2 px-5 py-2.5 bg-paprika text-cream font-mono uppercase tracking-[0.18em] text-[0.72rem] hover:bg-paprika-deep transition-colors"
+          className={btnPrimary}
         >
           <span aria-hidden>+</span>
           Invite someone
@@ -217,12 +218,7 @@ function UserRow({ user, index, isMe, busy, onReset, onToggleAdmin, onDelete }: 
     >
       <div className="min-w-0">
         <div className="flex items-baseline gap-3 flex-wrap">
-          <span
-            className="font-display text-ink text-xl truncate max-w-full"
-            style={{ fontVariationSettings: '"opsz" 24, "SOFT" 50, "WONK" 0' }}
-          >
-            {user.email}
-          </span>
+          <span className="text-ink text-xl truncate max-w-full">{user.email}</span>
           {isMe && (
             <span className="font-mono text-[0.6rem] uppercase tracking-[0.22em] text-paprika">
               · you
@@ -239,18 +235,18 @@ function UserRow({ user, index, isMe, busy, onReset, onToggleAdmin, onDelete }: 
         </div>
       </div>
 
-      <div className="flex items-center gap-4 flex-wrap md:justify-end">
+      <div className="flex items-center gap-2 flex-wrap md:justify-end">
         <RowAction
           onClick={onReset}
           disabled={busy || (!isMe && user.isAdmin && user.hasPassword)}
         >
-          {user.hasPassword ? 'Reset password' : 'Show invite link'}
+          {user.hasPassword ? '↻ Reset password' : 'Show invite link'}
         </RowAction>
         <RowAction onClick={onToggleAdmin} disabled={busy || isMe}>
-          {user.isAdmin ? 'Demote' : 'Promote'}
+          {user.isAdmin ? '↓ Demote' : '↑ Promote'}
         </RowAction>
         <RowAction onClick={onDelete} disabled={busy || isMe} destructive>
-          Remove
+          × Remove
         </RowAction>
       </div>
     </motion.li>
@@ -274,10 +270,12 @@ function RowAction({
       onClick={onClick}
       disabled={disabled}
       className={[
-        'font-mono text-[0.7rem] uppercase tracking-[0.18em] transition-colors disabled:opacity-40 disabled:cursor-not-allowed',
+        'inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 border border-cream-shadow',
+        'font-mono text-[0.64rem] uppercase tracking-[0.14em] text-chestnut transition-colors',
+        'disabled:opacity-40 disabled:cursor-not-allowed',
         destructive
-          ? 'text-paprika-deep hover:text-paprika'
-          : 'text-chestnut hover:text-paprika',
+          ? 'hover:border-[#c0492f] hover:text-[#c0492f] hover:bg-[#c0492f]/10'
+          : 'hover:border-paprika hover:text-paprika hover:bg-paprika-tint',
       ].join(' ')}
     >
       {children}
@@ -289,7 +287,7 @@ function Badge({ children, tone }: { children: React.ReactNode; tone: 'paprika' 
   return (
     <span
       className={[
-        'font-mono text-[0.6rem] uppercase tracking-[0.22em] px-2 py-0.5 border rounded-sm',
+        'font-mono text-[0.6rem] uppercase tracking-[0.18em] px-2.5 py-0.5 border rounded-full',
         tone === 'paprika'
           ? 'text-paprika border-paprika/40 bg-paprika-tint'
           : 'text-chestnut border-cream-shadow',
@@ -441,7 +439,7 @@ function InviteDialog({ open, onClose, onIssued }: InviteDialogProps) {
                 <button
                   type="submit"
                   disabled={mutation.isPending || !email.trim()}
-                  className="inline-flex items-center gap-2 px-5 py-2.5 bg-ink text-cream font-mono uppercase tracking-[0.18em] text-[0.72rem] hover:bg-paprika transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                  className={btnPrimary}
                 >
                   {mutation.isPending ? 'Issuing key…' : 'Generate link'}
                   <span aria-hidden>→</span>

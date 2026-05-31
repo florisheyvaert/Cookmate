@@ -2,6 +2,7 @@ import { useState } from 'react'
 import type { FormEvent, ReactNode } from 'react'
 import { motion } from 'motion/react'
 import type { CreateRecipeInput } from '@/api/types'
+import { btnPrimary, btnGhostSm, quietBtn } from '@/lib/ui'
 
 const ease = [0.22, 1, 0.36, 1] as const
 
@@ -144,7 +145,7 @@ export function RecipeForm({
             fontSize: 'clamp(2.4rem, 6.5vw, 5.5rem)',
             lineHeight: 0.95,
             letterSpacing: '-0.035em',
-            fontVariationSettings: '"opsz" 144, "SOFT" 30, "WONK" 1',
+            fontWeight: 800,
           }}
         />
 
@@ -304,7 +305,7 @@ export function RecipeForm({
           <button
             type="button"
             onClick={() => setIngredients((arr) => [...arr, emptyIngredient()])}
-            className="mt-3 font-mono text-[0.72rem] uppercase tracking-[0.2em] text-paprika hover:underline"
+            className={`${btnGhostSm} mt-4`}
           >
             + Add ingredient
           </button>
@@ -323,11 +324,7 @@ export function RecipeForm({
               >
                 <span
                   className="num text-paprika leading-none text-5xl md:text-6xl text-right select-none opacity-70 group-hover:opacity-100 transition-opacity"
-                  style={{
-                    fontFamily: 'var(--font-display)',
-                    fontVariationSettings: '"opsz" 144, "SOFT" 30, "WONK" 1',
-                    letterSpacing: '-0.04em',
-                  }}
+                  style={{ fontFamily: 'var(--font-display)', fontWeight: 800, letterSpacing: '-0.04em' }}
                 >
                   {String(i + 1).padStart(2, '0')}
                 </span>
@@ -355,7 +352,7 @@ export function RecipeForm({
           <button
             type="button"
             onClick={() => setSteps((arr) => [...arr, emptyStep()])}
-            className="mt-6 font-mono text-[0.72rem] uppercase tracking-[0.2em] text-paprika hover:underline"
+            className={`${btnGhostSm} mt-6`}
           >
             + Add step
           </button>
@@ -392,19 +389,11 @@ function SaveBar({
   return (
     <div className="fixed bottom-0 left-0 right-0 z-30 bg-cream/95 backdrop-blur-sm border-t border-cream-shadow">
       <div className="px-6 md:px-12 lg:px-20 py-4 flex items-center gap-6 flex-wrap">
-        <button
-          type="submit"
-          disabled={isSubmitting}
-          className="inline-flex items-center gap-3 px-6 py-3 bg-ink text-cream font-mono uppercase tracking-[0.18em] text-[0.78rem] hover:bg-paprika transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
-        >
+        <button type="submit" disabled={isSubmitting} className={btnPrimary}>
           {isSubmitting ? 'Saving…' : submitLabel}
           <span aria-hidden>→</span>
         </button>
-        <button
-          type="button"
-          onClick={onCancel}
-          className="font-mono text-[0.72rem] uppercase tracking-[0.2em] text-chestnut hover:text-paprika transition-colors"
-        >
+        <button type="button" onClick={onCancel} className={quietBtn}>
           Cancel
         </button>
         {extraAction}
@@ -423,20 +412,11 @@ function SectionMark({
   children: ReactNode
 }) {
   return (
-    <div className="flex items-baseline gap-3 border-b border-chestnut/30 pb-3">
-      <span
-        className="font-display text-paprika text-2xl leading-none"
-        style={{ fontVariationSettings: '"opsz" 96, "SOFT" 30, "WONK" 1' }}
-      >
+    <div className="flex items-baseline gap-3 border-b border-cream-shadow pb-3">
+      <span className="font-display text-paprika text-2xl leading-none" style={{ fontWeight: 800 }}>
         {numeral}.
       </span>
-      <h2
-        className="font-display text-ink text-2xl"
-        style={{
-          fontVariationSettings: '"opsz" 96, "SOFT" 50, "WONK" 1',
-          letterSpacing: '-0.015em',
-        }}
-      >
+      <h2 className="font-display text-ink text-2xl" style={{ fontWeight: 700, letterSpacing: '-0.015em' }}>
         {children}
       </h2>
       <span className="ml-auto font-mono text-[0.7rem] tracking-tight text-chestnut-soft">{count}</span>
@@ -449,11 +429,8 @@ function Ornament() {
   // structural work; an extra horizontal rule pair is just noise.
   return (
     <div className="flex justify-center my-10" aria-hidden>
-      <span
-        className="text-paprika text-2xl font-display leading-none"
-        style={{ fontVariationSettings: '"opsz" 144, "SOFT" 80, "WONK" 1' }}
-      >
-        ❦
+      <span className="text-paprika text-xl font-display leading-none" style={{ fontWeight: 800 }}>
+        ❧
       </span>
     </div>
   )

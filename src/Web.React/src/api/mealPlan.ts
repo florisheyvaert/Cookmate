@@ -26,6 +26,14 @@ export const MEAL_SLOT_SHORT: Record<MealSlot, string> = {
   4: 'S',
 }
 
+/** Meal-slot icons — instantly readable in tight cells (clearer than letters). */
+export const MEAL_SLOT_ICON: Record<MealSlot, string> = {
+  1: '🍽️', // Dinner
+  2: '🍳', // Breakfast
+  3: '🥪', // Lunch
+  4: '🍎', // Snack
+}
+
 /** Display order: dinner first (the primary slot), then chronological. */
 export const MEAL_SLOT_ORDER: MealSlot[] = [1, 2, 3, 4]
 

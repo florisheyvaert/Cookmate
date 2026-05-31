@@ -10,15 +10,16 @@ export default function Layout() {
 
   return (
     <div className="min-h-screen flex flex-col">
-      <header className="px-6 md:px-12 lg:px-20 pt-6 pb-5 flex items-baseline justify-between gap-4">
-        <NavLink
-          to="/"
-          className="flex items-baseline gap-3 text-paprika no-underline"
-        >
-          <Logo size={26} className="translate-y-1" />
-          <span className="font-display text-[1.5rem] tracking-tight text-ink leading-none">
+      <header className="sticky top-0 z-40 px-5 sm:px-6 md:px-12 lg:px-20 py-4 flex items-center justify-between gap-4 border-b border-cream-shadow bg-cream/80 backdrop-blur-md">
+        <NavLink to="/" className="flex items-center gap-2.5 text-paprika no-underline">
+          <Logo size={26} />
+          <span
+            className="font-display text-[1.4rem] text-ink leading-none"
+            style={{ fontWeight: 800, letterSpacing: '-0.02em' }}
+          >
             Cookmate
           </span>
+          <span aria-hidden className="hidden sm:inline-block w-1.5 h-1.5 rounded-full bg-paprika translate-y-[1px]" />
         </NavLink>
 
         <button
@@ -27,7 +28,7 @@ export default function Layout() {
           aria-label="Open menu"
           aria-haspopup="dialog"
           aria-expanded={menuOpen}
-          className="group flex items-center gap-3 font-mono text-[0.78rem] uppercase tracking-[0.22em] text-chestnut hover:text-paprika transition-colors"
+          className="group flex items-center gap-3 font-mono text-[0.72rem] uppercase tracking-[0.2em] text-chestnut hover:text-paprika transition-colors"
         >
           {user && (
             <span
@@ -36,8 +37,8 @@ export default function Layout() {
               title={user.email}
             />
           )}
-          <MenuGlyph />
           <span className="hidden sm:inline">Menu</span>
+          <MenuGlyph />
         </button>
       </header>
 
@@ -45,12 +46,12 @@ export default function Layout() {
         <Outlet />
       </main>
 
-      <footer className="px-6 md:px-12 lg:px-20 py-10 mt-16 border-t border-cream-shadow">
-        <div className="flex items-baseline justify-between gap-4 flex-wrap">
-          <span className="font-mono text-[0.7rem] uppercase tracking-[0.2em] text-chestnut">
+      <footer className="px-5 sm:px-6 md:px-12 lg:px-20 py-10 mt-20 border-t border-cream-shadow">
+        <div className="flex items-center justify-between gap-4 flex-wrap">
+          <span className="font-mono text-[0.66rem] uppercase tracking-[0.18em] text-chestnut">
             Cookmate &middot; Vol. 01
           </span>
-          <span className="font-mono text-[0.7rem] tracking-tight text-chestnut-soft">
+          <span className="font-mono text-[0.66rem] tracking-tight text-chestnut-soft">
             Personal cookbook · Belgium
           </span>
         </div>

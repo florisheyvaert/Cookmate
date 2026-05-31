@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'motion/react'
+import { btnPrimary } from '@/lib/ui'
 
 const ease = [0.22, 1, 0.36, 1] as const
 
@@ -68,7 +69,7 @@ export function ShareLink({ url, title, text, hint }: ShareLinkProps) {
           <button
             type="button"
             onClick={handleShare}
-            className="inline-flex items-center gap-2 px-5 py-2.5 bg-paprika text-cream font-mono uppercase tracking-[0.18em] text-[0.72rem] hover:bg-paprika-deep transition-colors"
+            className={btnPrimary}
           >
             <ShareGlyph />
             Share with…

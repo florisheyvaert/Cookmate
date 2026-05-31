@@ -16,7 +16,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url))
 const root = resolve(__dirname, '..')
 const publicDir = resolve(root, 'public')
 
-const BG = '#F5F0E8' // cream — matches --color-cream
+const BG = '#F8F5EE' // warm paper — matches --color-cream (Garden Market)
 
 const svg = await readFile(resolve(publicDir, 'cookmate.svg'))
 

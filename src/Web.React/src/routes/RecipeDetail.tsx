@@ -47,10 +47,9 @@ export default function RecipeDetail() {
 
   return (
     <article className="overflow-x-hidden">
-      <TopBar recipeId={recipe.id} />
-
       {heroImage ? (
         <FullBleedHero
+          recipeId={recipe.id}
           image={heroImage}
           title={recipe.title}
           sourceHost={sourceHost}
@@ -99,21 +98,17 @@ export default function RecipeDetail() {
 
 // ───────────────────────────────────────────────────────────────────────────────
 
-function TopBar({ recipeId }: { recipeId: number }) {
+/** Floating back/edit controls overlaid on the hero's top corners. */
+function HeroControls({ recipeId }: { recipeId: number }) {
+  const pill =
+    'inline-flex items-center gap-1.5 rounded-lg px-3 py-2 bg-cream/85 backdrop-blur-sm border border-cream-shadow font-mono text-[0.66rem] uppercase tracking-[0.16em] text-ink hover:text-paprika hover:border-paprika transition-colors no-underline shadow-[0_4px_14px_-6px_rgba(20,30,18,0.4)]'
   return (
-    <div className="px-6 md:px-12 lg:px-20 pt-4 flex items-baseline gap-3 flex-wrap">
-      <Link
-        to="/recipes"
-        className="font-mono text-[0.72rem] uppercase tracking-[0.2em] text-chestnut hover:text-paprika transition-colors no-underline"
-      >
+    <div className="absolute inset-x-0 top-0 z-20 px-4 md:px-6 lg:px-8 pt-4 flex items-center justify-between">
+      <Link to="/recipes" className={pill}>
         ← All recipes
       </Link>
-      <span className="ml-auto" />
-      <Link
-        to={`/recipes/${recipeId}/edit`}
-        className="font-mono text-[0.72rem] uppercase tracking-[0.2em] text-chestnut hover:text-paprika transition-colors no-underline"
-      >
-        Edit
+      <Link to={`/recipes/${recipeId}/edit`} className={pill}>
+        ✎ Edit
       </Link>
     </div>
   )
@@ -130,9 +125,9 @@ function CookCta({ href }: { href: string }) {
       <Link
         to={href}
         aria-label="Start cooking"
-        className="group inline-flex items-center gap-1.5 md:gap-3 px-3 md:px-7 py-2 md:py-4 bg-ink text-cream font-mono uppercase tracking-[0.18em] text-[0.62rem] md:text-[0.78rem] no-underline shadow-[0_8px_24px_-8px_rgba(26,20,16,0.45)] hover:bg-paprika transition-colors"
+        className="group inline-flex items-center gap-2 rounded-xl px-5 md:px-6 py-3 md:py-3.5 bg-ink text-cream font-display font-semibold text-[0.85rem] md:text-[0.95rem] leading-none no-underline shadow-[0_10px_28px_-10px_rgba(20,30,18,0.5)] hover:bg-paprika transition-colors"
       >
-        <span aria-hidden className="text-paprika group-hover:text-cream transition-colors">▷</span>
+        <span aria-hidden>▷</span>
         <span className="hidden md:inline">Start cooking</span>
         <span className="md:hidden">Cook</span>
         <span aria-hidden className="transition-transform group-hover:translate-x-0.5">→</span>
@@ -144,6 +139,7 @@ function CookCta({ href }: { href: string }) {
 // ───────────────────────────────────────────────────────────────────────────────
 
 type FullBleedHeroProps = {
+  recipeId: number
   image: { url: string; caption: string | null }
   title: string
   sourceHost: string | null
@@ -151,9 +147,10 @@ type FullBleedHeroProps = {
   cookHref: string
 }
 
-function FullBleedHero({ image, title, sourceHost, sourceUrl, cookHref }: FullBleedHeroProps) {
+function FullBleedHero({ recipeId, image, title, sourceHost, sourceUrl, cookHref }: FullBleedHeroProps) {
   return (
-    <header className="relative mt-6 overflow-hidden">
+    <header className="relative mt-2 overflow-hidden">
+      <HeroControls recipeId={recipeId} />
       <motion.div
         initial={{ opacity: 0, scale: 1.04 }}
         animate={{ opacity: 1, scale: 1 }}
@@ -191,7 +188,7 @@ function FullBleedHero({ image, title, sourceHost, sourceUrl, cookHref }: FullBl
                 fontSize: 'clamp(2.6rem, 7vw, 6rem)',
                 lineHeight: 0.92,
                 letterSpacing: '-0.035em',
-                fontVariationSettings: '"opsz" 144, "SOFT" 30, "WONK" 1',
+                fontWeight: 800,
               }}
             >
               {title}
@@ -215,7 +212,8 @@ function PlainHeader({
 }) {
   // Mirror the hero's footprint so the page rhythm stays the same with or without a photo.
   return (
-    <header className="relative mt-6 overflow-hidden">
+    <header className="relative mt-2 overflow-hidden">
+      <HeroControls recipeId={recipe.id} />
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
@@ -223,8 +221,8 @@ function PlainHeader({
         className="relative aspect-[16/10] md:aspect-[21/9] w-full grain"
         style={{
           background:
-            'radial-gradient(120% 80% at 18% 30%, rgba(232,90,26,0.10), transparent 55%),' +
-            'radial-gradient(80% 60% at 85% 80%, rgba(123,94,63,0.10), transparent 60%),' +
+            'radial-gradient(120% 80% at 18% 30%, rgba(47,125,79,0.10), transparent 55%),' +
+            'radial-gradient(80% 60% at 85% 80%, rgba(224,165,46,0.10), transparent 60%),' +
             'linear-gradient(180deg, var(--color-cream-deep) 0%, var(--color-cream) 100%)',
         }}
       >
@@ -233,12 +231,11 @@ function PlainHeader({
           className="absolute right-[-3vw] top-1/2 -translate-y-1/2 select-none text-paprika/15 leading-none"
           style={{
             fontFamily: 'var(--font-display)',
-            fontSize: 'clamp(14rem, 28vw, 32rem)',
-            fontVariationSettings: '"opsz" 144, "SOFT" 80, "WONK" 1',
-            letterSpacing: '-0.05em',
+            fontSize: 'clamp(12rem, 26vw, 30rem)',
+            fontWeight: 800,
           }}
         >
-          ❦
+          ❧
         </span>
 
         <div className="absolute inset-x-0 bottom-0 px-6 md:px-12 lg:px-20 pb-8 md:pb-12">
@@ -266,7 +263,7 @@ function PlainHeader({
                 fontSize: 'clamp(2.6rem, 7vw, 6rem)',
                 lineHeight: 0.92,
                 letterSpacing: '-0.035em',
-                fontVariationSettings: '"opsz" 144, "SOFT" 30, "WONK" 1',
+                fontWeight: 800,
               }}
             >
               {recipe.title}
@@ -359,7 +356,7 @@ function MetaStrip({ time, tags, servings, baseServings, onServingsChange }: Met
               <Link
                 key={t}
                 to={`/recipes?tag=${encodeURIComponent(t)}`}
-                className="font-mono text-[0.7rem] uppercase tracking-[0.18em] text-chestnut hover:text-paprika transition-colors no-underline border border-cream-shadow hover:border-paprika px-2.5 py-1 rounded-sm"
+                className="font-mono text-[0.68rem] uppercase tracking-[0.14em] text-chestnut hover:text-cream hover:bg-paprika transition-colors no-underline border border-cream-shadow hover:border-paprika px-3 py-1 rounded-full"
               >
                 {t}
               </Link>
@@ -379,11 +376,8 @@ function Summary({ children }: { children: React.ReactNode }) {
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.7, duration: 0.6 }}
-      className="dropcap font-display text-ink-soft mt-12 max-w-3xl text-xl md:text-2xl"
-      style={{
-        lineHeight: 1.5,
-        fontVariationSettings: '"opsz" 36, "SOFT" 50, "WONK" 0',
-      }}
+      className="dropcap text-ink-soft mt-12 max-w-3xl text-xl md:text-2xl"
+      style={{ lineHeight: 1.5 }}
     >
       {children}
     </motion.p>
@@ -394,11 +388,8 @@ function Ornament() {
   return (
     <div className="flex items-center gap-6 my-16 max-w-3xl mx-auto" aria-hidden>
       <span className="flex-1 h-px bg-cream-shadow" />
-      <span
-        className="text-paprika text-2xl font-display leading-none"
-        style={{ fontVariationSettings: '"opsz" 144, "SOFT" 80, "WONK" 1' }}
-      >
-        ❦
+      <span className="text-paprika text-xl font-display leading-none" style={{ fontWeight: 800 }}>
+        ❧
       </span>
       <span className="flex-1 h-px bg-cream-shadow" />
     </div>
@@ -461,12 +452,7 @@ function Ingredients({
                 {hasAmount ? ing.unit || '' : ''}
               </span>
               <span className="min-w-0 break-words self-baseline">
-                <span
-                  className="font-display text-ink leading-snug text-lg"
-                  style={{ fontVariationSettings: '"opsz" 24, "SOFT" 50, "WONK" 0' }}
-                >
-                  {ing.name}
-                </span>
+                <span className="text-ink leading-snug text-lg">{ing.name}</span>
                 {ing.notes && (
                   <span className="text-chestnut text-sm italic ml-2">— {ing.notes}</span>
                 )}
@@ -523,11 +509,7 @@ function Method({
                 </span>
                 <span
                   className="num text-paprika leading-none text-6xl text-right select-none transition-opacity group-hover:opacity-100 opacity-70 hidden md:block"
-                  style={{
-                    fontFamily: 'var(--font-display)',
-                    fontVariationSettings: '"opsz" 144, "SOFT" 30, "WONK" 1',
-                    letterSpacing: '-0.04em',
-                  }}
+                  style={{ fontFamily: 'var(--font-display)', fontWeight: 800, letterSpacing: '-0.04em' }}
                 >
                   {String(i + 1).padStart(2, '0')}
                 </span>
@@ -535,12 +517,7 @@ function Method({
                   {stepIngs.length > 0 && (
                     <MiseLine ingredients={stepIngs} factor={factor} />
                   )}
-                  <p
-                    className="font-display text-ink-soft text-base md:text-xl leading-relaxed break-words"
-                    style={{
-                      fontVariationSettings: '"opsz" 24, "SOFT" 50, "WONK" 0',
-                    }}
-                  >
+                  <p className="text-ink-soft text-base md:text-xl leading-relaxed break-words">
                     {step.instruction}
                   </p>
                 </div>
@@ -556,20 +533,11 @@ function Method({
 
 function SectionMark({ numeral, children }: { numeral: string; children: React.ReactNode }) {
   return (
-    <div className="flex items-baseline gap-3 border-b border-chestnut/30 pb-3">
-      <span
-        className="font-display text-paprika text-2xl leading-none"
-        style={{ fontVariationSettings: '"opsz" 96, "SOFT" 30, "WONK" 1' }}
-      >
+    <div className="flex items-baseline gap-3 border-b border-cream-shadow pb-3">
+      <span className="font-display text-paprika text-2xl leading-none" style={{ fontWeight: 800 }}>
         {numeral}.
       </span>
-      <h2
-        className="font-display text-ink text-2xl"
-        style={{
-          fontVariationSettings: '"opsz" 96, "SOFT" 50, "WONK" 1',
-          letterSpacing: '-0.015em',
-        }}
-      >
+      <h2 className="font-display text-ink text-2xl" style={{ fontWeight: 700, letterSpacing: '-0.015em' }}>
         {children}
       </h2>
     </div>

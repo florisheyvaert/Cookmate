@@ -4,6 +4,7 @@ import { useMutation } from '@tanstack/react-query'
 import { motion } from 'motion/react'
 import { usersApi } from '@/api/users'
 import { ApiError } from '@/lib/api'
+import { btnPrimary } from '@/lib/ui'
 import { Logo } from '@/components/Logo'
 import { useAuth } from '@/auth/AuthContext'
 
@@ -43,8 +44,8 @@ export default function Redeem() {
       className="min-h-screen flex items-center justify-center grain px-6 py-10"
       style={{
         background:
-          'radial-gradient(80% 60% at 100% 0%, rgba(232,90,26,0.10), transparent 60%),' +
-          'radial-gradient(70% 60% at 0% 100%, rgba(123,94,63,0.10), transparent 60%),' +
+          'radial-gradient(80% 60% at 100% 0%, rgba(47,125,79,0.10), transparent 60%),' +
+          'radial-gradient(70% 60% at 0% 100%, rgba(224,165,46,0.10), transparent 60%),' +
           'var(--color-cream)',
       }}
     >
@@ -166,7 +167,7 @@ export default function Redeem() {
               <button
                 type="submit"
                 disabled={mutation.isPending || password.length < 8}
-                className="mt-3 w-full inline-flex items-center justify-center gap-3 px-7 py-3 bg-ink text-cream font-mono uppercase tracking-[0.18em] text-[0.78rem] hover:bg-paprika transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                className={`${btnPrimary} mt-3 w-full`}
               >
                 {mutation.isPending ? 'Unlocking…' : 'Open the cookbook'}
                 <span aria-hidden>→</span>

@@ -4,6 +4,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { motion } from 'motion/react'
 import { recipesApi } from '@/api/recipes'
 import { ApiError } from '@/lib/api'
+import { btnPrimary } from '@/lib/ui'
 
 const ease = [0.22, 1, 0.36, 1] as const
 
@@ -84,7 +85,7 @@ export function ImportFromUrlPanel() {
           <button
             type="submit"
             disabled={mutation.isPending || !url.trim()}
-            className="inline-flex items-center gap-2 px-6 py-3 bg-paprika text-cream font-mono uppercase tracking-[0.18em] text-[0.78rem] hover:bg-paprika-deep transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+            className={btnPrimary}
           >
             {mutation.isPending ? 'Importing…' : 'Import'}
             <span aria-hidden>→</span>
