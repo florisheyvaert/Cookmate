@@ -24,6 +24,7 @@ const ghostPill =
 const chapters = [
   { to: '/recipes', label: 'Recipes', numeral: 'I' },
   { to: '/meal-plan', label: 'Meal Plan', numeral: 'II' },
+  { to: '/suggestions', label: 'Ideas', numeral: 'III' },
   // Pantry & Shop are hidden from the menu until they work as intended.
 ]
 

@@ -19,6 +19,12 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>, IApplica
 
     public DbSet<MealEntry> MealEntries => Set<MealEntry>();
 
+    public DbSet<SuggestionSource> SuggestionSources => Set<SuggestionSource>();
+
+    public DbSet<MealSuggestion> MealSuggestions => Set<MealSuggestion>();
+
+    public DbSet<SuggestionHarvestRun> SuggestionHarvestRuns => Set<SuggestionHarvestRun>();
+
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);

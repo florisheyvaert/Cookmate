@@ -16,6 +16,9 @@ public record CreateMealEntryCommand : IRequest<int>
     /// <summary>Free-text meal description (e.g. "spaghetti"); mutually exclusive with <see cref="RecipeId"/>.</summary>
     public string? FreeText { get; init; }
 
+    /// <summary>Optional harvested suggestion this free-text entry came from (carries its photo).</summary>
+    public int? SuggestionId { get; init; }
+
     public int? Servings { get; init; }
 
     public string? Notes { get; init; }
@@ -40,7 +43,7 @@ public class CreateMealEntryCommandHandler : IRequestHandler<CreateMealEntryComm
         }
         else
         {
-            entry.SetFreeText(request.FreeText!);
+            entry.SetFreeText(request.FreeText!, request.SuggestionId);
         }
 
         entry.SetNotes(request.Notes);

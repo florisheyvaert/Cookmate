@@ -31,5 +31,12 @@ public class MealEntryConfiguration : IEntityTypeConfiguration<MealEntry>
             .WithMany()
             .HasForeignKey(e => e.RecipeId)
             .OnDelete(DeleteBehavior.SetNull);
+
+        // Optional suggestion link (kept so a planned suggestion can show its photo).
+        // Deleting the suggestion just detaches the entry.
+        builder.HasOne<MealSuggestion>()
+            .WithMany()
+            .HasForeignKey(e => e.MealSuggestionId)
+            .OnDelete(DeleteBehavior.SetNull);
     }
 }

@@ -20,6 +20,9 @@ import Users from '@/routes/Users'
 import Redeem from '@/routes/Redeem'
 import Shop from '@/routes/Shop'
 import MealPlan from '@/routes/MealPlan'
+import MealSuggestions from '@/routes/MealSuggestions'
+import MealSuggestionDetail from '@/routes/MealSuggestionDetail'
+import SuggestionSources from '@/routes/SuggestionSources'
 
 export default function App() {
   return (
@@ -53,6 +56,30 @@ export default function App() {
                   element={
                     <RequireAuth>
                       <MealPlan />
+                    </RequireAuth>
+                  }
+                />
+                <Route
+                  path="suggestions"
+                  element={
+                    <RequireAuth>
+                      <MealSuggestions />
+                    </RequireAuth>
+                  }
+                />
+                <Route
+                  path="suggestions/sources"
+                  element={
+                    <RequireAdmin>
+                      <SuggestionSources />
+                    </RequireAdmin>
+                  }
+                />
+                <Route
+                  path="suggestions/:id"
+                  element={
+                    <RequireAuth>
+                      <MealSuggestionDetail />
                     </RequireAuth>
                   }
                 />
