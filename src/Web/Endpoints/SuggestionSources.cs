@@ -19,10 +19,13 @@ public class SuggestionSources : IEndpointGroup
     {
         groupBuilder.RequireAuthorization();
 
+        // List stays available to any signed-in user — the Ideas browse page uses it for
+        // the source filter. The run history (exposes harvest stack traces) and schedule
+        // are admin-only, matching the rest of the management surface.
         groupBuilder.MapGet(List);
-        groupBuilder.MapGet(ListRuns, "runs");
-        groupBuilder.MapGet(ListRunsForSource, "{id:int}/runs");
-        groupBuilder.MapGet(GetSchedule, "schedule");
+        groupBuilder.MapGet(ListRuns, "runs").RequireAuthorization(Roles.Administrator);
+        groupBuilder.MapGet(ListRunsForSource, "{id:int}/runs").RequireAuthorization(Roles.Administrator);
+        groupBuilder.MapGet(GetSchedule, "schedule").RequireAuthorization(Roles.Administrator);
         groupBuilder.MapPut(UpdateSchedule, "schedule").RequireAuthorization(Roles.Administrator);
 
         groupBuilder.MapPost(Create).RequireAuthorization(Roles.Administrator);

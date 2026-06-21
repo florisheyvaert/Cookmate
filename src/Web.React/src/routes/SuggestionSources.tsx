@@ -1,4 +1,4 @@
-import { Fragment, useState, type ReactNode } from 'react'
+import { Fragment, useMemo, useState, type ReactNode } from 'react'
 import { Link } from 'react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { AnimatePresence, motion } from 'motion/react'
@@ -374,11 +374,16 @@ function TimePicker({ value, onChange }: { value: string; onChange: (v: string) 
   const hour = hh ?? '00'
   const minute = mm ?? '00'
 
-  const hourOptions: ListboxOption[] = Array.from({ length: 24 }, (_, i) => ({ value: pad2(i), label: pad2(i) }))
+  const hourOptions: ListboxOption[] = useMemo(
+    () => Array.from({ length: 24 }, (_, i) => ({ value: pad2(i), label: pad2(i) })),
+    [],
+  )
 
-  const minuteSet = new Set<number>([0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55])
-  minuteSet.add(Number(minute))
-  const minuteOptions: ListboxOption[] = [...minuteSet].sort((a, b) => a - b).map((n) => ({ value: pad2(n), label: pad2(n) }))
+  const minuteOptions: ListboxOption[] = useMemo(() => {
+    const set = new Set<number>([0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55])
+    set.add(Number(minute))
+    return [...set].sort((a, b) => a - b).map((n) => ({ value: pad2(n), label: pad2(n) }))
+  }, [minute])
 
   return (
     <div className="flex items-center gap-2">

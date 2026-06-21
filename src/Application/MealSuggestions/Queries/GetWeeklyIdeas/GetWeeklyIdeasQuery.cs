@@ -18,10 +18,6 @@ public record GetWeeklyIdeasQuery : IRequest<IReadOnlyList<MealSuggestionDto>>
 
 public class GetWeeklyIdeasQueryHandler : IRequestHandler<GetWeeklyIdeasQuery, IReadOnlyList<MealSuggestionDto>>
 {
-    // Lower-cased category tags that mark a main course, across the supported sources.
-    private static readonly string[] MainCourseTags =
-        ["hoofdgerecht", "hoofdgerechten", "hoofdschotel", "main course", "main dish", "main"];
-
     private readonly IApplicationDbContext _context;
     private readonly TimeProvider _timeProvider;
 
@@ -37,16 +33,19 @@ public class GetWeeklyIdeasQueryHandler : IRequestHandler<GetWeeklyIdeasQuery, I
         var daysSinceMonday = ((int)today.DayOfWeek + 6) % 7;
         var weekStart = today.AddDays(-daysSinceMonday);
 
-        // Pull id + tags only (cheap), then keep the main courses.
-        var candidates = await _context.MealSuggestions
+        // Filter to main courses in the database (category tag), returning only ids —
+        // all supported sources tag main courses "hoofdgerecht"; the others cover
+        // plural/English variants. Npgsql translates each Contains to `= ANY(tags)`.
+        var mainIds = await _context.MealSuggestions
             .AsNoTracking()
-            .Select(s => new { s.Id, Tags = s.Tags })
+            .Where(s =>
+                s.Tags.Contains("hoofdgerecht")
+                || s.Tags.Contains("hoofdgerechten")
+                || s.Tags.Contains("hoofdschotel")
+                || s.Tags.Contains("main course")
+                || s.Tags.Contains("main"))
+            .Select(s => s.Id)
             .ToListAsync(cancellationToken);
-
-        var mainIds = candidates
-            .Where(c => c.Tags.Any(IsMainCourseTag))
-            .Select(c => c.Id)
-            .ToList();
 
         if (mainIds.Count == 0) return [];
 
@@ -105,7 +104,4 @@ public class GetWeeklyIdeasQueryHandler : IRequestHandler<GetWeeklyIdeasQuery, I
             })
             .ToList();
     }
-
-    private static bool IsMainCourseTag(string tag) =>
-        MainCourseTags.Any(k => tag.Contains(k, StringComparison.OrdinalIgnoreCase));
 }
