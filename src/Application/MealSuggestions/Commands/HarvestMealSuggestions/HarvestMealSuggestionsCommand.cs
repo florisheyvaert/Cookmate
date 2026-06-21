@@ -1,3 +1,4 @@
+using System.Text;
 using Cookmate.Application.Common.Interfaces;
 using Cookmate.Application.MealSuggestions.Common;
 using Cookmate.Domain.Entities;
@@ -100,7 +101,7 @@ public class HarvestMealSuggestionsCommandHandler : IRequestHandler<HarvestMealS
                 SourceId = source.Id,
                 SourceName = source.Name,
                 Host = source.Host,
-                Error = ex.Message,
+                Error = Describe(ex),
             };
         }
 
@@ -153,7 +154,7 @@ public class HarvestMealSuggestionsCommandHandler : IRequestHandler<HarvestMealS
             catch (Exception ex)
             {
                 failed++;
-                items.Add(new HarvestItemLog { Url = urlStr, Status = HarvestItemStatus.Failed, Error = ex.Message });
+                items.Add(new HarvestItemLog { Url = urlStr, Status = HarvestItemStatus.Failed, Error = Describe(ex) });
             }
         }
 
@@ -168,6 +169,36 @@ public class HarvestMealSuggestionsCommandHandler : IRequestHandler<HarvestMealS
             Failed = failed,
             Items = items,
         };
+    }
+
+    /// <summary>
+    /// Renders an exception into a self-contained, copy-pasteable diagnostic: the full
+    /// exception chain (type + message) followed by the stack trace, so a failure report
+    /// pinpoints the source, the page, and exactly where it broke.
+    /// </summary>
+    private static string Describe(Exception ex)
+    {
+        var sb = new StringBuilder();
+
+        var current = ex;
+        var depth = 0;
+        while (current is not null && depth < 6)
+        {
+            sb.Append(depth == 0 ? string.Empty : "  --> ");
+            sb.Append(current.GetType().FullName);
+            sb.Append(": ");
+            sb.AppendLine(current.Message);
+            current = current.InnerException;
+            depth++;
+        }
+
+        if (!string.IsNullOrWhiteSpace(ex.StackTrace))
+        {
+            sb.AppendLine();
+            sb.AppendLine(ex.StackTrace);
+        }
+
+        return sb.ToString().TrimEnd();
     }
 
     private static HarvestStatus StatusOf(HarvestSourceLog log)

@@ -1,17 +1,21 @@
-import { useState, type ReactNode } from 'react'
+import { Fragment, useState, type ReactNode } from 'react'
 import { Link } from 'react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { AnimatePresence, motion } from 'motion/react'
 import {
   suggestionsApi,
   type HarvestReport,
+  type HarvestSchedule,
   type SuggestionSourceDto,
   type SuggestionSourceInput,
   HARVEST_STATUS_LABELS,
-  HARVEST_ITEM_STATUS_LABELS,
   HARVEST_TRIGGER_LABELS,
 } from '@/api/suggestions'
 import { PageHeader } from '@/components/PageHeader'
+import { Listbox, type ListboxOption } from '@/components/Listbox'
+
+const DAY_LABELS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+const DAY_OPTIONS: ListboxOption[] = [1, 2, 3, 4, 5, 6, 0].map((d) => ({ value: String(d), label: DAY_LABELS[d] }))
 
 const ease = [0.22, 1, 0.36, 1] as const
 const SOURCES_KEY = ['suggestion-sources']
@@ -58,6 +62,9 @@ export default function SuggestionSources() {
           </Link>
         }
       />
+
+      {/* Automatic-harvest schedule */}
+      <SchedulePanel />
 
       {/* Add */}
       <div className="mb-9">
@@ -123,7 +130,6 @@ function SourceCard({ source, index }: { source: SuggestionSourceDto; index: num
   const queryClient = useQueryClient()
   const [editing, setEditing] = useState(false)
   const [showRuns, setShowRuns] = useState(false)
-  const [report, setReport] = useState<HarvestReport | null>(null)
 
   const update = useMutation({
     mutationFn: (input: SuggestionSourceInput) => suggestionsApi.sources.update(source.id, input),
@@ -138,8 +144,10 @@ function SourceCard({ source, index }: { source: SuggestionSourceDto; index: num
   })
   const harvest = useMutation({
     mutationFn: () => suggestionsApi.sources.harvest(source.id),
-    onSuccess: (r) => {
-      setReport(r)
+    onSuccess: () => {
+      // Surface the result in the (single) history table rather than a separate card.
+      setShowRuns(true)
+      queryClient.invalidateQueries({ queryKey: ['harvest-runs', source.id] })
       queryClient.invalidateQueries({ queryKey: SOURCES_KEY })
       queryClient.invalidateQueries({ queryKey: ['meal-suggestions'] })
       queryClient.invalidateQueries({ queryKey: ['weekly-ideas'] })
@@ -183,58 +191,63 @@ function SourceCard({ source, index }: { source: SuggestionSourceDto; index: num
       className="rounded-2xl border border-cream-shadow bg-cream-deep overflow-hidden"
     >
       <div className="p-5 sm:p-6">
-        <div className="flex items-start gap-4">
-          {/* Monogram */}
-          <span
-            className={[
-              'grid place-items-center w-12 h-12 rounded-xl shrink-0 font-display text-xl leading-none',
-              source.enabled ? 'bg-paprika/12 text-paprika-deep' : 'bg-cream-shadow text-chestnut',
-            ].join(' ')}
-            style={{ fontWeight: 700 }}
-          >
-            {monogram(source.name)}
-          </span>
+        <div className="flex flex-col sm:flex-row sm:items-start gap-4">
+          <div className="flex items-start gap-4 flex-1 min-w-0">
+            {/* Monogram */}
+            <span
+              className={[
+                'grid place-items-center w-12 h-12 rounded-xl shrink-0 font-display text-xl leading-none',
+                source.enabled ? 'bg-paprika/12 text-paprika-deep' : 'bg-cream-shadow text-chestnut',
+              ].join(' ')}
+              style={{ fontWeight: 700 }}
+            >
+              {monogram(source.name)}
+            </span>
 
-          {/* Identity + telemetry */}
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2.5 flex-wrap">
-              <h2 className="font-display text-ink text-xl leading-none truncate" style={{ fontWeight: 700, letterSpacing: '-0.02em' }}>
-                {source.name}
-              </h2>
-              <StatusDot enabled={source.enabled} />
-            </div>
-            <p className="font-mono text-[0.7rem] text-chestnut-soft mt-1.5 truncate">{source.host}</p>
+            {/* Identity + telemetry */}
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h2 className="font-display text-ink text-xl leading-none truncate" style={{ fontWeight: 700, letterSpacing: '-0.02em' }}>
+                  {source.name}
+                </h2>
+                <StatusDot enabled={source.enabled} />
+                {source.lastRunStatus != null && (
+                  <span className={`whitespace-nowrap font-mono px-2 py-0.5 rounded-full text-[0.56rem] uppercase tracking-[0.1em] ${statusPill(source.lastRunStatus)}`}>
+                    {HARVEST_STATUS_LABELS[source.lastRunStatus]}
+                  </span>
+                )}
+              </div>
+              <p className="font-mono text-[0.7rem] text-chestnut-soft mt-1.5 truncate">{source.host}</p>
 
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-3 font-mono text-[0.64rem] text-chestnut">
-              <span>{source.maxPerRun != null ? `cap ${source.maxPerRun}/run` : 'no cap'}</span>
-              {source.lastRunAt ? (
-                <span className="inline-flex items-center gap-1.5">
-                  last run {new Date(source.lastRunAt).toLocaleDateString()} · {source.lastRunCount ?? 0} added
-                  {source.lastRunStatus != null && (
-                    <span className={`px-1.5 py-0.5 rounded-full text-[0.56rem] uppercase tracking-[0.1em] ${statusPill(source.lastRunStatus)}`}>
-                      {HARVEST_STATUS_LABELS[source.lastRunStatus]}
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 mt-3 font-mono text-[0.64rem] text-chestnut">
+                <span className="whitespace-nowrap">{source.maxPerRun != null ? `cap ${source.maxPerRun}/run` : 'no cap'}</span>
+                {source.lastRunAt ? (
+                  <>
+                    <span aria-hidden className="text-chestnut-soft">·</span>
+                    <span className="whitespace-nowrap">
+                      {new Date(source.lastRunAt).toLocaleDateString()} · {source.lastRunCount ?? 0} added
                     </span>
-                  )}
-                </span>
-              ) : (
-                <span className="text-chestnut-soft">never harvested</span>
-              )}
+                  </>
+                ) : (
+                  <span className="text-chestnut-soft">never harvested</span>
+                )}
+              </div>
             </div>
           </div>
 
-          {/* Primary action */}
+          {/* Primary action — full width on mobile, inline on desktop */}
           <button
             type="button"
             onClick={() => harvest.mutate()}
             disabled={harvest.isPending}
-            className="shrink-0 inline-flex items-center gap-1.5 rounded-xl px-4 py-2.5 bg-butter text-[#1f2417] hover:bg-butter-deep disabled:opacity-60 transition-colors font-display font-semibold text-[0.82rem]"
+            className="w-full sm:w-auto shrink-0 inline-flex items-center justify-center gap-1.5 rounded-xl px-4 py-2.5 bg-butter text-[#1f2417] hover:bg-butter-deep disabled:opacity-60 transition-colors font-display font-semibold text-[0.82rem]"
           >
             {harvest.isPending ? 'Harvesting…' : '⟳ Harvest now'}
           </button>
         </div>
 
         {/* Secondary actions */}
-        <div className="flex items-center gap-5 mt-4 pt-4 border-t border-cream-shadow/70">
+        <div className="flex flex-wrap items-center gap-x-5 gap-y-2.5 mt-4 pt-4 border-t border-cream-shadow/70">
           <ActionBtn
             icon={<PowerIcon />}
             label={source.enabled ? 'Disable' : 'Enable'}
@@ -260,15 +273,7 @@ function SourceCard({ source, index }: { source: SuggestionSourceDto; index: num
           </div>
         </div>
 
-        {/* Live report after a manual harvest */}
-        {report && (
-          <div className="mt-5">
-            <p className="eyebrow mb-2">Last harvest</p>
-            <ReportView report={report} />
-          </div>
-        )}
-
-        {/* Run history */}
+        {/* Run history — one table, a row per run */}
         <AnimatePresence initial={false}>
           {showRuns && (
             <motion.div
@@ -278,18 +283,155 @@ function SourceCard({ source, index }: { source: SuggestionSourceDto; index: num
               transition={{ duration: 0.25, ease }}
               className="overflow-hidden"
             >
-              <div className="mt-5 space-y-3">
+              <div className="mt-5">
                 {runsQ.isPending && <p className="font-mono text-[0.66rem] text-chestnut-soft">Loading…</p>}
                 {runsQ.isSuccess && runsQ.data.length === 0 && (
                   <p className="font-mono text-[0.66rem] text-chestnut-soft">No runs recorded yet.</p>
                 )}
-                {runsQ.data?.map((r) => <ReportView key={r.runId} report={r} />)}
+                {runsQ.data && runsQ.data.length > 0 && <HarvestRunsTable runs={runsQ.data} />}
               </div>
             </motion.div>
           )}
         </AnimatePresence>
       </div>
     </motion.div>
+  )
+}
+
+function SchedulePanel() {
+  const queryClient = useQueryClient()
+  const [open, setOpen] = useState(false)
+  // Clip during the height animation, but let overflow show once settled so the Day
+  // dropdown isn't cut off by the collapsible container.
+  const [animating, setAnimating] = useState(false)
+  const scheduleQ = useQuery({ queryKey: ['harvest-schedule'], queryFn: () => suggestionsApi.schedule.get() })
+  const save = useMutation({
+    mutationFn: (input: HarvestSchedule) => suggestionsApi.schedule.update(input),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['harvest-schedule'] }),
+  })
+
+  const data = scheduleQ.data
+  const summary = data
+    ? data.enabled
+      ? `every ${DAY_LABELS[data.dayOfWeek]} at ${data.timeOfDay}`
+      : 'off'
+    : '…'
+
+  return (
+    <div className={`mb-8 rounded-xl border border-cream-shadow bg-cream-deep ${open && !animating ? 'overflow-visible' : 'overflow-hidden'}`}>
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+        className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-cream/40 transition-colors"
+      >
+        <span className="text-chestnut-soft shrink-0">
+          <ClockIcon />
+        </span>
+        <span className="flex-1 min-w-0 flex items-baseline gap-2 flex-wrap">
+          <span className="eyebrow">Auto-harvest</span>
+          <span className={`font-mono text-[0.7rem] truncate ${data?.enabled ? 'text-chestnut' : 'text-chestnut-soft'}`}>{summary}</span>
+        </span>
+        <span className={`shrink-0 w-2 h-2 rounded-full ${data?.enabled ? 'bg-paprika' : 'bg-chestnut-soft'}`} aria-hidden />
+        <span className="shrink-0 text-chestnut-soft">
+          <Chevron open={open} />
+        </span>
+      </button>
+
+      <AnimatePresence initial={false}>
+        {open && data && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.25, ease }}
+            onAnimationStart={() => setAnimating(true)}
+            onAnimationComplete={() => setAnimating(false)}
+            className={animating ? 'overflow-hidden' : 'overflow-visible'}
+          >
+            <div className="px-4 pb-5 pt-2 border-t border-cream-shadow/70">
+              <ScheduleForm
+                key={`${data.enabled}-${data.dayOfWeek}-${data.timeOfDay}`}
+                initial={data}
+                saving={save.isPending}
+                onSave={(input) => save.mutate(input)}
+              />
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  )
+}
+
+function pad2(n: number): string {
+  return String(n).padStart(2, '0')
+}
+
+/** Custom, themed time picker (hour + minute listboxes) — closes on select, no native control. */
+function TimePicker({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const [hh, mm] = (value || '00:00').split(':')
+  const hour = hh ?? '00'
+  const minute = mm ?? '00'
+
+  const hourOptions: ListboxOption[] = Array.from({ length: 24 }, (_, i) => ({ value: pad2(i), label: pad2(i) }))
+
+  const minuteSet = new Set<number>([0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55])
+  minuteSet.add(Number(minute))
+  const minuteOptions: ListboxOption[] = [...minuteSet].sort((a, b) => a - b).map((n) => ({ value: pad2(n), label: pad2(n) }))
+
+  return (
+    <div className="flex items-center gap-2">
+      <div className="flex-1 min-w-0">
+        <Listbox ariaLabel="Hour" value={hour} onChange={(h) => onChange(`${h}:${minute}`)} options={hourOptions} />
+      </div>
+      <span className="text-chestnut-soft font-mono shrink-0">:</span>
+      <div className="flex-1 min-w-0">
+        <Listbox ariaLabel="Minute" value={minute} onChange={(m) => onChange(`${hour}:${m}`)} options={minuteOptions} />
+      </div>
+    </div>
+  )
+}
+
+function ScheduleForm({ initial, saving, onSave }: { initial: HarvestSchedule; saving: boolean; onSave: (s: HarvestSchedule) => void }) {
+  const [enabled, setEnabled] = useState(initial.enabled)
+  const [dayOfWeek, setDayOfWeek] = useState(String(initial.dayOfWeek))
+  const [timeOfDay, setTimeOfDay] = useState(initial.timeOfDay)
+
+  const dirty = enabled !== initial.enabled || Number(dayOfWeek) !== initial.dayOfWeek || timeOfDay !== initial.timeOfDay
+
+  return (
+    <div>
+      <div className="flex items-center justify-between gap-4 mb-4">
+        <p className="text-ink-soft text-sm leading-snug max-w-xs">
+          {enabled ? 'Runs automatically across all enabled sources.' : 'Only fetches when you press “Harvest now”.'}
+        </p>
+        <Toggle label={enabled ? 'On' : 'Off'} checked={enabled} onChange={setEnabled} />
+      </div>
+
+      <div className={['grid grid-cols-2 gap-x-5 gap-y-4', enabled ? '' : 'opacity-50 pointer-events-none'].join(' ')}>
+        <label className="col-span-2 sm:col-span-1 block">
+          <span className="eyebrow block mb-1.5">Day</span>
+          <Listbox ariaLabel="Harvest day" value={dayOfWeek} onChange={setDayOfWeek} options={DAY_OPTIONS} />
+        </label>
+        <label className="col-span-2 sm:col-span-1 block">
+          <span className="eyebrow block mb-1.5">Time</span>
+          <TimePicker value={timeOfDay} onChange={setTimeOfDay} />
+        </label>
+      </div>
+
+      <div className="flex items-center gap-4 mt-5">
+        <button
+          type="button"
+          onClick={() => onSave({ enabled, dayOfWeek: Number(dayOfWeek), timeOfDay })}
+          disabled={saving || !dirty}
+          className="inline-flex items-center rounded-lg px-4 py-2 bg-paprika text-cream hover:bg-paprika-deep disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-display font-semibold text-[0.82rem]"
+        >
+          {saving ? 'Saving…' : 'Save'}
+        </button>
+        {!dirty && !saving && <span className="font-mono text-[0.6rem] uppercase tracking-[0.14em] text-chestnut-soft">Saved</span>}
+      </div>
+    </div>
   )
 }
 
@@ -332,6 +474,15 @@ const iconProps = {
   strokeLinecap: 'round' as const,
   strokeLinejoin: 'round' as const,
   'aria-hidden': true,
+}
+
+function ClockIcon() {
+  return (
+    <svg {...iconProps}>
+      <circle cx="8" cy="8" r="5.5" />
+      <path d="M8 5 V8 L10.4 9.4" />
+    </svg>
+  )
 }
 
 function PowerIcon() {
@@ -388,57 +539,165 @@ function StatusDot({ enabled }: { enabled: boolean }) {
   )
 }
 
-function ReportView({ report }: { report: HarvestReport }) {
+function HarvestRunsTable({ runs }: { runs: HarvestReport[] }) {
+  const [expanded, setExpanded] = useState<Set<number>>(() => new Set())
+  const [copied, setCopied] = useState<number | null>(null)
+
+  function toggle(id: number) {
+    setExpanded((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  async function copyReport(run: HarvestReport) {
+    try {
+      await navigator.clipboard.writeText(buildFailureText(run))
+      setCopied(run.runId)
+      setTimeout(() => setCopied((c) => (c === run.runId ? null : c)), 2000)
+    } catch {
+      /* clipboard blocked — ignore */
+    }
+  }
+
+  const th = 'px-3 py-2 font-normal'
+
   return (
-    <div className="border border-cream-shadow rounded-xl p-4 bg-cream">
-      <div className="flex items-center gap-2.5 flex-wrap">
-        <span className={`font-mono text-[0.58rem] uppercase tracking-[0.12em] px-2 py-0.5 rounded-full ${statusPill(report.status)}`}>
-          {HARVEST_STATUS_LABELS[report.status]}
-        </span>
-        <span className="font-mono text-[0.64rem] text-chestnut">
-          {HARVEST_TRIGGER_LABELS[report.trigger]} · {new Date(report.startedAt).toLocaleString()}
-        </span>
-      </div>
+    <div className="rounded-xl border border-cream-shadow overflow-hidden">
+      <div className="overflow-x-auto">
+        <table className="w-full text-left border-collapse">
+          <thead>
+            <tr className="bg-cream-deep font-mono text-[0.55rem] uppercase tracking-[0.12em] text-chestnut-soft">
+              <th className={th}>When</th>
+              <th className={`${th} hidden sm:table-cell`}>Run</th>
+              <th className={th}>Status</th>
+              <th className={`${th} text-right`}>In</th>
+              <th className={`${th} text-right`}>Fail</th>
+              <th className={`${th} text-right hidden sm:table-cell`}>Skip</th>
+              <th className="px-2 py-2" />
+            </tr>
+          </thead>
+          <tbody>
+            {runs.map((run) => {
+              const hasFailures = run.failed > 0
+              const isOpen = expanded.has(run.runId)
+              return (
+                <Fragment key={run.runId}>
+                  <tr
+                    onClick={hasFailures ? () => toggle(run.runId) : undefined}
+                    className={['border-t border-cream-shadow', hasFailures ? 'cursor-pointer hover:bg-cream-deep/50' : ''].join(' ')}
+                  >
+                    <td className="px-3 py-2.5 font-mono text-[0.62rem] text-ink whitespace-nowrap">
+                      {new Date(run.startedAt).toLocaleDateString()}
+                      <span className="hidden sm:inline text-chestnut-soft">
+                        {' · '}
+                        {new Date(run.startedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                    </td>
+                    <td className="px-3 py-2.5 font-mono text-[0.62rem] text-chestnut hidden sm:table-cell">
+                      {HARVEST_TRIGGER_LABELS[run.trigger]}
+                    </td>
+                    <td className="px-3 py-2.5">
+                      <span className={`font-mono text-[0.54rem] uppercase tracking-[0.1em] px-2 py-0.5 rounded-full ${statusPill(run.status)}`}>
+                        {HARVEST_STATUS_LABELS[run.status]}
+                      </span>
+                    </td>
+                    <td className="px-3 py-2.5 text-right num text-[0.8rem] text-paprika">{run.inserted}</td>
+                    <td className={`px-3 py-2.5 text-right num text-[0.8rem] ${run.failed > 0 ? 'text-red-600' : 'text-chestnut-soft'}`}>
+                      {run.failed}
+                    </td>
+                    <td className="px-3 py-2.5 text-right num text-[0.8rem] text-chestnut hidden sm:table-cell">{run.skippedDuplicate}</td>
+                    <td className="px-2 py-2.5 text-chestnut-soft">{hasFailures && <Chevron open={isOpen} />}</td>
+                  </tr>
 
-      <div className="flex flex-wrap gap-2 mt-3">
-        <Stat label="discovered" value={report.discovered} />
-        <Stat label="inserted" value={report.inserted} tone="green" />
-        <Stat label="skipped" value={report.skippedDuplicate} />
-        <Stat label="failed" value={report.failed} tone={report.failed > 0 ? 'red' : undefined} />
-      </div>
+                  {hasFailures && isOpen && (
+                    <tr className="bg-cream">
+                      <td colSpan={7} className="px-3 sm:px-4 py-4 border-t border-cream-shadow/60">
+                        <div className="flex items-center justify-between gap-3 mb-3">
+                          <p className="eyebrow text-red-600">Errors · {run.failed}</p>
+                          <button
+                            type="button"
+                            onClick={() => copyReport(run)}
+                            className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 border border-cream-shadow text-chestnut hover:border-paprika hover:text-paprika transition-colors font-mono text-[0.6rem] uppercase tracking-[0.14em]"
+                          >
+                            {copied === run.runId ? '✓ Copied' : '⧉ Copy report'}
+                          </button>
+                        </div>
 
-      {report.sources.map((src, i) => {
-        const failures = src.items.filter((it) => it.status === 2)
-        return (
-          <div key={i} className="mt-3 pt-3 border-t border-cream-shadow">
-            <p className="font-mono text-[0.64rem] text-chestnut">
-              {src.sourceName || src.host}
-              {src.error && <span className="text-red-600"> · discovery failed: {src.error}</span>}
-            </p>
-            {failures.length > 0 && (
-              <ul className="mt-1.5 space-y-1">
-                {failures.map((it, j) => (
-                  <li key={j} className="font-mono text-[0.6rem] text-red-600 break-words">
-                    {HARVEST_ITEM_STATUS_LABELS[it.status]} · {it.url} — {it.error}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-        )
-      })}
+                        <div className="space-y-4">
+                          {run.sources.map((src, i) => {
+                            const failures = src.items.filter((it) => it.status === 2)
+                            if (!src.error && failures.length === 0) return null
+                            return (
+                              <div key={i}>
+                                <p className="font-mono text-[0.64rem] text-chestnut mb-1.5">
+                                  {src.sourceName || src.host} <span className="text-chestnut-soft">· {src.host}</span>
+                                </p>
+                                {src.error && <ErrorBlock label="Discovery failed" text={src.error} />}
+                                {failures.map((it, j) => (
+                                  <ErrorBlock key={j} label={it.url} text={it.error ?? '(no message)'} />
+                                ))}
+                              </div>
+                            )
+                          })}
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                </Fragment>
+              )
+            })}
+          </tbody>
+        </table>
+      </div>
     </div>
   )
 }
 
-function Stat({ label, value, tone }: { label: string; value: number; tone?: 'green' | 'red' }) {
-  const valueColor = tone === 'green' ? 'text-paprika' : tone === 'red' ? 'text-red-600' : 'text-ink'
+function ErrorBlock({ label, text }: { label: string; text: string }) {
   return (
-    <span className="inline-flex items-baseline gap-1.5 rounded-lg bg-cream-deep px-2.5 py-1">
-      <span className={`num text-sm ${valueColor}`}>{value}</span>
-      <span className="font-mono text-[0.54rem] uppercase tracking-[0.12em] text-chestnut-soft">{label}</span>
-    </span>
+    <div className="mt-1.5">
+      <p className="font-mono text-[0.6rem] text-red-600 break-words mb-1">{label}</p>
+      <pre className="font-mono text-[0.62rem] leading-relaxed text-ink-soft bg-cream-deep border border-cream-shadow rounded-lg p-2.5 max-h-56 overflow-auto whitespace-pre-wrap break-words select-text">
+        {text}
+      </pre>
+    </div>
   )
+}
+
+function Chevron({ open }: { open: boolean }) {
+  return (
+    <svg width={10} height={10} viewBox="0 0 10 10" aria-hidden className={`transition-transform ${open ? 'rotate-180' : ''}`}>
+      <path d="M1 3 L5 7 L9 3" stroke="currentColor" strokeWidth="1.4" fill="none" strokeLinecap="round" />
+    </svg>
+  )
+}
+
+/** Builds a copy-pasteable failure report for a run — source, URL and full error per failure. */
+function buildFailureText(run: HarvestReport): string {
+  const lines: string[] = []
+  lines.push(`Harvest run #${run.runId} — ${HARVEST_TRIGGER_LABELS[run.trigger]} — ${new Date(run.startedAt).toLocaleString()}`)
+  lines.push(`Status ${HARVEST_STATUS_LABELS[run.status]} · discovered ${run.discovered}, inserted ${run.inserted}, skipped ${run.skippedDuplicate}, failed ${run.failed}`)
+
+  for (const src of run.sources) {
+    const failures = src.items.filter((it) => it.status === 2)
+    if (!src.error && failures.length === 0) continue
+    lines.push('')
+    lines.push(`Source: ${src.sourceName || src.host} (${src.host})`)
+    if (src.error) {
+      lines.push('Discovery failed:')
+      lines.push(src.error)
+    }
+    for (const it of failures) {
+      lines.push('')
+      lines.push(`URL: ${it.url}`)
+      lines.push(it.error ?? '(no message)')
+    }
+  }
+
+  return lines.join('\n')
 }
 
 // ── Form ──────────────────────────────────────────────────────────────────────

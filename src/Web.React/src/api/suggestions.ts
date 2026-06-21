@@ -82,6 +82,14 @@ export type SuggestionSourceDto = {
   lastRunCount: number | null
 }
 
+export type HarvestSchedule = {
+  enabled: boolean
+  /** 0 = Sunday … 6 = Saturday (System.DayOfWeek). */
+  dayOfWeek: number
+  /** Local time "HH:mm". */
+  timeOfDay: string
+}
+
 export type SuggestionSourceInput = {
   name: string
   host: string
@@ -198,5 +206,10 @@ export const suggestionsApi = {
       id == null
         ? api<HarvestReport[]>('/api/SuggestionSources/runs')
         : api<HarvestReport[]>(`/api/SuggestionSources/${id}/runs`),
+  },
+
+  schedule: {
+    get: () => api<HarvestSchedule>('/api/SuggestionSources/schedule'),
+    update: (input: HarvestSchedule) => api<void>('/api/SuggestionSources/schedule', { method: 'PUT', json: input }),
   },
 }

@@ -18,5 +18,7 @@ public interface IApplicationDbContext
 
     DbSet<SuggestionHarvestRun> SuggestionHarvestRuns { get; }
 
+    DbSet<HarvestSchedule> HarvestSchedules { get; }
+
     Task<int> SaveChangesAsync(CancellationToken cancellationToken);
 }

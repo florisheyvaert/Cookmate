@@ -1,8 +1,10 @@
 using Cookmate.Application.MealSuggestions.Commands.CreateSuggestionSource;
 using Cookmate.Application.MealSuggestions.Commands.DeleteSuggestionSource;
 using Cookmate.Application.MealSuggestions.Commands.HarvestMealSuggestions;
+using Cookmate.Application.MealSuggestions.Commands.UpdateHarvestSchedule;
 using Cookmate.Application.MealSuggestions.Commands.UpdateSuggestionSource;
 using Cookmate.Application.MealSuggestions.Common;
+using Cookmate.Application.MealSuggestions.Queries.GetHarvestSchedule;
 using Cookmate.Application.MealSuggestions.Queries.ListHarvestRuns;
 using Cookmate.Application.MealSuggestions.Queries.ListSuggestionSources;
 using Cookmate.Domain.Constants;
@@ -20,6 +22,8 @@ public class SuggestionSources : IEndpointGroup
         groupBuilder.MapGet(List);
         groupBuilder.MapGet(ListRuns, "runs");
         groupBuilder.MapGet(ListRunsForSource, "{id:int}/runs");
+        groupBuilder.MapGet(GetSchedule, "schedule");
+        groupBuilder.MapPut(UpdateSchedule, "schedule").RequireAuthorization(Roles.Administrator);
 
         groupBuilder.MapPost(Create).RequireAuthorization(Roles.Administrator);
         groupBuilder.MapPut(Update, "{id:int}").RequireAuthorization(Roles.Administrator);
@@ -102,5 +106,22 @@ public class SuggestionSources : IEndpointGroup
         var runs = await sender.Send(new ListHarvestRunsQuery { SourceId = id, Take = take ?? 20 });
 
         return TypedResults.Ok(runs);
+    }
+
+    [EndpointSummary("Get the automatic-harvest schedule")]
+    public static async Task<Ok<HarvestScheduleDto>> GetSchedule(ISender sender)
+    {
+        var schedule = await sender.Send(new GetHarvestScheduleQuery());
+
+        return TypedResults.Ok(schedule);
+    }
+
+    [EndpointSummary("Set the automatic-harvest schedule")]
+    [EndpointDescription("Sets whether the weekly harvest runs and on which weekday (0=Sunday…6=Saturday) and local time (HH:mm).")]
+    public static async Task<NoContent> UpdateSchedule(ISender sender, UpdateHarvestScheduleCommand command)
+    {
+        await sender.Send(command);
+
+        return TypedResults.NoContent();
     }
 }
