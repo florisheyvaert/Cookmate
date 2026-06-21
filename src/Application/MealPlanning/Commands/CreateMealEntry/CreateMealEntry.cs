@@ -43,7 +43,7 @@ public class CreateMealEntryCommandHandler : IRequestHandler<CreateMealEntryComm
         }
         else
         {
-            entry.SetFreeText(request.FreeText!, request.SuggestionId);
+            entry.SetFreeText(request.FreeText!, request.SuggestionId, request.Servings);
         }
 
         entry.SetNotes(request.Notes);

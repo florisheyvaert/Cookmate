@@ -23,9 +23,9 @@ const ghostPill =
 
 const chapters = [
   { to: '/recipes', label: 'Recipes', numeral: 'I' },
-  { to: '/meal-plan', label: 'Meal Plan', numeral: 'II' },
-  { to: '/suggestions', label: 'Ideas', numeral: 'III' },
-  // Pantry & Shop are hidden from the menu until they work as intended.
+  { to: '/suggestions', label: 'Ideas', numeral: 'II' },
+  { to: '/shop', label: 'Shop', numeral: 'III' },
+  // Meal planning now lives on the home page; Pantry is hidden until it works.
 ]
 
 type AppMenuProps = {
@@ -167,7 +167,7 @@ export function AppMenu({ open, onClose }: AppMenuProps) {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.28, duration: 0.5, ease }}
-            className="relative px-6 md:px-12 lg:px-20 pb-8 pt-5 shrink-0 flex flex-col sm:flex-row sm:items-end justify-between gap-5"
+            className="relative px-6 md:px-12 lg:px-20 pb-8 pt-5 shrink-0 flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between"
             style={{ borderTop: `1px solid ${FAINT}` }}
           >
             {/* account */}
@@ -177,7 +177,7 @@ export function AppMenu({ open, onClose }: AppMenuProps) {
                   <p className="font-mono text-[0.6rem] uppercase tracking-[0.2em] mb-1" style={{ color: MUTED }}>
                     Signed in as
                   </p>
-                  <p className="text-lg truncate max-w-[70vw] sm:max-w-[34vw]" style={{ color: LIGHT, fontFamily: 'var(--font-body)' }}>
+                  <p className="text-lg truncate max-w-full sm:max-w-[34vw]" style={{ color: LIGHT, fontFamily: 'var(--font-body)' }}>
                     {user.email}
                   </p>
                 </>
@@ -188,18 +188,27 @@ export function AppMenu({ open, onClose }: AppMenuProps) {
               )}
             </div>
 
-            {/* controls */}
-            <div className="flex items-center gap-2.5 flex-wrap">
+            {/* controls — theme on its own line, account actions below (tidy on mobile) */}
+            <div className="flex flex-col gap-3 sm:items-end">
               <ThemePill value={theme} onChange={setTheme} />
-              {user && isAdmin && (
-                <Link to="/users" onClick={onClose} className={ghostPill}>
-                  Members
-                </Link>
-              )}
               {user && (
-                <button type="button" onClick={handleLogout} className={ghostPill}>
-                  Sign out
-                </button>
+                <div className="grid grid-cols-2 sm:flex sm:items-center gap-2.5">
+                  <Link to="/settings" onClick={onClose} className={`${ghostPill} justify-center`}>
+                    Settings
+                  </Link>
+                  {isAdmin && (
+                    <Link to="/users" onClick={onClose} className={`${ghostPill} justify-center`}>
+                      Members
+                    </Link>
+                  )}
+                  <button
+                    type="button"
+                    onClick={handleLogout}
+                    className={`${ghostPill} justify-center ${isAdmin ? 'col-span-2' : ''}`}
+                  >
+                    Sign out
+                  </button>
+                </div>
               )}
             </div>
           </motion.footer>
@@ -220,7 +229,7 @@ function ThemePill({ value, onChange }: { value: Theme; onChange: (t: Theme) => 
     <div
       role="radiogroup"
       aria-label="Theme"
-      className="inline-flex items-center gap-0.5 rounded-lg p-0.5"
+      className="flex w-full sm:w-auto sm:inline-flex items-center gap-0.5 rounded-lg p-0.5"
       style={{ border: '1px solid rgba(243,239,228,0.18)', background: 'rgba(243,239,228,0.04)' }}
     >
       {themeOptions.map((o) => {
@@ -232,7 +241,7 @@ function ThemePill({ value, onChange }: { value: Theme; onChange: (t: Theme) => 
             role="radio"
             aria-checked={active}
             onClick={() => onChange(o.value)}
-            className="px-2.5 py-1.5 font-mono uppercase tracking-[0.14em] text-[0.6rem] transition-colors rounded-md"
+            className="flex-1 sm:flex-none text-center px-3 sm:px-2.5 py-2 sm:py-1.5 font-mono uppercase tracking-[0.14em] text-[0.6rem] transition-colors rounded-md"
             style={active ? { background: '#e6b23e', color: '#1f2417' } : { color: 'rgba(243,239,228,0.62)' }}
           >
             {o.label}

@@ -399,6 +399,7 @@ function SuggestionCard({ suggestion, index }: { suggestion: MealSuggestionDto; 
         title={suggestion.title}
         sourceUrl={suggestion.sourceUrl}
         suggestionId={suggestion.id}
+        baseServings={suggestion.baseServings}
       />
     </motion.div>
   )
