@@ -10,6 +10,10 @@ public interface IApplicationDbContext
 
     DbSet<RecipeIngredientProductLink> RecipeIngredientProductLinks { get; }
 
+    DbSet<IngredientProductPreference> IngredientProductPreferences { get; }
+
+    DbSet<IgnoredIngredient> IgnoredIngredients { get; }
+
     DbSet<MealEntry> MealEntries { get; }
 
     DbSet<SuggestionSource> SuggestionSources { get; }

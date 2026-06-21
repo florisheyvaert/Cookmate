@@ -1,11 +1,12 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Link, Navigate } from 'react-router'
 import { useQuery } from '@tanstack/react-query'
-import { AnimatePresence, motion } from 'motion/react'
+import { motion } from 'motion/react'
 import { useAuth } from '@/auth/AuthContext'
 import { recipesApi } from '@/api/recipes'
 import { mealPlanApi, MEAL_SLOT_ORDER, MEAL_SLOT_ICON, MEAL_SLOT_LABELS } from '@/api/mealPlan'
 import type { MealEntryDto } from '@/api/mealPlan'
+import { DayPlannerDialog } from '@/components/DayPlannerDialog'
 import { suggestionsApi } from '@/api/suggestions'
 import { formatDuration } from '@/lib/format'
 import type { RecipeSummaryDto } from '@/api/types'
@@ -18,7 +19,6 @@ const btn =
   'inline-flex items-center gap-1.5 rounded-xl px-5 py-3 font-display font-semibold text-[0.92rem] leading-none no-underline transition-colors'
 const btnGreen = `${btn} bg-paprika text-cream hover:bg-paprika-deep`
 const btnDark = `${btn} bg-ink text-cream hover:bg-paprika`
-const btnGhost = `${btn} border border-cream-shadow text-ink hover:border-paprika hover:text-paprika`
 // Mustard-ochre = the "cook" accent (the appetizing action). Text on gold is a
 // fixed dark forest so it stays legible in both light and dark themes.
 const btnGold = `${btn} bg-butter text-[#1f2417] hover:bg-butter-deep`
@@ -83,16 +83,6 @@ export default function Home() {
 function SignedInHome() {
   const recipesQ = useQuery({ queryKey: ['recipes-home'], queryFn: () => recipesApi.list() })
 
-  const today = startOfToday()
-  const days = useMemo(() => Array.from({ length: 7 }, (_, i) => addDays(today, i)), [today])
-  const from = toISO(days[0])
-  const to = toISO(days[6])
-  const planQ = useQuery({ queryKey: ['meal-plan', from, to], queryFn: () => mealPlanApi.list({ from, to }) })
-
-  const byDate = useMemo(() => groupByDate(planQ.data ?? []), [planQ.data])
-  const tonight = byDate.get(toISO(today))?.[0] ?? null
-  const plannedCount = planQ.data?.length ?? 0
-
   const recipes = recipesQ.data ?? []
   const sorted = [...recipes].sort((a, b) => b.id - a.id)
   const featured = sorted[0] ?? null
@@ -102,7 +92,7 @@ function SignedInHome() {
     <div className="px-5 sm:px-6 md:px-12 lg:px-20 pt-12 md:pt-20 pb-28">
       <Masthead totalRecipes={recipes.length} />
 
-      <ThisWeek today={today} days={days} byDate={byDate} tonight={tonight} plannedCount={plannedCount} />
+      <Planner />
 
       {recipesQ.isPending && <FeaturedSkeleton />}
       {!recipesQ.isPending && !featured && <FirstRecipeInvitation />}
@@ -162,37 +152,52 @@ function Masthead({ totalRecipes }: { totalRecipes: number }) {
   )
 }
 
-// ── This week — Tonight banner + the days ahead ──────────────────────────────
+// ── Planner — Tonight banner + a navigable, plannable week ───────────────────
 
-function ThisWeek({
-  today,
-  days,
-  byDate,
-  tonight,
-  plannedCount,
-}: {
-  today: Date
-  days: Date[]
-  byDate: Map<string, MealEntryDto[]>
-  tonight: MealEntryDto | null
-  plannedCount: number
-}) {
+function Planner() {
+  const today = useMemo(() => startOfToday(), [])
+  const todayIso = toISO(today)
+  const [anchor, setAnchor] = useState<Date>(today)
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
+
+  // The visible window slides one day at a time, so you can plan weeks ahead.
+  const days = useMemo(() => Array.from({ length: 7 }, (_, i) => addDays(anchor, i)), [anchor])
+  const from = toISO(days[0])
+  const to = toISO(days[6])
+  const gridQ = useQuery({ queryKey: ['meal-plan', from, to], queryFn: () => mealPlanApi.list({ from, to }) })
+  const byDate = useMemo(() => groupByDate(gridQ.data ?? []), [gridQ.data])
+
+  // Tonight is always today's meal, independent of where the window has slid.
+  const tonightQ = useQuery({ queryKey: ['meal-plan', todayIso, todayIso], queryFn: () => mealPlanApi.list({ from: todayIso, to: todayIso }) })
+  const todayEntries = useMemo(() => [...(tonightQ.data ?? [])].sort(dinnerFirst), [tonightQ.data])
+  const tonight = todayEntries[0] ?? null
+
+  const plannedCount = gridQ.data?.length ?? 0
   const wdLong = new Intl.DateTimeFormat(undefined, { weekday: 'long' }).format(today)
   const wdShort = new Intl.DateTimeFormat(undefined, { weekday: 'short' })
-  const ahead = days.slice(1)
+  const fmtMd = new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 'short' })
+  const periodLabel = `${fmtMd.format(days[0])} – ${fmtMd.format(days[6])}`
+  const atToday = toISO(anchor) === todayIso
+
+  const selectedEntries = selectedDate
+    ? selectedDate === todayIso
+      ? byDate.get(todayIso) ?? todayEntries
+      : byDate.get(selectedDate) ?? []
+    : []
+  const selectedEditable = selectedDate != null && selectedDate >= todayIso
 
   return (
     <motion.section
+      id="planner"
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.14, duration: 0.6, ease }}
-      className="mb-20 md:mb-28"
+      className="mb-20 md:mb-28 scroll-mt-24"
     >
       <div className="flex items-end justify-between gap-4 mb-7 flex-wrap">
         <div className="flex items-baseline gap-3">
           <h2 className="text-ink text-2xl" style={{ fontWeight: 700, letterSpacing: '-0.02em' }}>
-            This week
+            Your plan
           </h2>
           {plannedCount > 0 && (
             <span className="font-mono text-[0.64rem] uppercase tracking-[0.14em] text-chestnut">
@@ -200,24 +205,24 @@ function ThisWeek({
             </span>
           )}
         </div>
-        <div className="flex items-center gap-4">
-          <Link to="/suggestions" className={btnGreen}>
+        <div className="flex items-center gap-3 sm:gap-4 flex-wrap">
+          <Link to="/suggestions" className={`${btnGreen} whitespace-nowrap`}>
             🥗 This week&rsquo;s ideas →
           </Link>
-          <Link to="/meal-plan" className={quietLink}>
-            Open meal plan →
+          <Link to="/shop" className={`${btnGoldGhost} whitespace-nowrap`}>
+            🛒 Shop the week →
           </Link>
         </div>
       </div>
 
-      {/* Tonight banner */}
-      <div className="relative overflow-hidden rounded-2xl border border-cream-shadow bg-cream-deep mb-4">
+      {/* Tonight banner — always today */}
+      <div className="relative overflow-hidden rounded-2xl border border-cream-shadow bg-cream-deep mb-8">
         <span aria-hidden className="absolute left-0 top-0 bottom-0 w-1 bg-butter" />
-        <div className="p-7 sm:p-9 pl-8 sm:pl-10 flex flex-col sm:flex-row sm:items-center gap-6 sm:gap-8">
+        <div className="p-5 sm:p-9 pl-6 sm:pl-10 flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-8">
           {tonight?.imageUrl && (
             <button
               type="button"
-              onClick={() => setSelectedDate(toISO(today))}
+              onClick={() => setSelectedDate(todayIso)}
               className="shrink-0 block w-20 h-20 sm:w-24 sm:h-24 rounded-xl overflow-hidden border border-cream-shadow"
             >
               <img src={tonight.imageUrl} alt="" className="w-full h-full object-cover" />
@@ -226,15 +231,13 @@ function ThisWeek({
           <div className="flex-1 min-w-0">
             <p className="font-mono text-[0.62rem] uppercase tracking-[0.18em] text-chestnut flex items-center gap-2 mb-2.5">
               <span className="text-butter-deep">Tonight</span>
-              <span className="text-chestnut-soft" aria-hidden>
-                ·
-              </span>
+              <span className="text-chestnut-soft" aria-hidden>·</span>
               <span>{wdLong}</span>
             </p>
             {tonight ? (
               <button
                 type="button"
-                onClick={() => setSelectedDate(toISO(today))}
+                onClick={() => setSelectedDate(todayIso)}
                 className="text-left text-ink leading-tight flex items-baseline gap-2.5 hover:text-paprika transition-colors"
                 style={{ fontSize: 'clamp(1.5rem, 4vw, 2.4rem)', fontWeight: 700, letterSpacing: '-0.02em' }}
               >
@@ -254,54 +257,83 @@ function ThisWeek({
                 <Link to={`/recipes/${tonight.recipeId}/cook`} className={btnGold}>
                   ▷ Cook now
                 </Link>
-                <button type="button" onClick={() => setSelectedDate(toISO(today))} className={quietLink}>
+                <button type="button" onClick={() => setSelectedDate(todayIso)} className={quietLink}>
                   Details
                 </button>
               </div>
             ) : (
-              <Link to="/meal-plan" className={btnGreen}>
+              <button type="button" onClick={() => setSelectedDate(todayIso)} className={btnGreen}>
                 {tonight ? 'Edit plan' : 'Plan tonight'}
-              </Link>
+              </button>
             )}
           </div>
         </div>
       </div>
 
-      {/* Days ahead — click a day to see what's planned */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3.5">
-        {ahead.map((d, i) => {
+      {/* Week navigation */}
+      <div className="flex items-center justify-between gap-3 mb-3.5 flex-wrap">
+        <div className="flex items-center gap-2.5">
+          <NavArrow direction={-1} onClick={() => setAnchor((a) => addDays(a, -1))} label="Previous day" />
+          <NavArrow direction={1} onClick={() => setAnchor((a) => addDays(a, 1))} label="Next day" />
+          <span className="font-mono text-[0.72rem] uppercase tracking-[0.14em] text-ink ml-1">{periodLabel}</span>
+        </div>
+        <button
+          type="button"
+          onClick={() => setAnchor(today)}
+          disabled={atToday}
+          className="font-mono text-[0.62rem] uppercase tracking-[0.18em] text-chestnut hover:text-paprika transition-colors disabled:opacity-30 disabled:hover:text-chestnut"
+        >
+          ↺ Today
+        </button>
+      </div>
+
+      {/* Days — click to view (past) or plan (today + future) */}
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
+        {days.map((d, i) => {
           const iso = toISO(d)
           const list = byDate.get(iso) ?? []
           const head = list[0] ?? null
           const extra = Math.max(0, list.length - 1)
+          const isToday = iso === todayIso
+          const isPast = iso < todayIso
           return (
             <motion.div
               key={iso}
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.22 + i * 0.04, duration: 0.4, ease }}
+              transition={{ delay: 0.04 * i, duration: 0.4, ease }}
             >
               <button
                 type="button"
                 onClick={() => setSelectedDate(iso)}
-                className="group block w-full text-left rounded-xl border border-cream-shadow bg-cream-deep overflow-hidden h-full min-h-[7.25rem] hover:border-paprika/50 transition-colors"
+                className={[
+                  'group block w-full text-left rounded-xl border overflow-hidden h-full min-h-[7.25rem] transition-colors',
+                  isToday
+                    ? 'border-paprika/60 bg-paprika-tint ring-1 ring-inset ring-paprika/30'
+                    : 'border-cream-shadow bg-cream-deep hover:border-paprika/50',
+                  isPast ? 'opacity-60 hover:opacity-100' : '',
+                ].join(' ')}
               >
-                {head?.imageUrl && (
-                  <div className="aspect-[3/2] overflow-hidden bg-cream-shadow/40">
+                {/* Always reserve the photo area so every card is the same height —
+                    no layout shift when a meal (or its photo) appears. */}
+                <div className="aspect-[3/2] overflow-hidden bg-cream-shadow/30 grid place-items-center">
+                  {head?.imageUrl ? (
                     <img
                       src={head.imageUrl}
                       alt=""
                       loading="lazy"
                       className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.04]"
                     />
-                  </div>
-                )}
+                  ) : (
+                    <span aria-hidden className="text-2xl leading-none opacity-25">🍽️</span>
+                  )}
+                </div>
                 <div className="p-4">
                   <div className="flex items-baseline justify-between mb-3">
-                    <span className="font-mono text-[0.58rem] uppercase tracking-[0.14em] text-chestnut">
-                      {wdShort.format(d)}
+                    <span className={['font-mono text-[0.58rem] uppercase tracking-[0.14em]', isToday ? 'text-paprika' : 'text-chestnut'].join(' ')}>
+                      {isToday ? 'Today' : wdShort.format(d)}
                     </span>
-                    <span className="num text-[0.95rem] leading-none text-ink-soft">{d.getDate()}</span>
+                    <span className={['num text-[0.95rem] leading-none', isToday ? 'text-paprika' : 'text-ink-soft'].join(' ')}>{d.getDate()}</span>
                   </div>
                   {head ? (
                     <div className="flex items-start gap-1.5">
@@ -313,6 +345,8 @@ function ThisWeek({
                         {extra > 0 && <span className="text-chestnut-soft"> +{extra}</span>}
                       </span>
                     </div>
+                  ) : isPast ? (
+                    <span className="font-mono text-[0.58rem] text-chestnut-soft/60">—</span>
                   ) : (
                     <span className="font-mono text-[0.58rem] text-chestnut-soft/70 inline-flex items-center gap-1 group-hover:text-paprika transition-colors">
                       <span className="text-base leading-none">+</span> plan
@@ -325,198 +359,28 @@ function ThisWeek({
         })}
       </div>
 
-      <DayDetailDialog
-        dateIso={selectedDate}
-        entries={selectedDate ? byDate.get(selectedDate) ?? [] : []}
+      <DayPlannerDialog
+        open={selectedDate != null}
+        date={selectedDate ?? todayIso}
+        entries={selectedEntries}
+        editable={selectedEditable}
         onClose={() => setSelectedDate(null)}
       />
     </motion.section>
   )
 }
 
-// ── Day detail — read-only "what's planned" with links to the recipe ─────────
-
-function DayDetailDialog({
-  dateIso,
-  entries,
-  onClose,
-}: {
-  dateIso: string | null
-  entries: MealEntryDto[]
-  onClose: () => void
-}) {
-  const open = dateIso != null
-
-  useEffect(() => {
-    if (!open) return
-    const original = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
-    function onKey(e: KeyboardEvent) {
-      if (e.key === 'Escape') onClose()
-    }
-    window.addEventListener('keydown', onKey)
-    return () => {
-      window.removeEventListener('keydown', onKey)
-      document.body.style.overflow = original
-    }
-  }, [open, onClose])
-
-  const title = dateIso ? formatDayLong(dateIso) : ''
-
+function NavArrow({ direction, onClick, label }: { direction: number; onClick: () => void; label: string }) {
   return (
-    <AnimatePresence>
-      {open && (
-        <>
-          <motion.div
-            key="backdrop"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.18 }}
-            className="fixed inset-0 z-50 bg-ink/50 backdrop-blur-sm"
-            onClick={onClose}
-            aria-hidden
-          />
-          <motion.div
-            key="card"
-            initial={{ opacity: 0, scale: 0.97, y: 8 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.97, y: 8 }}
-            transition={{ duration: 0.22, ease }}
-            className="fixed inset-0 z-50 flex items-center justify-center px-4 py-8 pointer-events-none"
-            role="dialog"
-            aria-modal="true"
-            aria-label={`Meals for ${title}`}
-          >
-            <div className="w-full max-w-lg bg-cream border border-cream-shadow shadow-[0_28px_70px_-18px_rgba(20,30,18,0.45)] pointer-events-auto rounded-2xl flex flex-col max-h-[88vh] overflow-hidden">
-              <header className="px-6 pt-6 pb-4 border-b border-cream-shadow flex items-start justify-between gap-4">
-                <div>
-                  <p className="eyebrow text-paprika mb-1.5">Planned</p>
-                  <h2 className="font-display text-ink text-xl" style={{ fontWeight: 700, letterSpacing: '-0.02em' }}>
-                    {title}
-                  </h2>
-                </div>
-                <button
-                  type="button"
-                  onClick={onClose}
-                  aria-label="Close"
-                  className="shrink-0 grid place-items-center w-8 h-8 rounded-full border border-cream-shadow text-chestnut hover:border-paprika hover:text-paprika transition-colors"
-                >
-                  ×
-                </button>
-              </header>
-
-              <div className="flex-1 overflow-y-auto px-6 py-5">
-                {entries.length === 0 ? (
-                  <div className="text-center py-10">
-                    <p className="eyebrow mb-2">Nothing planned</p>
-                    <p className="text-ink-soft">This day is still open.</p>
-                  </div>
-                ) : (
-                  <div className="space-y-5">
-                    {entries.map((e) => (
-                      <div key={e.id} className="rounded-2xl border border-cream-shadow overflow-hidden bg-cream-deep">
-                        {e.imageUrl ? (
-                          <div className="relative aspect-[16/9] bg-cream-shadow/40">
-                            <img src={e.imageUrl} alt="" className="w-full h-full object-cover" />
-                            <span className="absolute top-3 left-3">
-                              <SlotChip slot={e.slot} onImage />
-                            </span>
-                          </div>
-                        ) : null}
-
-                        <div className="p-4 sm:p-5">
-                          {!e.imageUrl && (
-                            <div className="mb-2.5">
-                              <SlotChip slot={e.slot} />
-                            </div>
-                          )}
-                          <h3 className="font-display text-ink text-xl sm:text-2xl leading-tight" style={{ fontWeight: 700, letterSpacing: '-0.02em' }}>
-                            {entryLabel(e)}
-                          </h3>
-                          {e.recipeId != null && e.servings != null && (
-                            <p className="font-mono text-[0.66rem] text-chestnut mt-1">
-                              <span className="num text-paprika">{e.servings}</span> servings
-                            </p>
-                          )}
-
-                          {(e.recipeId != null || (e.notes && isHttpUrl(e.notes))) && (
-                            <div className="mt-3.5">
-                              {e.recipeId != null ? (
-                                <Link
-                                  to={`/recipes/${e.recipeId}`}
-                                  className="inline-flex items-center gap-1.5 rounded-lg px-4 py-2 bg-paprika text-cream hover:bg-paprika-deep transition-colors font-mono text-[0.66rem] uppercase tracking-[0.14em] no-underline"
-                                >
-                                  View recipe →
-                                </Link>
-                              ) : (
-                                e.notes &&
-                                isHttpUrl(e.notes) && (
-                                  <a
-                                    href={e.notes}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    className="inline-flex items-center gap-1.5 rounded-lg px-4 py-2 border border-cream-shadow text-chestnut hover:border-paprika hover:text-paprika transition-colors font-mono text-[0.66rem] uppercase tracking-[0.14em]"
-                                  >
-                                    Open original ↗
-                                  </a>
-                                )
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              <footer className="px-6 py-4 border-t border-cream-shadow flex items-center justify-between gap-4">
-                <Link to="/meal-plan" className="font-mono text-[0.66rem] uppercase tracking-[0.16em] text-chestnut hover:text-paprika transition-colors">
-                  Edit this day →
-                </Link>
-                <button
-                  type="button"
-                  onClick={onClose}
-                  className="font-mono text-[0.66rem] uppercase tracking-[0.16em] text-chestnut hover:text-paprika transition-colors"
-                >
-                  Close
-                </button>
-              </footer>
-            </div>
-          </motion.div>
-        </>
-      )}
-    </AnimatePresence>
-  )
-}
-
-function SlotChip({ slot, onImage }: { slot: MealEntryDto['slot']; onImage?: boolean }) {
-  return (
-    <span
-      className={[
-        'inline-flex items-center gap-1.5 rounded-full px-3 py-1 font-mono text-[0.6rem] uppercase tracking-[0.14em]',
-        onImage
-          ? 'bg-cream/90 text-ink shadow-sm backdrop-blur-sm'
-          : 'bg-paprika/12 text-paprika-deep',
-      ].join(' ')}
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={label}
+      className="w-8 h-8 flex items-center justify-center font-mono text-chestnut border border-cream-shadow rounded-lg hover:border-paprika hover:text-paprika transition-colors"
     >
-      <span aria-hidden className="text-sm leading-none">
-        {MEAL_SLOT_ICON[slot]}
-      </span>
-      {MEAL_SLOT_LABELS[slot]}
-    </span>
+      {direction < 0 ? '←' : '→'}
+    </button>
   )
-}
-
-function formatDayLong(iso: string): string {
-  const [y, m, d] = iso.split('-').map(Number)
-  const date = new Date(y, m - 1, d)
-  return new Intl.DateTimeFormat(undefined, { weekday: 'long', day: 'numeric', month: 'long' }).format(date)
-}
-
-function isHttpUrl(value: string): boolean {
-  return /^https?:\/\//i.test(value.trim())
 }
 
 // ── Featured recipe — one contained card ─────────────────────────────────────
@@ -583,11 +447,11 @@ function FeaturedCard({ recipe }: { recipe: RecipeSummaryDto }) {
             {time && <Meta label="Time" value={time} />}
           </div>
 
-          <div className="mt-7 sm:mt-auto pt-7 flex items-center gap-4 flex-wrap">
-            <Link to={`/recipes/${recipe.id}`} className={btnGreen}>
+          <div className="mt-6 sm:mt-auto pt-6 flex items-stretch sm:items-center gap-3">
+            <Link to={`/recipes/${recipe.id}`} className={`${btnGreen} flex-1 sm:flex-none justify-center whitespace-nowrap`}>
               Open recipe
             </Link>
-            <Link to={`/recipes/${recipe.id}/cook`} className={btnGoldGhost}>
+            <Link to={`/recipes/${recipe.id}/cook`} className={`${btnGoldGhost} shrink-0 justify-center whitespace-nowrap`}>
               ▷ Cook now
             </Link>
           </div>
@@ -716,29 +580,68 @@ function RecipeThumb({ url }: { url: string | null }) {
   )
 }
 
+const closerTiles = [
+  { to: '/recipes/new', icon: '🌱', title: 'Add a recipe', caption: 'Paste a link or write your own' },
+  { to: '#planner', icon: '🗓️', title: 'Plan a day', caption: 'Jump up to your planner' },
+  { to: '/suggestions', icon: '🥗', title: 'Browse ideas', caption: 'Fresh picks from your sources' },
+  { to: '/shop', icon: '🛒', title: 'Build a shop', caption: 'A week of meals, one basket' },
+]
+
+const closerTileClass =
+  'group h-full rounded-2xl border border-cream-shadow bg-cream-deep p-4 sm:p-5 flex flex-col gap-3 no-underline hover:border-paprika/55 hover:bg-cream-deep/70 transition-colors'
+
 function CloserActions() {
   return (
-    <motion.div
+    <motion.section
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.4, duration: 0.6, ease }}
-      className="rounded-2xl border border-cream-shadow bg-cream-deep p-7 sm:p-9 flex flex-col sm:flex-row sm:items-center justify-between gap-7"
     >
-      <div>
-        <p className="eyebrow mb-2">Keep cooking</p>
-        <p className="text-ink text-lg" style={{ fontWeight: 600 }}>
-          Add a recipe, or plan the days ahead.
-        </p>
+      <div className="flex items-baseline gap-3 mb-6 border-b border-cream-shadow pb-4">
+        <h2 className="text-ink text-xl" style={{ fontWeight: 700, letterSpacing: '-0.015em' }}>
+          Keep cooking
+        </h2>
+        <span className="ml-auto font-mono text-[0.64rem] uppercase tracking-[0.16em] text-chestnut-soft">Where to next</span>
       </div>
-      <div className="flex items-center gap-4 shrink-0">
-        <Link to="/recipes/new" className={btnDark}>
-          + Add a recipe
-        </Link>
-        <Link to="/meal-plan" className={btnGhost}>
-          Plan the week
-        </Link>
+
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-3.5">
+        {closerTiles.map((t, i) => (
+          <motion.div
+            key={t.to}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.44 + i * 0.05, duration: 0.4, ease }}
+          >
+            {t.to.startsWith('#') ? (
+              <a href={t.to} className={closerTileClass}>
+                <CloserTileBody icon={t.icon} title={t.title} caption={t.caption} />
+              </a>
+            ) : (
+              <Link to={t.to} className={closerTileClass}>
+                <CloserTileBody icon={t.icon} title={t.title} caption={t.caption} />
+              </Link>
+            )}
+          </motion.div>
+        ))}
       </div>
-    </motion.div>
+    </motion.section>
+  )
+}
+
+function CloserTileBody({ icon, title, caption }: { icon: string; title: string; caption: string }) {
+  return (
+    <>
+      <span className="text-2xl leading-none" aria-hidden>{icon}</span>
+      <span className="flex-1">
+        <span className="block font-display text-ink group-hover:text-paprika transition-colors" style={{ fontWeight: 700, letterSpacing: '-0.01em' }}>
+          {title}
+        </span>
+        <span className="block text-chestnut-soft text-[0.82rem] leading-snug mt-1">{caption}</span>
+      </span>
+      <span aria-hidden className="font-mono text-sm text-paprika opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-300">
+        →
+      </span>
+    </>
   )
 }
 

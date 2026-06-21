@@ -43,6 +43,8 @@ type Props = {
   sourceUrl?: string | null
   /** The harvested suggestion id, so the planned entry can show its photo. */
   suggestionId?: number
+  /** Default servings for the planned meal (the suggestion's base servings). */
+  baseServings?: number
   /** Called with the planned day (yyyy-MM-dd) right after a successful add. */
   onPlanned?: (date: string) => void
 }
@@ -52,16 +54,18 @@ type Props = {
  * Stays open after adding so you can schedule several days; days that already have
  * meals show a dot, and the ones you just added are ticked.
  */
-export function PlanSuggestionDialog({ open, onClose, title, sourceUrl, suggestionId, onPlanned }: Props) {
+export function PlanSuggestionDialog({ open, onClose, title, sourceUrl, suggestionId, baseServings, onPlanned }: Props) {
   const qc = useQueryClient()
   const [slot, setSlot] = useState<MealSlot>(MealSlots.Dinner)
+  const [servings, setServings] = useState(baseServings ?? 4)
   const [monthAnchor, setMonthAnchor] = useState(() => firstOfMonth(new Date()))
 
   useEffect(() => {
     if (!open) return
     setSlot(MealSlots.Dinner)
+    setServings(baseServings ?? 4)
     setMonthAnchor(firstOfMonth(new Date()))
-  }, [open])
+  }, [open, baseServings])
 
   useEffect(() => {
     if (!open) return
@@ -110,7 +114,7 @@ export function PlanSuggestionDialog({ open, onClose, title, sourceUrl, suggesti
         slot,
         recipeId: null,
         freeText: title,
-        servings: null,
+        servings: suggestionId != null ? servings : null,
         notes: sourceUrl ?? null,
         suggestionId: suggestionId ?? null,
       }),
@@ -191,6 +195,31 @@ export function PlanSuggestionDialog({ open, onClose, title, sourceUrl, suggesti
                       </button>
                     )
                   })}
+                </div>
+
+                {/* Servings */}
+                <div className="flex items-center justify-between gap-3">
+                  <span className="eyebrow">Servings</span>
+                  <span className="inline-flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setServings((v) => Math.max(1, v - 1))}
+                      disabled={servings <= 1}
+                      aria-label="Fewer servings"
+                      className="w-7 h-7 grid place-items-center rounded-md font-mono text-paprika border border-paprika/40 hover:bg-paprika hover:text-cream transition-colors disabled:opacity-30"
+                    >
+                      −
+                    </button>
+                    <span className="num text-paprika text-base min-w-[1.6rem] text-center">{servings}</span>
+                    <button
+                      type="button"
+                      onClick={() => setServings((v) => v + 1)}
+                      aria-label="More servings"
+                      className="w-7 h-7 grid place-items-center rounded-md font-mono text-paprika border border-paprika/40 hover:bg-paprika hover:text-cream transition-colors"
+                    >
+                      +
+                    </button>
+                  </span>
                 </div>
 
                 {/* Month navigation */}

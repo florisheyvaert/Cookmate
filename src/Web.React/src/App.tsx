@@ -19,7 +19,8 @@ import Setup from '@/routes/Setup'
 import Users from '@/routes/Users'
 import Redeem from '@/routes/Redeem'
 import Shop from '@/routes/Shop'
-import MealPlan from '@/routes/MealPlan'
+import ShopCart from '@/routes/ShopCart'
+import Settings from '@/routes/Settings'
 import MealSuggestions from '@/routes/MealSuggestions'
 import MealSuggestionDetail from '@/routes/MealSuggestionDetail'
 import SuggestionSources from '@/routes/SuggestionSources'
@@ -52,10 +53,18 @@ export default function App() {
                   }
                 />
                 <Route
-                  path="meal-plan"
+                  path="shop/cart"
                   element={
                     <RequireAuth>
-                      <MealPlan />
+                      <ShopCart />
+                    </RequireAuth>
+                  }
+                />
+                <Route
+                  path="settings"
+                  element={
+                    <RequireAuth>
+                      <Settings />
                     </RequireAuth>
                   }
                 />

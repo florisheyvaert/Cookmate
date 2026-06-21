@@ -144,6 +144,7 @@ export default function MealSuggestionDetail() {
         title={s.title}
         sourceUrl={s.sourceUrl}
         suggestionId={s.id}
+        baseServings={s.baseServings}
       />
     </div>
   )

@@ -32,7 +32,14 @@ export function PageHeader({ eyebrow, title, subtitle, action }: PageHeaderProps
             {title}
           </motion.h1>
         </div>
-        {action && <div className="shrink-0 mt-1">{action}</div>}
+        {/* On mobile the action stretches full-width (centered) so it reads as a
+            deliberate button instead of a stray link under the title; on sm+ it
+            shrinks back to its content width. Targets the action's root element. */}
+        {action && (
+          <div className="w-full sm:w-auto shrink-0 mt-1 [&>*]:w-full [&>*]:justify-center sm:[&>*]:w-auto">
+            {action}
+          </div>
+        )}
       </div>
       {subtitle && (
         <p className="text-ink-soft text-lg leading-relaxed mt-4 max-w-2xl">{subtitle}</p>

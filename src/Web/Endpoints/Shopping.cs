@@ -1,9 +1,16 @@
+using Cookmate.Application.Shopping.Commands.AddIgnoredIngredient;
+using Cookmate.Application.Shopping.Commands.ClearIngredientProductPreference;
 using Cookmate.Application.Shopping.Commands.LinkIngredientToProduct;
 using Cookmate.Application.Shopping.Commands.LinkIngredientToProductByUrl;
+using Cookmate.Application.Shopping.Commands.RemoveIgnoredIngredient;
+using Cookmate.Application.Shopping.Commands.SetIngredientProductPreference;
 using Cookmate.Application.Shopping.Commands.UnlinkIngredient;
 using Cookmate.Application.Shopping.Common;
+using Cookmate.Application.Shopping.Queries.BuildDeeplinkFromItems;
+using Cookmate.Application.Shopping.Queries.ListIgnoredIngredients;
 using Cookmate.Application.Shopping.Queries.BuildRecipeShoppingDeeplink;
 using Cookmate.Application.Shopping.Queries.BuildShoppingListDeeplink;
+using Cookmate.Application.Shopping.Queries.GetWeeklyCart;
 using Cookmate.Application.Shopping.Queries.ListGroceryStores;
 using Cookmate.Application.Shopping.Queries.SearchGroceryProducts;
 using Microsoft.AspNetCore.Http.HttpResults;
@@ -26,6 +33,66 @@ public class Shopping : IEndpointGroup
 
         groupBuilder.MapGet(BuildRecipeDeeplink, "recipes/{recipeId:int}/{storeCode}");
         groupBuilder.MapPost(BuildListDeeplink, "list/{storeCode}");
+
+        // Weekly cart (from the meal plan) + name→product preferences.
+        groupBuilder.MapGet(GetWeeklyCart, "cart/{storeCode}");
+        groupBuilder.MapPost(SetPreference, "preferences");
+        groupBuilder.MapDelete(ClearPreference, "preferences");
+        groupBuilder.MapPost(BuildDeeplink, "deeplink");
+
+        groupBuilder.MapGet(ListIgnored, "ignored");
+        groupBuilder.MapPost(AddIgnored, "ignored");
+        groupBuilder.MapDelete(RemoveIgnored, "ignored");
+    }
+
+    [EndpointSummary("Build the weekly shopping cart from the meal plan")]
+    [EndpointDescription("Aggregates the ingredients of every meal planned in [from, to] (recipes scaled by servings + planned suggestions), sums needed amounts before computing pack counts, and splits into to-buy / probably-in-stock / unmatched.")]
+    public static async Task<Ok<WeeklyCartDto>> GetWeeklyCart(ISender sender, string storeCode, DateOnly from, DateOnly to)
+    {
+        var cart = await sender.Send(new GetWeeklyCartQuery { StoreCode = storeCode, From = from, To = to });
+        return TypedResults.Ok(cart);
+    }
+
+    [EndpointSummary("Remember the product for an ingredient name")]
+    public static async Task<NoContent> SetPreference(ISender sender, [FromBody] SetIngredientProductPreferenceCommand command)
+    {
+        await sender.Send(command);
+        return TypedResults.NoContent();
+    }
+
+    [EndpointSummary("Forget the remembered product for an ingredient name")]
+    public static async Task<NoContent> ClearPreference(ISender sender, string storeCode, string ingredientName)
+    {
+        await sender.Send(new ClearIngredientProductPreferenceCommand { StoreCode = storeCode, IngredientName = ingredientName });
+        return TypedResults.NoContent();
+    }
+
+    [EndpointSummary("Build a deeplink from an explicit reviewed basket")]
+    public static async Task<Ok<CartDeeplinkDto>> BuildDeeplink(ISender sender, [FromBody] BuildDeeplinkFromItemsQuery query)
+    {
+        var result = await sender.Send(query);
+        return TypedResults.Ok(result);
+    }
+
+    [EndpointSummary("List the household's never-buy ingredients")]
+    public static async Task<Ok<IReadOnlyList<string>>> ListIgnored(ISender sender)
+    {
+        var ignored = await sender.Send(new ListIgnoredIngredientsQuery());
+        return TypedResults.Ok(ignored);
+    }
+
+    [EndpointSummary("Never buy an ingredient")]
+    public static async Task<NoContent> AddIgnored(ISender sender, [FromBody] AddIgnoredIngredientCommand command)
+    {
+        await sender.Send(command);
+        return TypedResults.NoContent();
+    }
+
+    [EndpointSummary("Stop ignoring an ingredient")]
+    public static async Task<NoContent> RemoveIgnored(ISender sender, string ingredientName)
+    {
+        await sender.Send(new RemoveIgnoredIngredientCommand { IngredientName = ingredientName });
+        return TypedResults.NoContent();
     }
 
     [EndpointSummary("List grocery stores")]

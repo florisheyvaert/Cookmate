@@ -60,20 +60,27 @@ public class MealEntry : BaseAuditableEntity
     }
 
     /// <summary>
-    /// Sets a free-text meal description and clears any recipe link. Optionally records
-    /// the harvested suggestion it came from (so the plan can show its photo).
+    /// Sets a free-text meal description and clears any recipe link. Optionally records the
+    /// harvested suggestion it came from (so the plan can show its photo) and the servings it
+    /// was planned for (so the shopping cart can scale the suggestion's ingredients).
     /// </summary>
-    public void SetFreeText(string text, int? suggestionId = null)
+    public void SetFreeText(string text, int? suggestionId = null, int? servings = null)
     {
         if (string.IsNullOrWhiteSpace(text))
         {
             throw new ArgumentException("Free text is required.", nameof(text));
         }
 
+        if (servings is < 1)
+        {
+            throw new ArgumentOutOfRangeException(nameof(servings), "Servings must be at least 1.");
+        }
+
         FreeText = text.Trim();
         RecipeId = null;
-        Servings = null;
         MealSuggestionId = suggestionId is > 0 ? suggestionId : null;
+        // Keep servings only for a suggestion-backed entry; a hand-typed note has no recipe to scale.
+        Servings = MealSuggestionId is not null ? servings : null;
     }
 
     public void SetSlot(MealSlot slot) => Slot = slot;

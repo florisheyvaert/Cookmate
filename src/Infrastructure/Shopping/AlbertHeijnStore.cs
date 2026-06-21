@@ -156,14 +156,18 @@ public class AlbertHeijnStore : IGroceryStore
         var truncated = items.Count > MaxItemsPerDeeplink;
         var taken = truncated ? items.Take(MaxItemsPerDeeplink) : items;
 
-        var encoded = string.Join(',', taken.Select(i =>
+        // AH's add-multiple takes ONE repeated `p` query parameter per product —
+        // "?p=<id>:<qty>&p=<id>:<qty>" — NOT a single comma-joined `p`. With commas
+        // AH only reads the first pair and drops the rest. The ':' stays literal; the
+        // SKU is escaped (numeric webshop ids are a no-op).
+        var query = string.Join('&', taken.Select(i =>
         {
             if (string.IsNullOrWhiteSpace(i.Sku)) throw new ArgumentException("SKU is required.", nameof(items));
             if (i.Quantity < 1) throw new ArgumentException("Quantity must be at least 1.", nameof(items));
-            return $"{i.Sku}:{i.Quantity}";
+            return $"p={Uri.EscapeDataString(i.Sku)}:{i.Quantity}";
         }));
 
-        var url = new Uri($"https://www.ah.nl/mijnlijst/add-multiple?p={Uri.EscapeDataString(encoded)}");
+        var url = new Uri($"https://www.ah.nl/mijnlijst/add-multiple?{query}");
         return new GroceryDeeplink(url, truncated);
     }
 
