@@ -1,9 +1,12 @@
-﻿using Cookmate.Application.Common.Interfaces;
+﻿using System.Net;
+using System.Net.Http;
+using Cookmate.Application.Common.Interfaces;
 using Cookmate.Domain.Constants;
 using Cookmate.Infrastructure.Data;
 using Cookmate.Infrastructure.Data.Interceptors;
 using Cookmate.Infrastructure.Identity;
 using Cookmate.Infrastructure.Scraping;
+using Cookmate.Infrastructure.Scraping.Discovery;
 using Cookmate.Infrastructure.Shopping;
 using Cookmate.Infrastructure.Storage;
 using Microsoft.AspNetCore.Authorization;
@@ -85,12 +88,55 @@ public static class DependencyInjection
             builder.Configuration.GetSection(FileStorageOptions.SectionName));
         builder.Services.AddSingleton<IFileStorage, LocalFileStorage>();
 
-        builder.Services.AddHttpClient<IRecipeScraper, JsonLdRecipeScraper>(client =>
+        // Recipe scraping & discovery. The generic JSON-LD scraper and listing-page
+        // discoverer are the defaults; per-host implementations (e.g. dagelijksekost)
+        // register as IHostRecipeScraper / IHostRecipeUrlDiscoverer and the registries
+        // prefer them by host. Import and the weekly harvest both go through the registry.
+        void ConfigureScraperClient(HttpClient client)
         {
             client.Timeout = TimeSpan.FromSeconds(15);
-            client.DefaultRequestHeaders.UserAgent.ParseAdd("Cookmate/1.0 (+https://github.com/)");
-            client.DefaultRequestHeaders.Accept.ParseAdd("text/html,application/xhtml+xml");
-        });
+            // A browser User-Agent: some sites (e.g. ah.nl) return 403 to non-browser
+            // clients on their recipe HTML. Public recipe pages are fine to read this way.
+            client.DefaultRequestHeaders.UserAgent.ParseAdd(
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36");
+            client.DefaultRequestHeaders.Accept.ParseAdd("text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8");
+            client.DefaultRequestHeaders.AcceptLanguage.ParseAdd("nl-BE,nl;q=0.9,en;q=0.8");
+        }
+
+        // Follow redirects and persist cookies across them: some sites (e.g.
+        // libelle-lekker.be) gate recipe pages behind a silent SSO/consent bounce that
+        // only completes when the guest cookies set mid-redirect are sent back. Also
+        // decompress like a browser.
+        static HttpMessageHandler ScraperHandler() => new HttpClientHandler
+        {
+            AllowAutoRedirect = true,
+            MaxAutomaticRedirections = 20,
+            UseCookies = true,
+            CookieContainer = new CookieContainer(),
+            AutomaticDecompression = DecompressionMethods.All,
+        };
+
+        builder.Services.AddHttpClient<JsonLdRecipeScraper>(ConfigureScraperClient)
+            .ConfigurePrimaryHttpMessageHandler(ScraperHandler);
+        builder.Services.AddHttpClient<IHostRecipeScraper, DagelijkseKostScraper>(ConfigureScraperClient)
+            .ConfigurePrimaryHttpMessageHandler(ScraperHandler);
+        builder.Services.AddHttpClient<IHostRecipeScraper, LibelleLekkerScraper>(ConfigureScraperClient)
+            .ConfigurePrimaryHttpMessageHandler(ScraperHandler);
+        builder.Services.AddHttpClient<ListingPageDiscoverer>(ConfigureScraperClient)
+            .ConfigurePrimaryHttpMessageHandler(ScraperHandler);
+        builder.Services.AddHttpClient<IHostRecipeUrlDiscoverer, DagelijkseKostDiscoverer>(ConfigureScraperClient)
+            .ConfigurePrimaryHttpMessageHandler(ScraperHandler);
+        builder.Services.AddHttpClient<IHostRecipeUrlDiscoverer, AlbertHeijnDiscoverer>(ConfigureScraperClient)
+            .ConfigurePrimaryHttpMessageHandler(ScraperHandler);
+        builder.Services.AddHttpClient<IHostRecipeUrlDiscoverer, LibelleLekkerDiscoverer>(ConfigureScraperClient)
+            .ConfigurePrimaryHttpMessageHandler(ScraperHandler);
+
+        builder.Services.AddTransient<IRecipeScraperRegistry, RecipeScraperRegistry>();
+        builder.Services.AddTransient<IRecipeUrlDiscovererRegistry, RecipeUrlDiscovererRegistry>();
+        builder.Services.AddSingleton<ISuggestionSelectionStrategy, StableRandomSuggestionSelectionStrategy>();
+
+        // Weekly harvest job (manual per-source runs go through the same command).
+        builder.Services.AddHostedService<MealSuggestionHarvestService>();
 
         builder.Services.AddHttpClient<IImageDownloader, HttpImageDownloader>(client =>
         {

@@ -47,6 +47,8 @@ export type MealEntryDto = {
   freeText: string | null
   servings: number | null
   notes: string | null
+  /** Dish photo from the linked recipe or suggestion, or null when none. */
+  imageUrl: string | null
 }
 
 export type CreateMealEntryInput = {
@@ -56,6 +58,8 @@ export type CreateMealEntryInput = {
   freeText: string | null
   servings: number | null
   notes: string | null
+  /** Optional harvested suggestion this entry came from (carries its photo). */
+  suggestionId?: number | null
 }
 
 export type UpdateMealEntryInput = CreateMealEntryInput & { id: number }

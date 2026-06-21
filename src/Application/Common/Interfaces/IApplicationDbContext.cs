@@ -12,5 +12,13 @@ public interface IApplicationDbContext
 
     DbSet<MealEntry> MealEntries { get; }
 
+    DbSet<SuggestionSource> SuggestionSources { get; }
+
+    DbSet<MealSuggestion> MealSuggestions { get; }
+
+    DbSet<SuggestionHarvestRun> SuggestionHarvestRuns { get; }
+
+    DbSet<HarvestSchedule> HarvestSchedules { get; }
+
     Task<int> SaveChangesAsync(CancellationToken cancellationToken);
 }

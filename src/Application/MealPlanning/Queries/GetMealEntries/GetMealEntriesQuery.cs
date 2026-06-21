@@ -21,27 +21,52 @@ public class GetMealEntriesQueryHandler : IRequestHandler<GetMealEntriesQuery, I
 
     public async Task<IReadOnlyList<MealEntryDto>> Handle(GetMealEntriesQuery request, CancellationToken cancellationToken)
     {
-        // Left-join the recipe so a linked entry can show its current title;
-        // free-text entries keep RecipeTitle null.
-        var query =
+        // Left-join the recipe (for its title + cover photo) and the suggestion (for its
+        // photo, when the entry was planned from Ideas). Two-step so the image URL is
+        // built in memory (same approach as ListRecipes).
+        var rows = await (
             from e in _context.MealEntries.AsNoTracking()
             where e.Date >= request.From && e.Date <= request.To
             join r in _context.Recipes on e.RecipeId equals r.Id into recipeJoin
             from r in recipeJoin.DefaultIfEmpty()
+            join s in _context.MealSuggestions on e.MealSuggestionId equals s.Id into suggestionJoin
+            from s in suggestionJoin.DefaultIfEmpty()
             orderby e.Date, e.Slot
-            select new MealEntryDto
+            select new
             {
-                Id = e.Id,
-                Date = e.Date,
-                Slot = e.Slot,
-                RecipeId = e.RecipeId,
+                e.Id,
+                e.Date,
+                e.Slot,
+                e.RecipeId,
                 RecipeTitle = r != null ? r.Title : null,
-                FreeText = e.FreeText,
-                Servings = e.Servings,
-                Notes = e.Notes,
-            };
+                e.FreeText,
+                e.Servings,
+                e.Notes,
+                CoverMediaId = r != null
+                    ? r.Media.Where(m => m.Type == MediaType.Photo).OrderBy(m => m.Order).Select(m => (int?)m.Id).FirstOrDefault()
+                    : null,
+                SuggestionId = e.MealSuggestionId,
+                SuggestionHasImage = s != null && s.ImageStorageKey != null,
+            }).ToListAsync(cancellationToken);
 
-        return await query.ToListAsync(cancellationToken);
+        return rows
+            .Select(x => new MealEntryDto
+            {
+                Id = x.Id,
+                Date = x.Date,
+                Slot = x.Slot,
+                RecipeId = x.RecipeId,
+                RecipeTitle = x.RecipeTitle,
+                FreeText = x.FreeText,
+                Servings = x.Servings,
+                Notes = x.Notes,
+                ImageUrl = x.RecipeId is int rid && x.CoverMediaId is int mid
+                    ? $"/api/Recipes/{rid}/media/{mid}/file"
+                    : x.SuggestionId is int sid && x.SuggestionHasImage
+                        ? $"/api/MealSuggestions/{sid}/image"
+                        : null,
+            })
+            .ToList();
     }
 }
 
@@ -62,4 +87,7 @@ public record MealEntryDto
     public int? Servings { get; init; }
 
     public string? Notes { get; init; }
+
+    /// <summary>Dish photo (relative API URL) from the linked recipe or suggestion, or null when none.</summary>
+    public string? ImageUrl { get; init; }
 }

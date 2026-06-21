@@ -1,11 +1,12 @@
-import { useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link, Navigate } from 'react-router'
 import { useQuery } from '@tanstack/react-query'
-import { motion } from 'motion/react'
+import { AnimatePresence, motion } from 'motion/react'
 import { useAuth } from '@/auth/AuthContext'
 import { recipesApi } from '@/api/recipes'
 import { mealPlanApi, MEAL_SLOT_ORDER, MEAL_SLOT_ICON, MEAL_SLOT_LABELS } from '@/api/mealPlan'
 import type { MealEntryDto } from '@/api/mealPlan'
+import { suggestionsApi } from '@/api/suggestions'
 import { formatDuration } from '@/lib/format'
 import type { RecipeSummaryDto } from '@/api/types'
 
@@ -107,6 +108,8 @@ function SignedInHome() {
       {!recipesQ.isPending && !featured && <FirstRecipeInvitation />}
       {featured && <FeaturedCard recipe={featured} />}
 
+      <SuggestedThisWeek />
+
       {recent.length > 0 && <FromTheShelf recipes={recent} />}
 
       <CloserActions />
@@ -174,6 +177,7 @@ function ThisWeek({
   tonight: MealEntryDto | null
   plannedCount: number
 }) {
+  const [selectedDate, setSelectedDate] = useState<string | null>(null)
   const wdLong = new Intl.DateTimeFormat(undefined, { weekday: 'long' }).format(today)
   const wdShort = new Intl.DateTimeFormat(undefined, { weekday: 'short' })
   const ahead = days.slice(1)
@@ -185,7 +189,7 @@ function ThisWeek({
       transition={{ delay: 0.14, duration: 0.6, ease }}
       className="mb-20 md:mb-28"
     >
-      <div className="flex items-end justify-between gap-4 mb-7">
+      <div className="flex items-end justify-between gap-4 mb-7 flex-wrap">
         <div className="flex items-baseline gap-3">
           <h2 className="text-ink text-2xl" style={{ fontWeight: 700, letterSpacing: '-0.02em' }}>
             This week
@@ -196,15 +200,29 @@ function ThisWeek({
             </span>
           )}
         </div>
-        <Link to="/meal-plan" className={quietLink}>
-          Open meal plan →
-        </Link>
+        <div className="flex items-center gap-4">
+          <Link to="/suggestions" className={btnGreen}>
+            🥗 This week&rsquo;s ideas →
+          </Link>
+          <Link to="/meal-plan" className={quietLink}>
+            Open meal plan →
+          </Link>
+        </div>
       </div>
 
       {/* Tonight banner */}
       <div className="relative overflow-hidden rounded-2xl border border-cream-shadow bg-cream-deep mb-4">
         <span aria-hidden className="absolute left-0 top-0 bottom-0 w-1 bg-butter" />
         <div className="p-7 sm:p-9 pl-8 sm:pl-10 flex flex-col sm:flex-row sm:items-center gap-6 sm:gap-8">
+          {tonight?.imageUrl && (
+            <button
+              type="button"
+              onClick={() => setSelectedDate(toISO(today))}
+              className="shrink-0 block w-20 h-20 sm:w-24 sm:h-24 rounded-xl overflow-hidden border border-cream-shadow"
+            >
+              <img src={tonight.imageUrl} alt="" className="w-full h-full object-cover" />
+            </button>
+          )}
           <div className="flex-1 min-w-0">
             <p className="font-mono text-[0.62rem] uppercase tracking-[0.18em] text-chestnut flex items-center gap-2 mb-2.5">
               <span className="text-butter-deep">Tonight</span>
@@ -214,15 +232,17 @@ function ThisWeek({
               <span>{wdLong}</span>
             </p>
             {tonight ? (
-              <span
-                className="text-ink leading-tight flex items-baseline gap-2.5"
+              <button
+                type="button"
+                onClick={() => setSelectedDate(toISO(today))}
+                className="text-left text-ink leading-tight flex items-baseline gap-2.5 hover:text-paprika transition-colors"
                 style={{ fontSize: 'clamp(1.5rem, 4vw, 2.4rem)', fontWeight: 700, letterSpacing: '-0.02em' }}
               >
                 <span aria-hidden className="text-[0.8em] leading-none shrink-0" title={MEAL_SLOT_LABELS[tonight.slot]}>
                   {MEAL_SLOT_ICON[tonight.slot]}
                 </span>
                 <span className="min-w-0 truncate">{entryLabel(tonight)}</span>
-              </span>
+              </button>
             ) : (
               <p className="text-ink-soft text-xl italic">Nothing planned yet.</p>
             )}
@@ -234,9 +254,9 @@ function ThisWeek({
                 <Link to={`/recipes/${tonight.recipeId}/cook`} className={btnGold}>
                   ▷ Cook now
                 </Link>
-                <Link to="/meal-plan" className={quietLink}>
-                  Change
-                </Link>
+                <button type="button" onClick={() => setSelectedDate(toISO(today))} className={quietLink}>
+                  Details
+                </button>
               </div>
             ) : (
               <Link to="/meal-plan" className={btnGreen}>
@@ -247,7 +267,7 @@ function ThisWeek({
         </div>
       </div>
 
-      {/* Days ahead */}
+      {/* Days ahead — click a day to see what's planned */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3.5">
         {ahead.map((d, i) => {
           const iso = toISO(d)
@@ -261,38 +281,242 @@ function ThisWeek({
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.22 + i * 0.04, duration: 0.4, ease }}
             >
-              <Link
-                to="/meal-plan"
-                className="group block no-underline rounded-xl border border-cream-shadow bg-cream-deep p-4 h-full min-h-[7.25rem] hover:border-paprika/50 transition-colors"
+              <button
+                type="button"
+                onClick={() => setSelectedDate(iso)}
+                className="group block w-full text-left rounded-xl border border-cream-shadow bg-cream-deep overflow-hidden h-full min-h-[7.25rem] hover:border-paprika/50 transition-colors"
               >
-                <div className="flex items-baseline justify-between mb-3">
-                  <span className="font-mono text-[0.58rem] uppercase tracking-[0.14em] text-chestnut">
-                    {wdShort.format(d)}
-                  </span>
-                  <span className="num text-[0.95rem] leading-none text-ink-soft">{d.getDate()}</span>
-                </div>
-                {head ? (
-                  <div className="flex items-start gap-1.5">
-                    <span aria-hidden className="text-sm leading-snug shrink-0" title={MEAL_SLOT_LABELS[head.slot]}>
-                      {MEAL_SLOT_ICON[head.slot]}
-                    </span>
-                    <span className="text-ink text-[0.9rem] leading-snug line-clamp-2">
-                      {entryLabel(head)}
-                      {extra > 0 && <span className="text-chestnut-soft"> +{extra}</span>}
-                    </span>
+                {head?.imageUrl && (
+                  <div className="aspect-[3/2] overflow-hidden bg-cream-shadow/40">
+                    <img
+                      src={head.imageUrl}
+                      alt=""
+                      loading="lazy"
+                      className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.04]"
+                    />
                   </div>
-                ) : (
-                  <span className="font-mono text-[0.58rem] text-chestnut-soft/70 inline-flex items-center gap-1 group-hover:text-paprika transition-colors">
-                    <span className="text-base leading-none">+</span> plan
-                  </span>
                 )}
-              </Link>
+                <div className="p-4">
+                  <div className="flex items-baseline justify-between mb-3">
+                    <span className="font-mono text-[0.58rem] uppercase tracking-[0.14em] text-chestnut">
+                      {wdShort.format(d)}
+                    </span>
+                    <span className="num text-[0.95rem] leading-none text-ink-soft">{d.getDate()}</span>
+                  </div>
+                  {head ? (
+                    <div className="flex items-start gap-1.5">
+                      <span aria-hidden className="text-sm leading-snug shrink-0" title={MEAL_SLOT_LABELS[head.slot]}>
+                        {MEAL_SLOT_ICON[head.slot]}
+                      </span>
+                      <span className="text-ink text-[0.9rem] leading-snug line-clamp-2">
+                        {entryLabel(head)}
+                        {extra > 0 && <span className="text-chestnut-soft"> +{extra}</span>}
+                      </span>
+                    </div>
+                  ) : (
+                    <span className="font-mono text-[0.58rem] text-chestnut-soft/70 inline-flex items-center gap-1 group-hover:text-paprika transition-colors">
+                      <span className="text-base leading-none">+</span> plan
+                    </span>
+                  )}
+                </div>
+              </button>
             </motion.div>
           )
         })}
       </div>
+
+      <DayDetailDialog
+        dateIso={selectedDate}
+        entries={selectedDate ? byDate.get(selectedDate) ?? [] : []}
+        onClose={() => setSelectedDate(null)}
+      />
     </motion.section>
   )
+}
+
+// ── Day detail — read-only "what's planned" with links to the recipe ─────────
+
+function DayDetailDialog({
+  dateIso,
+  entries,
+  onClose,
+}: {
+  dateIso: string | null
+  entries: MealEntryDto[]
+  onClose: () => void
+}) {
+  const open = dateIso != null
+
+  useEffect(() => {
+    if (!open) return
+    const original = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') onClose()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => {
+      window.removeEventListener('keydown', onKey)
+      document.body.style.overflow = original
+    }
+  }, [open, onClose])
+
+  const title = dateIso ? formatDayLong(dateIso) : ''
+
+  return (
+    <AnimatePresence>
+      {open && (
+        <>
+          <motion.div
+            key="backdrop"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.18 }}
+            className="fixed inset-0 z-50 bg-ink/50 backdrop-blur-sm"
+            onClick={onClose}
+            aria-hidden
+          />
+          <motion.div
+            key="card"
+            initial={{ opacity: 0, scale: 0.97, y: 8 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.97, y: 8 }}
+            transition={{ duration: 0.22, ease }}
+            className="fixed inset-0 z-50 flex items-center justify-center px-4 py-8 pointer-events-none"
+            role="dialog"
+            aria-modal="true"
+            aria-label={`Meals for ${title}`}
+          >
+            <div className="w-full max-w-lg bg-cream border border-cream-shadow shadow-[0_28px_70px_-18px_rgba(20,30,18,0.45)] pointer-events-auto rounded-2xl flex flex-col max-h-[88vh] overflow-hidden">
+              <header className="px-6 pt-6 pb-4 border-b border-cream-shadow flex items-start justify-between gap-4">
+                <div>
+                  <p className="eyebrow text-paprika mb-1.5">Planned</p>
+                  <h2 className="font-display text-ink text-xl" style={{ fontWeight: 700, letterSpacing: '-0.02em' }}>
+                    {title}
+                  </h2>
+                </div>
+                <button
+                  type="button"
+                  onClick={onClose}
+                  aria-label="Close"
+                  className="shrink-0 grid place-items-center w-8 h-8 rounded-full border border-cream-shadow text-chestnut hover:border-paprika hover:text-paprika transition-colors"
+                >
+                  ×
+                </button>
+              </header>
+
+              <div className="flex-1 overflow-y-auto px-6 py-5">
+                {entries.length === 0 ? (
+                  <div className="text-center py-10">
+                    <p className="eyebrow mb-2">Nothing planned</p>
+                    <p className="text-ink-soft">This day is still open.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-5">
+                    {entries.map((e) => (
+                      <div key={e.id} className="rounded-2xl border border-cream-shadow overflow-hidden bg-cream-deep">
+                        {e.imageUrl ? (
+                          <div className="relative aspect-[16/9] bg-cream-shadow/40">
+                            <img src={e.imageUrl} alt="" className="w-full h-full object-cover" />
+                            <span className="absolute top-3 left-3">
+                              <SlotChip slot={e.slot} onImage />
+                            </span>
+                          </div>
+                        ) : null}
+
+                        <div className="p-4 sm:p-5">
+                          {!e.imageUrl && (
+                            <div className="mb-2.5">
+                              <SlotChip slot={e.slot} />
+                            </div>
+                          )}
+                          <h3 className="font-display text-ink text-xl sm:text-2xl leading-tight" style={{ fontWeight: 700, letterSpacing: '-0.02em' }}>
+                            {entryLabel(e)}
+                          </h3>
+                          {e.recipeId != null && e.servings != null && (
+                            <p className="font-mono text-[0.66rem] text-chestnut mt-1">
+                              <span className="num text-paprika">{e.servings}</span> servings
+                            </p>
+                          )}
+
+                          {(e.recipeId != null || (e.notes && isHttpUrl(e.notes))) && (
+                            <div className="mt-3.5">
+                              {e.recipeId != null ? (
+                                <Link
+                                  to={`/recipes/${e.recipeId}`}
+                                  className="inline-flex items-center gap-1.5 rounded-lg px-4 py-2 bg-paprika text-cream hover:bg-paprika-deep transition-colors font-mono text-[0.66rem] uppercase tracking-[0.14em] no-underline"
+                                >
+                                  View recipe →
+                                </Link>
+                              ) : (
+                                e.notes &&
+                                isHttpUrl(e.notes) && (
+                                  <a
+                                    href={e.notes}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="inline-flex items-center gap-1.5 rounded-lg px-4 py-2 border border-cream-shadow text-chestnut hover:border-paprika hover:text-paprika transition-colors font-mono text-[0.66rem] uppercase tracking-[0.14em]"
+                                  >
+                                    Open original ↗
+                                  </a>
+                                )
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <footer className="px-6 py-4 border-t border-cream-shadow flex items-center justify-between gap-4">
+                <Link to="/meal-plan" className="font-mono text-[0.66rem] uppercase tracking-[0.16em] text-chestnut hover:text-paprika transition-colors">
+                  Edit this day →
+                </Link>
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="font-mono text-[0.66rem] uppercase tracking-[0.16em] text-chestnut hover:text-paprika transition-colors"
+                >
+                  Close
+                </button>
+              </footer>
+            </div>
+          </motion.div>
+        </>
+      )}
+    </AnimatePresence>
+  )
+}
+
+function SlotChip({ slot, onImage }: { slot: MealEntryDto['slot']; onImage?: boolean }) {
+  return (
+    <span
+      className={[
+        'inline-flex items-center gap-1.5 rounded-full px-3 py-1 font-mono text-[0.6rem] uppercase tracking-[0.14em]',
+        onImage
+          ? 'bg-cream/90 text-ink shadow-sm backdrop-blur-sm'
+          : 'bg-paprika/12 text-paprika-deep',
+      ].join(' ')}
+    >
+      <span aria-hidden className="text-sm leading-none">
+        {MEAL_SLOT_ICON[slot]}
+      </span>
+      {MEAL_SLOT_LABELS[slot]}
+    </span>
+  )
+}
+
+function formatDayLong(iso: string): string {
+  const [y, m, d] = iso.split('-').map(Number)
+  const date = new Date(y, m - 1, d)
+  return new Intl.DateTimeFormat(undefined, { weekday: 'long', day: 'numeric', month: 'long' }).format(date)
+}
+
+function isHttpUrl(value: string): boolean {
+  return /^https?:\/\//i.test(value.trim())
 }
 
 // ── Featured recipe — one contained card ─────────────────────────────────────
@@ -383,6 +607,64 @@ function Meta({ label, value }: { label: string; value: string }) {
 }
 
 // ── Recent recipes — calm list ──────────────────────────────────────────────
+
+// ── This week's suggested ideas (scraped pool) ──────────────────────────────
+
+function weekdayShort(isoDate: string) {
+  const [y, m, d] = isoDate.split('-').map(Number)
+  return new Date(y, m - 1, d).toLocaleDateString(undefined, { weekday: 'short' })
+}
+
+function SuggestedThisWeek() {
+  const weeklyQ = useQuery({ queryKey: ['suggestions-weekly'], queryFn: () => suggestionsApi.weekly() })
+
+  const days = weeklyQ.data?.days ?? []
+  const filled = days.filter((d) => d.suggestion)
+  // Quietly stay out of the way until the pool has something to propose.
+  if (!weeklyQ.isSuccess || filled.length === 0) return null
+
+  return (
+    <section className="mb-20 md:mb-28">
+      <SectionHeader title="This week's ideas" caption="Browse all" to="/suggestions" />
+
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-3">
+        {days.map((day, i) => (
+          <motion.div
+            key={day.date}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 + i * 0.04, duration: 0.4, ease }}
+            className="rounded-xl border border-cream-shadow bg-cream-deep overflow-hidden flex flex-col"
+          >
+            <div className="aspect-[4/3] bg-cream-shadow/40 grid place-items-center overflow-hidden">
+              {day.suggestion?.imageUrl ? (
+                <img src={day.suggestion.imageUrl} alt="" loading="lazy" className="w-full h-full object-cover" />
+              ) : (
+                <span aria-hidden className="text-2xl leading-none opacity-60">🍽️</span>
+              )}
+            </div>
+            <div className="p-2.5 flex-1 flex flex-col">
+              <span className="font-mono text-[0.56rem] uppercase tracking-[0.16em] text-chestnut-soft">
+                {weekdayShort(day.date)}
+              </span>
+              {day.suggestion ? (
+                <Link
+                  to={`/suggestions/${day.suggestion.id}`}
+                  className="text-ink text-sm leading-tight mt-0.5 hover:text-paprika transition-colors no-underline line-clamp-2"
+                  style={{ fontWeight: 700, letterSpacing: '-0.01em' }}
+                >
+                  {day.suggestion.title}
+                </Link>
+              ) : (
+                <span className="text-chestnut-soft text-sm mt-0.5">—</span>
+              )}
+            </div>
+          </motion.div>
+        ))}
+      </div>
+    </section>
+  )
+}
 
 function FromTheShelf({ recipes }: { recipes: RecipeSummaryDto[] }) {
   return (

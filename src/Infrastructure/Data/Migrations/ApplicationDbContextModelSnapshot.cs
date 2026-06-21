@@ -88,6 +88,40 @@ namespace Cookmate.Infrastructure.Data.Migrations
                     b.ToTable("GroceryProducts", (string)null);
                 });
 
+            modelBuilder.Entity("Cookmate.Domain.Entities.HarvestSchedule", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTimeOffset>("Created")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<int>("DayOfWeek")
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("Enabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTimeOffset>("LastModified")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("LastModifiedBy")
+                        .HasColumnType("text");
+
+                    b.Property<TimeOnly>("TimeOfDay")
+                        .HasColumnType("time without time zone");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("HarvestSchedules", (string)null);
+                });
+
             modelBuilder.Entity("Cookmate.Domain.Entities.Ingredient", b =>
                 {
                     b.Property<int>("Id")
@@ -145,6 +179,9 @@ namespace Cookmate.Infrastructure.Data.Migrations
                     b.Property<string>("LastModifiedBy")
                         .HasColumnType("text");
 
+                    b.Property<int?>("MealSuggestionId")
+                        .HasColumnType("integer");
+
                     b.Property<string>("Notes")
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)");
@@ -162,9 +199,87 @@ namespace Cookmate.Infrastructure.Data.Migrations
 
                     b.HasIndex("Date");
 
+                    b.HasIndex("MealSuggestionId");
+
                     b.HasIndex("RecipeId");
 
                     b.ToTable("MealEntries", (string)null);
+                });
+
+            modelBuilder.Entity("Cookmate.Domain.Entities.MealSuggestion", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("BaseServings")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset>("Created")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<DateOnly>("HarvestedOn")
+                        .HasColumnType("date");
+
+                    b.Property<string>("ImageStorageKey")
+                        .HasMaxLength(400)
+                        .HasColumnType("character varying(400)");
+
+                    b.Property<string>("Ingredients")
+                        .IsRequired()
+                        .HasColumnType("jsonb");
+
+                    b.Property<DateTimeOffset>("LastModified")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("LastModifiedBy")
+                        .HasColumnType("text");
+
+                    b.Property<int>("SourceId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("SourceUrl")
+                        .IsRequired()
+                        .HasMaxLength(2048)
+                        .HasColumnType("character varying(2048)");
+
+                    b.Property<string>("Steps")
+                        .IsRequired()
+                        .HasColumnType("jsonb");
+
+                    b.Property<string>("Summary")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.PrimitiveCollection<string[]>("Tags")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("text[]")
+                        .HasDefaultValueSql("ARRAY[]::text[]");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
+
+                    b.Property<int?>("TotalTimeMinutes")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("HarvestedOn");
+
+                    b.HasIndex("SourceId");
+
+                    b.HasIndex("SourceUrl")
+                        .IsUnique();
+
+                    b.ToTable("MealSuggestions", (string)null);
                 });
 
             modelBuilder.Entity("Cookmate.Domain.Entities.Recipe", b =>
@@ -325,6 +440,122 @@ namespace Cookmate.Infrastructure.Data.Migrations
                     b.HasIndex("RecipeId");
 
                     b.ToTable("RecipeSteps", (string)null);
+                });
+
+            modelBuilder.Entity("Cookmate.Domain.Entities.SuggestionHarvestRun", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTimeOffset>("Created")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<int>("Discovered")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("Failed")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset?>("FinishedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("Inserted")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset>("LastModified")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("LastModifiedBy")
+                        .HasColumnType("text");
+
+                    b.Property<int>("SkippedDuplicate")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("SourceId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Sources")
+                        .IsRequired()
+                        .HasColumnType("jsonb");
+
+                    b.Property<DateTimeOffset>("StartedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("Trigger")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SourceId");
+
+                    b.HasIndex("StartedAt");
+
+                    b.ToTable("SuggestionHarvestRuns", (string)null);
+                });
+
+            modelBuilder.Entity("Cookmate.Domain.Entities.SuggestionSource", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTimeOffset>("Created")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<bool>("Enabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Host")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.Property<DateTimeOffset>("LastModified")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("LastModifiedBy")
+                        .HasColumnType("text");
+
+                    b.Property<DateTimeOffset?>("LastRunAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int?>("LastRunCount")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("LastRunStatus")
+                        .HasColumnType("integer");
+
+                    b.PrimitiveCollection<string[]>("ListingUrls")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("text[]")
+                        .HasDefaultValueSql("ARRAY[]::text[]");
+
+                    b.Property<int?>("MaxPerRun")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("SuggestionSources", (string)null);
                 });
 
             modelBuilder.Entity("Cookmate.Infrastructure.Identity.ApplicationUser", b =>
@@ -591,10 +822,24 @@ namespace Cookmate.Infrastructure.Data.Migrations
 
             modelBuilder.Entity("Cookmate.Domain.Entities.MealEntry", b =>
                 {
+                    b.HasOne("Cookmate.Domain.Entities.MealSuggestion", null)
+                        .WithMany()
+                        .HasForeignKey("MealSuggestionId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.HasOne("Cookmate.Domain.Entities.Recipe", null)
                         .WithMany()
                         .HasForeignKey("RecipeId")
                         .OnDelete(DeleteBehavior.SetNull);
+                });
+
+            modelBuilder.Entity("Cookmate.Domain.Entities.MealSuggestion", b =>
+                {
+                    b.HasOne("Cookmate.Domain.Entities.SuggestionSource", null)
+                        .WithMany()
+                        .HasForeignKey("SourceId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("Cookmate.Domain.Entities.RecipeIngredientProductLink", b =>

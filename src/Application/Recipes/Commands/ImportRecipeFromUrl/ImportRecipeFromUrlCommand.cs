@@ -16,16 +16,16 @@ public record ImportRecipeFromUrlCommand : IRequest<int>
 
 public class ImportRecipeFromUrlCommandHandler : IRequestHandler<ImportRecipeFromUrlCommand, int>
 {
-    private readonly IRecipeScraper _scraper;
+    private readonly IRecipeScraperRegistry _scrapers;
     private readonly IImageDownloader _imageDownloader;
     private readonly IApplicationDbContext _context;
 
     public ImportRecipeFromUrlCommandHandler(
-        IRecipeScraper scraper,
+        IRecipeScraperRegistry scrapers,
         IImageDownloader imageDownloader,
         IApplicationDbContext context)
     {
-        _scraper = scraper;
+        _scrapers = scrapers;
         _imageDownloader = imageDownloader;
         _context = context;
     }
@@ -33,7 +33,7 @@ public class ImportRecipeFromUrlCommandHandler : IRequestHandler<ImportRecipeFro
     public async Task<int> Handle(ImportRecipeFromUrlCommand request, CancellationToken cancellationToken)
     {
         var uri = new Uri(request.Url);
-        var scraped = await _scraper.ScrapeAsync(uri, cancellationToken);
+        var scraped = await _scrapers.For(uri.Host).ScrapeAsync(uri, cancellationToken);
 
         var title = string.IsNullOrWhiteSpace(scraped.Title) ? uri.Host : scraped.Title;
         var recipe = new Recipe(title, scraped.BaseServings, scraped.Summary, scraped.SourceUrl);

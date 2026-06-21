@@ -20,6 +20,13 @@ public class MealEntry : BaseAuditableEntity
 
     public string? FreeText { get; private set; }
 
+    /// <summary>
+    /// Optional link to the harvested suggestion this free-text entry came from — kept so
+    /// the plan can show the suggestion's photo (and, later, promote it to a real recipe).
+    /// Null for hand-typed entries and recipe entries.
+    /// </summary>
+    public int? MealSuggestionId { get; private set; }
+
     /// <summary>Target servings for a recipe entry; null when free text or when left at the recipe default.</summary>
     public int? Servings { get; private set; }
 
@@ -49,10 +56,14 @@ public class MealEntry : BaseAuditableEntity
         RecipeId = recipeId;
         Servings = servings;
         FreeText = null;
+        MealSuggestionId = null;
     }
 
-    /// <summary>Sets a free-text meal description and clears any recipe link.</summary>
-    public void SetFreeText(string text)
+    /// <summary>
+    /// Sets a free-text meal description and clears any recipe link. Optionally records
+    /// the harvested suggestion it came from (so the plan can show its photo).
+    /// </summary>
+    public void SetFreeText(string text, int? suggestionId = null)
     {
         if (string.IsNullOrWhiteSpace(text))
         {
@@ -62,6 +73,7 @@ public class MealEntry : BaseAuditableEntity
         FreeText = text.Trim();
         RecipeId = null;
         Servings = null;
+        MealSuggestionId = suggestionId is > 0 ? suggestionId : null;
     }
 
     public void SetSlot(MealSlot slot) => Slot = slot;
