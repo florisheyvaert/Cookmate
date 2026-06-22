@@ -1,17 +1,12 @@
 import { useState } from 'react'
-import { Link, NavLink, Outlet, useLocation } from 'react-router'
+import { Link, NavLink, Outlet } from 'react-router'
 import { Logo } from '@/components/Logo'
 import { AppMenu } from '@/components/AppMenu'
 import { useAuth } from '@/auth/AuthContext'
 
 export default function Layout() {
   const { user } = useAuth()
-  const location = useLocation()
   const [menuOpen, setMenuOpen] = useState(false)
-
-  // The calendar is a full-height, scroll-free view — drop the page footer so it
-  // fits the viewport exactly instead of being pushed just below the fold.
-  const fullHeight = location.pathname === '/calendar'
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -51,42 +46,65 @@ export default function Layout() {
         <Outlet />
       </main>
 
-      {!fullHeight && <Footer />}
+      <Footer />
 
       <AppMenu open={menuOpen} onClose={() => setMenuOpen(false)} />
     </div>
   )
 }
 
-// The colophon — back-matter of the cookbook. A warm hairline, the wordmark with
-// a serif aside, two quiet link columns, and an edition line wrapped around the ❧.
+// The colophon — back-matter of the cookbook, set on a deep-forest panel (the same
+// branded surface as the kitchen menu) so it reads as a distinct close to the page.
+// Fixed light-on-dark colours, identical in both themes — like AppMenu.
 function Footer() {
   const year = new Date().getFullYear()
-  const link = 'text-ink-soft hover:text-paprika transition-colors no-underline'
+  const link = 'no-underline transition-colors text-[rgba(243,239,228,0.82)] hover:text-[#e6b23e]'
+  const heading = 'font-mono text-[0.62rem] uppercase tracking-[0.24em] mb-4 text-[#e6b23e]'
 
   return (
-    <footer className="mt-24">
-      {/* Warm gradient hairline instead of a flat rule — the page's bottom edge. */}
-      <div className="h-px rule-warm" aria-hidden />
+    <footer
+      className="relative overflow-hidden mt-24 text-[#f3efe4]"
+      style={{
+        background:
+          'radial-gradient(60% 65% at 100% 0%, rgba(47,125,79,0.40), transparent 58%),' +
+          'radial-gradient(55% 60% at 0% 100%, rgba(224,165,46,0.16), transparent 55%),' +
+          'linear-gradient(155deg, #213b2b 0%, #15231a 100%)',
+      }}
+    >
+      {/* Gold hairline marking the seam between the cream page and the forest panel. */}
+      <div
+        className="h-px"
+        aria-hidden
+        style={{ background: 'linear-gradient(to right, transparent, rgba(230,178,62,0.55), transparent)' }}
+      />
 
-      <div className="px-5 sm:px-6 md:px-12 lg:px-20 py-14 md:py-16">
-        <div className="grid gap-10 md:gap-8 md:grid-cols-[1.7fr_1fr_1fr]">
+      {/* Oversized sprig, clipped into the corner for atmosphere (echoes the menu). */}
+      <span
+        aria-hidden
+        className="pointer-events-none absolute -right-10 -bottom-24 select-none leading-none"
+        style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(13rem, 26vw, 24rem)', fontWeight: 800, color: 'rgba(243,239,228,0.045)' }}
+      >
+        ❧
+      </span>
+
+      <div className="relative px-5 sm:px-6 md:px-12 lg:px-20 py-16 md:py-20">
+        <div className="grid gap-12 md:gap-8 md:grid-cols-[1.7fr_1fr_1fr]">
           {/* Brand + tagline */}
           <div className="max-w-xs">
-            <Link to="/" className="inline-flex items-center gap-2.5 text-paprika no-underline">
-              <Logo size={24} />
-              <span className="font-display text-[1.3rem] text-ink leading-none" style={{ fontWeight: 800, letterSpacing: '-0.02em' }}>
+            <Link to="/" className="inline-flex items-center gap-2.5 no-underline" style={{ color: '#f3efe4' }}>
+              <Logo size={26} />
+              <span className="font-display text-[1.4rem] leading-none" style={{ fontWeight: 800, letterSpacing: '-0.02em' }}>
                 Cookmate
               </span>
             </Link>
-            <p className="mt-4 text-ink-soft leading-relaxed" style={{ fontFamily: 'var(--font-body)', fontSize: '1.05rem' }}>
-              A kitchen worth <span className="italic text-butter-deep">coming back to.</span>
+            <p className="mt-4 leading-relaxed" style={{ fontFamily: 'var(--font-body)', fontSize: '1.08rem', color: 'rgba(243,239,228,0.78)' }}>
+              A kitchen worth <span className="italic" style={{ color: '#e6b23e' }}>coming back to.</span>
             </p>
           </div>
 
           {/* Kitchen */}
           <nav aria-label="Kitchen">
-            <p className="eyebrow mb-4">Kitchen</p>
+            <p className={heading}>Kitchen</p>
             <ul className="space-y-2.5 text-[0.98rem]">
               <li><Link to="/recipes" className={link}>Recipes</Link></li>
               <li><Link to="/suggestions" className={link}>Ideas</Link></li>
@@ -97,7 +115,7 @@ function Footer() {
 
           {/* Make */}
           <nav aria-label="Make">
-            <p className="eyebrow mb-4">Make</p>
+            <p className={heading}>Make</p>
             <ul className="space-y-2.5 text-[0.98rem]">
               <li><Link to="/recipes/new" className={link}>Add a recipe</Link></li>
               <li><Link to="/settings" className={link}>Settings</Link></li>
@@ -106,15 +124,19 @@ function Footer() {
         </div>
 
         {/* Colophon */}
-        <div className="mt-12 md:mt-14 pt-6 border-t border-cream-shadow grid grid-cols-1 sm:grid-cols-3 items-center gap-3 text-center">
-          <span className="font-mono text-[0.6rem] uppercase tracking-[0.2em] text-chestnut sm:text-left">
-            Cookmate <span className="text-chestnut-soft">·</span> Vol. 01
+        <div
+          className="mt-14 md:mt-16 pt-6 grid grid-cols-1 sm:grid-cols-3 items-center gap-3 text-center"
+          style={{ borderTop: '1px solid rgba(243,239,228,0.16)' }}
+        >
+          <span className="font-mono text-[0.6rem] uppercase tracking-[0.2em] sm:text-left" style={{ color: 'rgba(243,239,228,0.62)' }}>
+            Cookmate <span style={{ color: 'rgba(243,239,228,0.3)' }}>·</span> Vol. 01
           </span>
-          <span aria-hidden className="font-display text-paprika/35 text-2xl leading-none select-none">
+          <span aria-hidden className="font-display text-2xl leading-none select-none" style={{ color: 'rgba(230,178,62,0.6)' }}>
             ❧
           </span>
-          <span className="font-mono text-[0.6rem] uppercase tracking-[0.18em] text-chestnut-soft sm:text-right">
-            Personal cookbook <span className="text-chestnut-soft/60">·</span> Belgium <span className="text-chestnut-soft/60">·</span> {year}
+          <span className="font-mono text-[0.6rem] uppercase tracking-[0.18em] sm:text-right" style={{ color: 'rgba(243,239,228,0.45)' }}>
+            Personal cookbook <span style={{ color: 'rgba(243,239,228,0.25)' }}>·</span> Belgium{' '}
+            <span style={{ color: 'rgba(243,239,228,0.25)' }}>·</span> {year}
           </span>
         </div>
       </div>

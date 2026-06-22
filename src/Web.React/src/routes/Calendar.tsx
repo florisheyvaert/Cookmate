@@ -56,7 +56,7 @@ export default function Calendar() {
   const fmtDay = new Intl.DateTimeFormat(undefined, { weekday: 'short', day: 'numeric' })
 
   return (
-    <div className="px-5 sm:px-6 md:px-12 lg:px-20 pt-10 md:pt-12 pb-12 lg:pb-8 lg:h-[calc(100dvh-4.5rem)] lg:flex lg:flex-col lg:overflow-hidden">
+    <div className="px-5 sm:px-6 md:px-12 lg:px-20 pt-10 md:pt-12 pb-12 lg:pb-8 lg:h-[calc(100dvh-4.5rem)] lg:flex lg:flex-col">
       <motion.header
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
