@@ -20,12 +20,8 @@ const btn =
   'inline-flex items-center gap-1.5 rounded-xl px-5 py-3 font-display font-semibold text-[0.92rem] leading-none no-underline transition-colors'
 const btnGreen = `${btn} bg-paprika text-cream hover:bg-paprika-deep`
 const btnDark = `${btn} bg-ink text-cream hover:bg-paprika`
-// Mustard-ochre = the "cook" accent (the appetizing action). Text on gold is a
-// fixed dark forest so it stays legible in both light and dark themes.
-const btnGold = `${btn} bg-butter text-[#1f2417] hover:bg-butter-deep`
+// Mustard-ochre ghost = the secondary "week action" accent (shop, calendar).
 const btnGoldGhost = `${btn} border border-butter/55 text-butter-deep hover:bg-butter hover:text-[#1f2417]`
-const quietLink =
-  'font-mono text-[0.66rem] uppercase tracking-[0.16em] text-chestnut hover:text-paprika transition-colors no-underline'
 
 // ── date helpers (local time) ───────────────────────────────────────────────
 function pad(n: number) {
@@ -153,31 +149,27 @@ function Masthead({ totalRecipes }: { totalRecipes: number }) {
   )
 }
 
-// ── Planner — Tonight banner + a navigable, plannable week ───────────────────
+// ── Planner — three plannable days in a carousel ─────────────────────────────
 
 function Planner() {
   const today = useMemo(() => startOfToday(), [])
   const todayIso = toISO(today)
+  const tomorrowIso = toISO(addDays(today, 1))
   const [anchor, setAnchor] = useState<Date>(today)
-  // `{ date }` plans a known day; `{ date: null }` opens the date-first wizard.
-  const [planner, setPlanner] = useState<{ date: string | null } | null>(null)
+  const [selectedDate, setSelectedDate] = useState<string | null>(null)
 
   // Three days is enough up front: today, tomorrow, the day after. The window
-  // still slides a day at a time (arrows or swipe); the calendar covers the rest.
+  // slides a day at a time (carousel arrows or swipe); the calendar covers the rest.
   const days = useMemo(() => Array.from({ length: 3 }, (_, i) => addDays(anchor, i)), [anchor])
   const from = toISO(days[0])
   const to = toISO(days[2])
   const gridQ = useQuery({ queryKey: ['meal-plan', from, to], queryFn: () => mealPlanApi.list({ from, to }) })
   const byDate = useMemo(() => groupByDate(gridQ.data ?? []), [gridQ.data])
 
-  // Tonight is always today's meal, independent of where the window has slid.
-  const tonightQ = useQuery({ queryKey: ['meal-plan', todayIso, todayIso], queryFn: () => mealPlanApi.list({ from: todayIso, to: todayIso }) })
-  const todayEntries = useMemo(() => [...(tonightQ.data ?? [])].sort(dinnerFirst), [tonightQ.data])
-  const tonight = todayEntries[0] ?? null
-
   const plannedCount = gridQ.data?.length ?? 0
-  const wdLong = new Intl.DateTimeFormat(undefined, { weekday: 'long' }).format(today)
   const wdShort = new Intl.DateTimeFormat(undefined, { weekday: 'short' })
+  const wdLong = new Intl.DateTimeFormat(undefined, { weekday: 'long' })
+  const fmtMon = new Intl.DateTimeFormat(undefined, { month: 'short' })
   const fmtMd = new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 'short' })
   const periodLabel = `${fmtMd.format(days[0])} – ${fmtMd.format(days[2])}`
   const atToday = toISO(anchor) === todayIso
@@ -194,7 +186,8 @@ function Planner() {
       transition={{ delay: 0.14, duration: 0.6, ease }}
       className="mb-20 md:mb-28 scroll-mt-24"
     >
-      <div className="flex items-end justify-between gap-4 mb-7 flex-wrap">
+      {/* Title + the three week actions, on one line */}
+      <div className="flex items-end justify-between gap-4 mb-6 flex-wrap">
         <div className="flex items-baseline gap-3">
           <h2 className="text-ink text-2xl" style={{ fontWeight: 700, letterSpacing: '-0.02em' }}>
             Your plan
@@ -205,186 +198,146 @@ function Planner() {
             </span>
           )}
         </div>
-        <div className="flex items-center gap-3 sm:gap-4 flex-wrap">
+        <div className="flex items-center gap-2.5 sm:gap-3 flex-wrap">
           <Link to="/suggestions" className={`${btnGreen} whitespace-nowrap`}>
             🥗 This week&rsquo;s ideas →
           </Link>
           <Link to="/shop" className={`${btnGoldGhost} whitespace-nowrap`}>
             🛒 Shop the week →
           </Link>
-        </div>
-      </div>
-
-      {/* Tonight banner — always today */}
-      <div className="relative overflow-hidden rounded-2xl border border-cream-shadow bg-cream-deep mb-8">
-        <span aria-hidden className="absolute left-0 top-0 bottom-0 w-1 bg-butter" />
-        <div className="p-5 sm:p-9 pl-6 sm:pl-10 flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-8">
-          {tonight?.imageUrl && (
-            <button
-              type="button"
-              onClick={() => setPlanner({ date: todayIso })}
-              className="shrink-0 block w-20 h-20 sm:w-24 sm:h-24 rounded-xl overflow-hidden border border-cream-shadow"
-            >
-              <img src={tonight.imageUrl} alt="" className="w-full h-full object-cover" />
-            </button>
-          )}
-          <div className="flex-1 min-w-0">
-            <p className="font-mono text-[0.62rem] uppercase tracking-[0.18em] text-chestnut flex items-center gap-2 mb-2.5">
-              <span className="text-butter-deep">Tonight</span>
-              <span className="text-chestnut-soft" aria-hidden>·</span>
-              <span>{wdLong}</span>
-            </p>
-            {tonight ? (
-              <button
-                type="button"
-                onClick={() => setPlanner({ date: todayIso })}
-                className="text-left text-ink leading-tight flex items-baseline gap-2.5 hover:text-paprika transition-colors"
-                style={{ fontSize: 'clamp(1.5rem, 4vw, 2.4rem)', fontWeight: 700, letterSpacing: '-0.02em' }}
-              >
-                <span aria-hidden className="text-[0.8em] leading-none shrink-0" title={MEAL_SLOT_LABELS[tonight.slot]}>
-                  {MEAL_SLOT_ICON[tonight.slot]}
-                </span>
-                <span className="min-w-0 truncate">{entryLabel(tonight)}</span>
-              </button>
-            ) : (
-              <p className="text-ink-soft text-xl italic">Nothing planned yet.</p>
-            )}
-          </div>
-
-          <div className="shrink-0">
-            {tonight?.recipeId != null ? (
-              <div className="flex items-center gap-5">
-                <Link to={`/recipes/${tonight.recipeId}/cook`} className={btnGold}>
-                  ▷ Cook now
-                </Link>
-                <button type="button" onClick={() => setPlanner({ date: todayIso })} className={quietLink}>
-                  Details
-                </button>
-              </div>
-            ) : (
-              <button type="button" onClick={() => setPlanner({ date: todayIso })} className={btnGreen}>
-                {tonight ? 'Edit plan' : 'Plan tonight'}
-              </button>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* Window navigation + planning actions */}
-      <div className="flex items-center justify-between gap-3 mb-3.5 flex-wrap">
-        <div className="flex items-center gap-2.5">
-          <NavArrow direction={-1} onClick={() => stepDay(-1)} label="Previous day" />
-          <NavArrow direction={1} onClick={() => stepDay(1)} label="Next day" />
-          <span className="font-mono text-[0.72rem] uppercase tracking-[0.14em] text-ink ml-1">{periodLabel}</span>
-          <button
-            type="button"
-            onClick={() => setAnchor(today)}
-            disabled={atToday}
-            className="font-mono text-[0.62rem] uppercase tracking-[0.18em] text-chestnut hover:text-paprika transition-colors disabled:opacity-30 disabled:hover:text-chestnut"
-          >
-            ↺ Today
-          </button>
-        </div>
-        <div className="flex items-center gap-4 flex-wrap">
-          <button type="button" onClick={() => setPlanner({ date: null })} className={btnGreen}>
-            ＋ Plan a meal
-          </button>
-          <Link to="/calendar" className={quietLink}>
+          <Link to="/calendar" className={`${btnGoldGhost} whitespace-nowrap`}>
             🗓️ Calendar →
           </Link>
         </div>
       </div>
 
-      {/* Days — click to view (past) or plan (today + future). Swipe to slide. */}
-      <div className="grid grid-cols-3 gap-2.5 sm:gap-3 touch-pan-y" {...swipe}>
-        {days.map((d, i) => {
-          const iso = toISO(d)
-          const list = byDate.get(iso) ?? []
-          const head = list[0] ?? null
-          const extra = Math.max(0, list.length - 1)
-          const isToday = iso === todayIso
-          const isPast = iso < todayIso
-          return (
-            <motion.div
-              key={iso}
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.04 * i, duration: 0.4, ease }}
-            >
-              <button
-                type="button"
-                onClick={() => setPlanner({ date: iso })}
-                className={[
-                  'group block w-full text-left rounded-xl border overflow-hidden h-full min-h-[7.25rem] transition-colors',
-                  isToday
-                    ? 'border-paprika/60 bg-paprika-tint ring-1 ring-inset ring-paprika/30'
-                    : 'border-cream-shadow bg-cream-deep hover:border-paprika/50',
-                  isPast ? 'opacity-60 hover:opacity-100' : '',
-                ].join(' ')}
+      {/* Period caption + reset to today */}
+      <div className="flex items-center justify-between gap-3 mb-3">
+        <span className="font-mono text-[0.72rem] uppercase tracking-[0.14em] text-ink">{periodLabel}</span>
+        <button
+          type="button"
+          onClick={() => setAnchor(today)}
+          disabled={atToday}
+          className="font-mono text-[0.62rem] uppercase tracking-[0.18em] text-chestnut hover:text-paprika transition-colors disabled:opacity-30 disabled:hover:text-chestnut"
+        >
+          ↺ Today
+        </button>
+      </div>
+
+      {/* Carousel — arrows flank the cards (desktop); swipe on touch. */}
+      <div className="flex items-stretch gap-2 sm:gap-3">
+        <CarouselArrow direction={-1} onClick={() => stepDay(-1)} label="Previous day" />
+        <div className="flex-1 grid grid-cols-3 gap-2.5 sm:gap-3 touch-pan-y" {...swipe}>
+          {days.map((d, i) => {
+            const iso = toISO(d)
+            const list = byDate.get(iso) ?? []
+            const head = list[0] ?? null
+            const extra = Math.max(0, list.length - 1)
+            const isToday = iso === todayIso
+            const isPast = iso < todayIso
+            const isWeekend = d.getDay() === 0 || d.getDay() === 6
+            const relLabel = isToday ? 'Today' : iso === tomorrowIso ? 'Tomorrow' : null
+
+            // Colour-coded date band so the day — and whether it's a weekend —
+            // reads at a glance: today fills paprika, weekends carry butter.
+            const band = isToday
+              ? 'bg-paprika text-cream'
+              : isWeekend
+                ? 'bg-butter-tint text-butter-deep'
+                : 'bg-cream-shadow/25 text-ink'
+
+            return (
+              <motion.div
+                key={iso}
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.04 * i, duration: 0.4, ease }}
               >
-                {/* Always reserve the photo area so every card is the same height —
-                    no layout shift when a meal (or its photo) appears. */}
-                <div className="aspect-[3/2] overflow-hidden bg-cream-shadow/30 grid place-items-center">
-                  {head?.imageUrl ? (
-                    <img
-                      src={head.imageUrl}
-                      alt=""
-                      loading="lazy"
-                      className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.04]"
-                    />
-                  ) : (
-                    <span aria-hidden className="text-2xl leading-none opacity-25">🍽️</span>
-                  )}
-                </div>
-                <div className="p-4">
-                  <div className="flex items-baseline justify-between mb-3">
-                    <span className={['font-mono text-[0.58rem] uppercase tracking-[0.14em]', isToday ? 'text-paprika' : 'text-chestnut'].join(' ')}>
-                      {isToday ? 'Today' : wdShort.format(d)}
+                <button
+                  type="button"
+                  onClick={() => setSelectedDate(iso)}
+                  className={[
+                    'group block w-full text-left rounded-xl border overflow-hidden h-full transition-colors',
+                    isToday ? 'border-paprika/60 ring-1 ring-inset ring-paprika/30' : 'border-cream-shadow hover:border-paprika/50',
+                    isPast ? 'opacity-55 hover:opacity-100' : '',
+                  ].join(' ')}
+                >
+                  {/* Date band — the clear "which day is this" header */}
+                  <div className={['px-3 py-2 flex items-center justify-between gap-2', band].join(' ')}>
+                    <span className="font-display leading-none truncate" style={{ fontWeight: 700, fontSize: '0.95rem', letterSpacing: '-0.01em' }}>
+                      {relLabel ?? (
+                        <>
+                          <span className="sm:hidden">{wdShort.format(d)}</span>
+                          <span className="hidden sm:inline">{wdLong.format(d)}</span>
+                        </>
+                      )}
                     </span>
-                    <span className={['num text-[0.95rem] leading-none', isToday ? 'text-paprika' : 'text-ink-soft'].join(' ')}>{d.getDate()}</span>
+                    <span className="num leading-none shrink-0 text-[0.86rem]">
+                      {d.getDate()} {fmtMon.format(d)}
+                    </span>
                   </div>
-                  {head ? (
-                    <div className="flex items-start gap-1.5">
-                      <span aria-hidden className="text-sm leading-snug shrink-0" title={MEAL_SLOT_LABELS[head.slot]}>
-                        {MEAL_SLOT_ICON[head.slot]}
+
+                  {/* Photo area — reserved so every card is the same height */}
+                  <div className="aspect-[3/2] overflow-hidden bg-cream-shadow/20 grid place-items-center">
+                    {head?.imageUrl ? (
+                      <img
+                        src={head.imageUrl}
+                        alt=""
+                        loading="lazy"
+                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.04]"
+                      />
+                    ) : (
+                      <span aria-hidden className="text-2xl leading-none opacity-25">🍽️</span>
+                    )}
+                  </div>
+
+                  <div className="p-3 sm:p-4 bg-cream-deep">
+                    {head ? (
+                      <div className="flex items-start gap-1.5">
+                        <span aria-hidden className="text-sm leading-snug shrink-0" title={MEAL_SLOT_LABELS[head.slot]}>
+                          {MEAL_SLOT_ICON[head.slot]}
+                        </span>
+                        <span className="text-ink text-[0.9rem] leading-snug line-clamp-2">
+                          {entryLabel(head)}
+                          {extra > 0 && <span className="text-chestnut-soft"> +{extra}</span>}
+                        </span>
+                      </div>
+                    ) : isPast ? (
+                      <span className="font-mono text-[0.58rem] text-chestnut-soft/60">—</span>
+                    ) : (
+                      <span className="font-mono text-[0.58rem] text-chestnut-soft/70 inline-flex items-center gap-1 group-hover:text-paprika transition-colors">
+                        <span className="text-base leading-none">+</span> plan
                       </span>
-                      <span className="text-ink text-[0.9rem] leading-snug line-clamp-2">
-                        {entryLabel(head)}
-                        {extra > 0 && <span className="text-chestnut-soft"> +{extra}</span>}
-                      </span>
-                    </div>
-                  ) : isPast ? (
-                    <span className="font-mono text-[0.58rem] text-chestnut-soft/60">—</span>
-                  ) : (
-                    <span className="font-mono text-[0.58rem] text-chestnut-soft/70 inline-flex items-center gap-1 group-hover:text-paprika transition-colors">
-                      <span className="text-base leading-none">+</span> plan
-                    </span>
-                  )}
-                </div>
-              </button>
-            </motion.div>
-          )
-        })}
+                    )}
+                  </div>
+                </button>
+              </motion.div>
+            )
+          })}
+        </div>
+        <CarouselArrow direction={1} onClick={() => stepDay(1)} label="Next day" />
       </div>
 
       <DayPlannerDialog
-        open={planner != null}
-        initialDate={planner?.date ?? null}
-        onClose={() => setPlanner(null)}
+        open={selectedDate != null}
+        initialDate={selectedDate}
+        onClose={() => setSelectedDate(null)}
       />
     </motion.section>
   )
 }
 
-function NavArrow({ direction, onClick, label }: { direction: number; onClick: () => void; label: string }) {
+// Carousel-style stepper, vertically centred beside the cards. Hidden on touch
+// (where you swipe instead) to keep the three cards as wide as possible.
+function CarouselArrow({ direction, onClick, label }: { direction: number; onClick: () => void; label: string }) {
   return (
     <button
       type="button"
       onClick={onClick}
       aria-label={label}
-      className="w-8 h-8 flex items-center justify-center font-mono text-chestnut border border-cream-shadow rounded-lg hover:border-paprika hover:text-paprika transition-colors"
+      className="hidden sm:flex shrink-0 self-center w-11 h-11 items-center justify-center rounded-full font-mono text-lg text-chestnut border border-cream-shadow bg-cream-deep hover:border-paprika hover:text-paprika hover:bg-paprika-tint transition-colors"
     >
-      {direction < 0 ? '←' : '→'}
+      {direction < 0 ? '‹' : '›'}
     </button>
   )
 }

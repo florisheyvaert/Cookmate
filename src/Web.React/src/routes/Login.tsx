@@ -1,15 +1,12 @@
 import { useState } from 'react'
-import { useLocation, useNavigate } from 'react-router'
+import { useNavigate } from 'react-router'
 import { useAuth } from '@/auth/AuthContext'
 import { ApiError } from '@/lib/api'
 import { AuthForm } from '@/components/AuthForm'
 
-type LocationState = { from?: { pathname: string } } | null
-
 export default function Login() {
   const { login } = useAuth()
   const navigate = useNavigate()
-  const location = useLocation()
   const [error, setError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
@@ -18,8 +15,8 @@ export default function Login() {
     setIsSubmitting(true)
     try {
       await login(email, password)
-      const state = location.state as LocationState
-      navigate(state?.from?.pathname ?? '/', { replace: true })
+      // Always land on the home planner after signing in.
+      navigate('/', { replace: true })
     } catch (err) {
       if (err instanceof ApiError && err.status === 401) {
         setError('Email or password not recognised.')
