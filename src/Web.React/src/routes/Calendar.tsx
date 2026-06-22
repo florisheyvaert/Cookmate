@@ -56,12 +56,12 @@ export default function Calendar() {
   const fmtDay = new Intl.DateTimeFormat(undefined, { weekday: 'short', day: 'numeric' })
 
   return (
-    <div className="px-5 sm:px-6 md:px-12 lg:px-20 pt-12 md:pt-20 pb-28">
+    <div className="px-5 sm:px-6 md:px-12 lg:px-20 pt-10 md:pt-12 pb-12 lg:pb-8 lg:h-[calc(100dvh-4.5rem)] lg:flex lg:flex-col lg:overflow-hidden">
       <motion.header
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, ease }}
-        className="mb-10 flex items-end justify-between gap-4 flex-wrap"
+        className="mb-6 lg:mb-7 shrink-0 flex items-end justify-between gap-4 flex-wrap"
       >
         <div>
           <p className="eyebrow text-paprika mb-2">Meal plan</p>
@@ -77,17 +77,19 @@ export default function Calendar() {
         </Link>
       </motion.header>
 
-      <div className="grid grid-cols-1 lg:grid-cols-[23rem_19rem] gap-8 lg:gap-12 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_16rem] gap-6 lg:gap-10 items-start lg:flex-1 lg:min-h-0 lg:items-stretch">
         <motion.div
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.08, duration: 0.5, ease }}
-          className="rounded-2xl border border-cream-shadow bg-cream-deep p-5 sm:p-7"
+          className="rounded-2xl border border-cream-shadow bg-cream-deep p-4 sm:p-6 lg:h-full lg:flex lg:flex-col lg:min-h-0"
         >
-          <MonthCalendar month={month} onMonthChange={setMonth} onPick={setSelectedDate} plannedByDate={counts} />
+          <div className="lg:flex-1 lg:min-h-0">
+            <MonthCalendar month={month} onMonthChange={setMonth} onPick={setSelectedDate} plannedByDate={counts} fillHeight />
+          </div>
 
           {/* Legend */}
-          <div className="flex items-center gap-4 mt-5 font-mono text-[0.58rem] text-chestnut-soft flex-wrap">
+          <div className="flex items-center gap-4 mt-4 lg:mt-3 shrink-0 font-mono text-[0.58rem] text-chestnut-soft flex-wrap">
             <span className="inline-flex items-center gap-1.5">
               <span className="inline-block w-3 h-3 rounded-sm bg-paprika/15 ring-1 ring-inset ring-paprika/40" /> has meals
             </span>
@@ -105,6 +107,7 @@ export default function Calendar() {
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.14, duration: 0.5, ease }}
+          className="lg:h-full lg:min-h-0 lg:overflow-y-auto lg:pr-1"
         >
           <h2 className="font-display text-ink text-lg mb-4" style={{ fontWeight: 700, letterSpacing: '-0.01em' }}>
             Planned this month

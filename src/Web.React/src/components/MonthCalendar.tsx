@@ -16,6 +16,9 @@ type Props = {
   selected?: string | null
   /** When set, past days are inert (used by the planner wizard — you plan forward). */
   disablePast?: boolean
+  /** Desktop: fill the parent's height (rows split it) instead of square cells, so a
+   *  large month grid still fits the viewport without scrolling. Mobile is unchanged. */
+  fillHeight?: boolean
 }
 
 /**
@@ -23,7 +26,7 @@ type Props = {
  * lights up paprika, weekends carry the warm butter tint, and days that already
  * have meals show a count badge. Pages through months (arrows, Today, or swipe).
  */
-export function MonthCalendar({ month, onMonthChange, onPick, plannedByDate, selected, disablePast }: Props) {
+export function MonthCalendar({ month, onMonthChange, onPick, plannedByDate, selected, disablePast, fillHeight }: Props) {
   const grid = useMemo(() => monthGrid(month), [month])
   const today = toISO(new Date())
 
@@ -32,7 +35,7 @@ export function MonthCalendar({ month, onMonthChange, onPick, plannedByDate, sel
   const swipe = useSwipe(() => stepMonth(1), () => stepMonth(-1))
 
   return (
-    <div>
+    <div className={fillHeight ? 'lg:h-full lg:flex lg:flex-col' : undefined}>
       {/* Month navigation */}
       <div className="flex items-center justify-between gap-3 mb-4">
         <div className="flex items-center gap-1.5">
@@ -67,7 +70,13 @@ export function MonthCalendar({ month, onMonthChange, onPick, plannedByDate, sel
       </div>
 
       {/* Days */}
-      <div className="grid grid-cols-7 gap-1 touch-pan-y" {...swipe}>
+      <div
+        className={[
+          'grid grid-cols-7 gap-1 touch-pan-y',
+          fillHeight ? 'lg:grid-rows-6 lg:flex-1 lg:min-h-0 lg:gap-1.5' : '',
+        ].join(' ')}
+        {...swipe}
+      >
         {grid.map((d) => {
           const iso = toISO(d)
           const inMonth = d.getMonth() === month.getMonth()
@@ -98,13 +107,17 @@ export function MonthCalendar({ month, onMonthChange, onPick, plannedByDate, sel
               onClick={() => onPick(iso)}
               className={[
                 'relative aspect-square rounded-lg flex flex-col items-center justify-center transition-colors',
+                fillHeight ? 'lg:aspect-auto lg:min-h-0' : '',
                 tone,
                 isPast ? 'opacity-45 blur-[1px] hover:opacity-100 hover:blur-0' : '',
                 inert ? 'pointer-events-none hover:opacity-45 hover:blur-[1px]' : '',
               ].join(' ')}
               title={count > 0 ? `${count} planned` : undefined}
             >
-              <span className="num text-[0.92rem] leading-none" style={{ fontFeatureSettings: '"tnum"' }}>
+              <span
+                className={['num leading-none', fillHeight ? 'text-[0.92rem] lg:text-xl' : 'text-[0.92rem]'].join(' ')}
+                style={{ fontFeatureSettings: '"tnum"' }}
+              >
                 {d.getDate()}
               </span>
               {count > 0 && !isSelected && (
