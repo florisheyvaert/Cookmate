@@ -5,6 +5,7 @@ import { AuthProvider } from '@/auth/AuthContext'
 import { RequireAuth } from '@/auth/RequireAuth'
 import { RequireAdmin } from '@/auth/RequireAdmin'
 import { ConfirmProvider } from '@/components/confirm/ConfirmDialog'
+import { ScrollToTop } from '@/components/ScrollToTop'
 import { ThemeProvider } from '@/components/ThemeProvider'
 import { setupApi } from '@/api/setup'
 import Layout from '@/routes/Layout'
@@ -32,6 +33,7 @@ export default function App() {
       <SetupGate>
         <AuthProvider>
           <ConfirmProvider>
+            <ScrollToTop />
             <Routes>
               <Route path="redeem" element={<Redeem />} />
               <Route path="login" element={<Login />} />
