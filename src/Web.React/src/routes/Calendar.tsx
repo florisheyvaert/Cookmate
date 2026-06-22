@@ -77,7 +77,7 @@ export default function Calendar() {
         </Link>
       </motion.header>
 
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_20rem] gap-8 lg:gap-12 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-[23rem_19rem] gap-8 lg:gap-12 items-start">
         <motion.div
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}

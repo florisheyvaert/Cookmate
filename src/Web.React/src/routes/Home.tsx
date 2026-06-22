@@ -8,6 +8,7 @@ import { mealPlanApi, MEAL_SLOT_ORDER, MEAL_SLOT_ICON, MEAL_SLOT_LABELS } from '
 import type { MealEntryDto } from '@/api/mealPlan'
 import { DayPlannerDialog } from '@/components/DayPlannerDialog'
 import { useSwipe } from '@/lib/useSwipe'
+import { useMediaQuery } from '@/lib/useMediaQuery'
 import { suggestionsApi } from '@/api/suggestions'
 import { formatDuration } from '@/lib/format'
 import type { RecipeSummaryDto } from '@/api/types'
@@ -158,20 +159,21 @@ function Planner() {
   const [anchor, setAnchor] = useState<Date>(today)
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
 
-  // Three days is enough up front: today, tomorrow, the day after. The window
-  // slides a day at a time (carousel arrows or swipe); the calendar covers the rest.
-  const days = useMemo(() => Array.from({ length: 3 }, (_, i) => addDays(anchor, i)), [anchor])
+  // Three days up front on mobile; a full week once there's room on desktop. The
+  // window slides a day at a time (carousel arrows or swipe); the calendar covers
+  // anything further out.
+  const dayCount = useMediaQuery('(min-width: 1024px)') ? 7 : 3
+  const days = useMemo(() => Array.from({ length: dayCount }, (_, i) => addDays(anchor, i)), [anchor, dayCount])
   const from = toISO(days[0])
-  const to = toISO(days[2])
+  const to = toISO(days[days.length - 1])
   const gridQ = useQuery({ queryKey: ['meal-plan', from, to], queryFn: () => mealPlanApi.list({ from, to }) })
   const byDate = useMemo(() => groupByDate(gridQ.data ?? []), [gridQ.data])
 
   const plannedCount = gridQ.data?.length ?? 0
   const wdShort = new Intl.DateTimeFormat(undefined, { weekday: 'short' })
-  const wdLong = new Intl.DateTimeFormat(undefined, { weekday: 'long' })
   const fmtMon = new Intl.DateTimeFormat(undefined, { month: 'short' })
   const fmtMd = new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 'short' })
-  const periodLabel = `${fmtMd.format(days[0])} – ${fmtMd.format(days[2])}`
+  const periodLabel = `${fmtMd.format(days[0])} – ${fmtMd.format(days[days.length - 1])}`
   const atToday = toISO(anchor) === todayIso
 
   const stepDay = (n: number) => setAnchor((a) => addDays(a, n))
@@ -227,7 +229,7 @@ function Planner() {
       {/* Carousel — arrows flank the cards (desktop); swipe on touch. */}
       <div className="flex items-stretch gap-2 sm:gap-3">
         <CarouselArrow direction={-1} onClick={() => stepDay(-1)} label="Previous day" />
-        <div className="flex-1 grid grid-cols-3 gap-2.5 sm:gap-3 touch-pan-y" {...swipe}>
+        <div className="flex-1 grid grid-cols-3 lg:grid-cols-7 gap-2.5 sm:gap-3 touch-pan-y" {...swipe}>
           {days.map((d, i) => {
             const iso = toISO(d)
             const list = byDate.get(iso) ?? []
@@ -265,12 +267,7 @@ function Planner() {
                   {/* Date band — the clear "which day is this" header */}
                   <div className={['px-3 py-2 flex items-center justify-between gap-2', band].join(' ')}>
                     <span className="font-display leading-none truncate" style={{ fontWeight: 700, fontSize: '0.95rem', letterSpacing: '-0.01em' }}>
-                      {relLabel ?? (
-                        <>
-                          <span className="sm:hidden">{wdShort.format(d)}</span>
-                          <span className="hidden sm:inline">{wdLong.format(d)}</span>
-                        </>
-                      )}
+                      {relLabel ?? wdShort.format(d)}
                     </span>
                     <span className="num leading-none shrink-0 text-[0.86rem]">
                       {d.getDate()} {fmtMon.format(d)}
