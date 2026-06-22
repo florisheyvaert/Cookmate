@@ -360,9 +360,6 @@ function SuggestionCard({ suggestion, index }: { suggestion: MealSuggestionDto; 
       </Link>
 
       <div className="flex flex-1 flex-col p-4">
-        <p className="font-mono text-[0.56rem] uppercase tracking-[0.16em] text-chestnut-soft mb-1 truncate">
-          {suggestion.sourceName ?? `source ${suggestion.sourceId}`}
-        </p>
         <Link
           to={to}
           className="font-display text-ink text-lg md:text-xl leading-tight hover:text-paprika transition-colors no-underline line-clamp-2"
@@ -400,6 +397,7 @@ function SuggestionCard({ suggestion, index }: { suggestion: MealSuggestionDto; 
         sourceUrl={suggestion.sourceUrl}
         suggestionId={suggestion.id}
         baseServings={suggestion.baseServings}
+        imageUrl={suggestion.imageUrl}
       />
     </motion.div>
   )

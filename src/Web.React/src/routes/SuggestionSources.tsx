@@ -35,6 +35,26 @@ function monogram(name: string): string {
   return (name.trim()[0] ?? '?').toUpperCase()
 }
 
+// The source's own favicon when we have one, else a letter monogram.
+function SourceMonogram({ name, faviconUrl, enabled }: { name: string; faviconUrl: string | null; enabled: boolean }) {
+  const [broken, setBroken] = useState(false)
+  return (
+    <span
+      className={[
+        'grid place-items-center w-12 h-12 rounded-xl shrink-0 overflow-hidden font-display text-xl leading-none',
+        enabled ? 'bg-paprika/12 text-paprika-deep' : 'bg-cream-shadow text-chestnut',
+      ].join(' ')}
+      style={{ fontWeight: 700 }}
+    >
+      {faviconUrl && !broken ? (
+        <img src={faviconUrl} alt="" className="w-7 h-7 object-contain" onError={() => setBroken(true)} />
+      ) : (
+        monogram(name)
+      )}
+    </span>
+  )
+}
+
 export default function SuggestionSources() {
   const queryClient = useQueryClient()
   const [adding, setAdding] = useState(false)
@@ -211,16 +231,8 @@ function SourceCard({ source, index }: { source: SuggestionSourceDto; index: num
       <div className="p-5 sm:p-6">
         <div className="flex flex-col sm:flex-row sm:items-start gap-4">
           <div className="flex items-start gap-4 flex-1 min-w-0">
-            {/* Monogram */}
-            <span
-              className={[
-                'grid place-items-center w-12 h-12 rounded-xl shrink-0 font-display text-xl leading-none',
-                source.enabled ? 'bg-paprika/12 text-paprika-deep' : 'bg-cream-shadow text-chestnut',
-              ].join(' ')}
-              style={{ fontWeight: 700 }}
-            >
-              {monogram(source.name)}
-            </span>
+            {/* Favicon (or monogram fallback) */}
+            <SourceMonogram name={source.name} faviconUrl={source.faviconUrl} enabled={source.enabled} />
 
             {/* Identity + telemetry */}
             <div className="flex-1 min-w-0">

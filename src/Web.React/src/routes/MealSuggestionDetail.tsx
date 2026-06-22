@@ -56,7 +56,7 @@ export default function MealSuggestionDetail() {
   return (
     <div className="px-5 sm:px-6 md:px-12 lg:px-20 pt-14 md:pt-16 pb-16">
       <PageHeader
-        eyebrow={`Idea · ${s.sourceName ?? 'Suggestion'}`}
+        eyebrow="Idea"
         title={s.title}
         action={
           <button
@@ -75,9 +75,7 @@ export default function MealSuggestionDetail() {
           <span className="num text-paprika text-sm">{s.baseServings}</span> serves
         </span>
         {formatDuration(s.totalTimeMinutes) && <span className="num">{formatDuration(s.totalTimeMinutes)}</span>}
-        <a href={s.sourceUrl} target="_blank" rel="noreferrer" className="text-chestnut hover:text-paprika transition-colors underline">
-          View original ↗
-        </a>
+        <SourceBadge url={s.sourceUrl} name={s.sourceName} faviconUrl={s.sourceFaviconUrl} />
       </div>
 
       {s.imageUrl && (
@@ -145,7 +143,48 @@ export default function MealSuggestionDetail() {
         sourceUrl={s.sourceUrl}
         suggestionId={s.id}
         baseServings={s.baseServings}
+        imageUrl={s.imageUrl}
       />
     </div>
+  )
+}
+
+// The source shown only here, as the site's own (locally-stored) favicon + name,
+// linking to the original. Falls back to a letter monogram when no favicon.
+function SourceBadge({ url, name, faviconUrl }: { url: string; name: string | null; faviconUrl: string | null }) {
+  const [broken, setBroken] = useState(false)
+  let host = ''
+  try {
+    host = new URL(url).host
+  } catch {
+    host = ''
+  }
+  const label = name ?? host ?? 'Source'
+
+  return (
+    <a
+      href={url}
+      target="_blank"
+      rel="noreferrer"
+      className="group inline-flex items-center gap-2 text-chestnut hover:text-paprika transition-colors no-underline"
+    >
+      {faviconUrl && !broken ? (
+        <img
+          src={faviconUrl}
+          alt=""
+          width={16}
+          height={16}
+          loading="lazy"
+          onError={() => setBroken(true)}
+          className="rounded-sm shrink-0"
+        />
+      ) : (
+        <span className="grid place-items-center w-4 h-4 rounded-sm bg-cream-shadow font-display text-[0.55rem] text-chestnut shrink-0">
+          {(label[0] ?? '?').toUpperCase()}
+        </span>
+      )}
+      <span>{label}</span>
+      <span aria-hidden className="opacity-60 group-hover:opacity-100 transition-opacity">↗</span>
+    </a>
   )
 }

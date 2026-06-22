@@ -291,13 +291,7 @@ export function DayPlannerDialog({ open, initialDate = null, onClose }: Props) {
                       <FreeTextField value={text} onChange={setText} />
                     </div>
                   )}
-                  <button
-                    type="button"
-                    onClick={goToIdeas}
-                    className="font-mono text-[0.62rem] uppercase tracking-[0.14em] text-chestnut hover:text-paprika transition-colors"
-                  >
-                    Browse this week’s ideas ↗
-                  </button>
+                  <IdeasTile onClick={goToIdeas} />
                 </SubView>
               )}
             </div>
@@ -382,13 +376,7 @@ function MenuView({
           >
             <span aria-hidden className="text-base leading-none">＋</span> Add a meal
           </button>
-          <button
-            type="button"
-            onClick={onPickIdeas}
-            className="w-full text-center font-mono text-[0.62rem] uppercase tracking-[0.14em] text-chestnut hover:text-paprika transition-colors py-1"
-          >
-            Or browse this week’s ideas ↗
-          </button>
+          <IdeasTile onClick={onPickIdeas} />
         </div>
       ) : (
         <p className="font-mono text-[0.66rem] uppercase tracking-[0.14em] text-chestnut-soft">
@@ -396,6 +384,28 @@ function MenuView({
         </p>
       )}
     </div>
+  )
+}
+
+// A clear, tappable shortcut to this week's scraped ideas (leaves the dialog).
+function IdeasTile({ onClick }: { onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="group w-full text-left flex items-center gap-3.5 rounded-xl border border-cream-shadow bg-cream-deep/40 px-4 py-3.5 hover:border-paprika/55 hover:bg-paprika-tint transition-colors"
+    >
+      <span aria-hidden className="text-2xl leading-none shrink-0">🥗</span>
+      <span className="flex-1 min-w-0">
+        <span className="block font-display text-ink group-hover:text-paprika transition-colors" style={{ fontWeight: 700, letterSpacing: '-0.01em' }}>
+          This week’s ideas
+        </span>
+        <span className="block font-mono text-[0.58rem] uppercase tracking-[0.13em] text-chestnut-soft mt-0.5">
+          Fresh picks from your sources
+        </span>
+      </span>
+      <span aria-hidden className="shrink-0 font-mono text-sm text-chestnut group-hover:text-paprika transition-colors">↗</span>
+    </button>
   )
 }
 

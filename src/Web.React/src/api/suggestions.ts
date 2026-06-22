@@ -58,6 +58,8 @@ export type MealSuggestionDetail = {
   tags: string[]
   harvestedOn: string
   imageUrl: string | null
+  /** Relative URL of the source site's locally-stored favicon, or null. */
+  sourceFaviconUrl: string | null
   ingredients: SuggestionIngredient[]
   steps: string[]
 }
@@ -83,6 +85,8 @@ export type SuggestionSourceDto = {
   lastRunAt: string | null
   lastRunStatus: number | null
   lastRunCount: number | null
+  /** Relative URL of the locally-stored site favicon, or null. */
+  faviconUrl: string | null
 }
 
 export type HarvestSchedule = {
