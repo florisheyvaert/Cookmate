@@ -85,11 +85,19 @@ public class HarvestMealSuggestionsCommandHandler : IRequestHandler<HarvestMealS
         {
             foreach (var source in sources)
             {
-                var log = await HarvestSourceAsync(source, today, seen, ct);
+                // Persist after each item (not just each source) so a single-source run's
+                // In/Fail/Skip climb live while it works, instead of jumping at the end.
+                var completed = sourceLogs;
+                async Task ReportProgress(HarvestSourceLog partial)
+                {
+                    run.UpdateProgress(completed.Append(partial));
+                    await _context.SaveChangesAsync(ct);
+                }
+
+                var log = await HarvestSourceAsync(source, today, seen, ReportProgress, ct);
                 source.RecordRun(startedAt, StatusOf(log), log.Inserted);
                 sourceLogs.Add(log);
 
-                // Flush after each source so In/Fail/Skip climb live in the history.
                 run.UpdateProgress(sourceLogs);
                 await _context.SaveChangesAsync(ct);
             }
@@ -113,7 +121,8 @@ public class HarvestMealSuggestionsCommandHandler : IRequestHandler<HarvestMealS
     }
 
     private async Task<HarvestSourceLog> HarvestSourceAsync(
-        SuggestionSource source, DateOnly today, HashSet<string> seen, CancellationToken cancellationToken)
+        SuggestionSource source, DateOnly today, HashSet<string> seen,
+        Func<HarvestSourceLog, Task> reportProgress, CancellationToken cancellationToken)
     {
         var items = new List<HarvestItemLog>();
         var inserted = 0;
@@ -136,6 +145,19 @@ public class HarvestMealSuggestionsCommandHandler : IRequestHandler<HarvestMealS
                 Error = Describe(ex),
             };
         }
+
+        // A snapshot of the source's progress so far, for the live "Processing" counts.
+        HarvestSourceLog Snapshot() => new()
+        {
+            SourceId = source.Id,
+            SourceName = source.Name,
+            Host = source.Host,
+            Discovered = urls.Count,
+            Inserted = inserted,
+            SkippedDuplicate = skipped,
+            Failed = failed,
+            Items = [.. items],
+        };
 
         // Cap counts NEW inserts, not discovered URLs: each run adds up to MaxPerRun
         // fresh recipes and skips ones already in the pool, so weekly runs progressively
@@ -182,25 +204,17 @@ public class HarvestMealSuggestionsCommandHandler : IRequestHandler<HarvestMealS
                 _context.MealSuggestions.Add(suggestion);
                 inserted++;
                 items.Add(new HarvestItemLog { Url = urlStr, Status = HarvestItemStatus.Inserted, Title = title });
+                await reportProgress(Snapshot());
             }
             catch (Exception ex)
             {
                 failed++;
                 items.Add(new HarvestItemLog { Url = urlStr, Status = HarvestItemStatus.Failed, Error = Describe(ex) });
+                await reportProgress(Snapshot());
             }
         }
 
-        return new HarvestSourceLog
-        {
-            SourceId = source.Id,
-            SourceName = source.Name,
-            Host = source.Host,
-            Discovered = urls.Count,
-            Inserted = inserted,
-            SkippedDuplicate = skipped,
-            Failed = failed,
-            Items = items,
-        };
+        return Snapshot();
     }
 
     /// <summary>
