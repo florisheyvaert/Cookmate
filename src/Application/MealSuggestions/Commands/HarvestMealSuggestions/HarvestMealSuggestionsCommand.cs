@@ -48,34 +48,66 @@ public class HarvestMealSuggestionsCommandHandler : IRequestHandler<HarvestMealS
 
     public async Task<HarvestReport> Handle(HarvestMealSuggestionsCommand request, CancellationToken cancellationToken)
     {
+        // A harvest, once started, must run to completion regardless of whether the HTTP
+        // caller is still listening: refreshing the page or navigating away must not abort
+        // a run in flight. So we deliberately ignore the request's cancellation token and
+        // persist progress as we go — a "Processing" run row plus rolling counts — so the
+        // history can poll and show it live.
+        var ct = CancellationToken.None;
+
         var startedAt = _timeProvider.GetUtcNow();
         var today = DateOnly.FromDateTime(startedAt.UtcDateTime);
 
         var sources = request.SourceId is { } id
-            ? await _context.SuggestionSources.Where(s => s.Id == id).ToListAsync(cancellationToken)
-            : await _context.SuggestionSources.Where(s => s.Enabled).ToListAsync(cancellationToken);
+            ? await _context.SuggestionSources.Where(s => s.Id == id).ToListAsync(ct)
+            : await _context.SuggestionSources.Where(s => s.Enabled).ToListAsync(ct);
 
         var run = new SuggestionHarvestRun(request.Trigger, startedAt, request.SourceId);
+        _context.SuggestionHarvestRuns.Add(run);
+        foreach (var source in sources)
+        {
+            source.MarkRunStarted(startedAt);
+        }
+
+        // Persist the in-progress run + sources straight away so a refresh shows it running.
+        await _context.SaveChangesAsync(ct);
 
         // Dedup against everything already in the pool plus anything inserted earlier
         // in this same run (guards the unique SourceUrl index when two listing pages
         // or two sources surface the same recipe).
         var seen = (await _context.MealSuggestions
             .Select(s => s.SourceUrl)
-            .ToListAsync(cancellationToken))
+            .ToListAsync(ct))
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
         var sourceLogs = new List<HarvestSourceLog>();
-        foreach (var source in sources)
+        try
         {
-            var log = await HarvestSourceAsync(source, today, seen, cancellationToken);
-            source.RecordRun(startedAt, StatusOf(log), log.Inserted);
-            sourceLogs.Add(log);
-        }
+            foreach (var source in sources)
+            {
+                var log = await HarvestSourceAsync(source, today, seen, ct);
+                source.RecordRun(startedAt, StatusOf(log), log.Inserted);
+                sourceLogs.Add(log);
 
-        run.Complete(sourceLogs, _timeProvider.GetUtcNow());
-        _context.SuggestionHarvestRuns.Add(run);
-        await _context.SaveChangesAsync(cancellationToken);
+                // Flush after each source so In/Fail/Skip climb live in the history.
+                run.UpdateProgress(sourceLogs);
+                await _context.SaveChangesAsync(ct);
+            }
+
+            run.Complete(sourceLogs, _timeProvider.GetUtcNow());
+            await _context.SaveChangesAsync(ct);
+        }
+        catch (Exception)
+        {
+            // Never leave the run stuck on Processing — finalise with whatever we have.
+            if (run.FinishedAt is null)
+            {
+                run.Complete(sourceLogs, _timeProvider.GetUtcNow());
+                await _context.SaveChangesAsync(CancellationToken.None);
+            }
+
+            throw;
+        }
 
         return HarvestReport.From(run);
     }

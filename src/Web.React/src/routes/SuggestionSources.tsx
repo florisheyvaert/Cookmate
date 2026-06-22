@@ -9,6 +9,7 @@ import {
   type SuggestionSourceDto,
   type SuggestionSourceInput,
   HARVEST_STATUS_LABELS,
+  HARVEST_STATUS_PROCESSING,
   HARVEST_TRIGGER_LABELS,
 } from '@/api/suggestions'
 import { PageHeader } from '@/components/PageHeader'
@@ -21,8 +22,10 @@ const ease = [0.22, 1, 0.36, 1] as const
 const SOURCES_KEY = ['suggestion-sources']
 const DEFAULT_MAX_PER_RUN = 100
 
-// 0 Succeeded · 1 Partial · 2 Failed
+// 0 Succeeded · 1 Partial · 2 Failed · 3 Processing
 function statusPill(status: number): string {
+  if (status === HARVEST_STATUS_PROCESSING)
+    return 'bg-cream-shadow/60 text-ink-soft ring-1 ring-inset ring-cream-shadow animate-pulse'
   if (status === 0) return 'bg-paprika/15 text-paprika-deep ring-1 ring-inset ring-paprika/30'
   if (status === 1) return 'bg-butter/25 text-[#7a5a12] ring-1 ring-inset ring-butter/50'
   return 'bg-red-500/15 text-red-700 ring-1 ring-inset ring-red-500/30'
@@ -35,7 +38,13 @@ function monogram(name: string): string {
 export default function SuggestionSources() {
   const queryClient = useQueryClient()
   const [adding, setAdding] = useState(false)
-  const sourcesQ = useQuery({ queryKey: SOURCES_KEY, queryFn: () => suggestionsApi.sources.list() })
+  const sourcesQ = useQuery({
+    queryKey: SOURCES_KEY,
+    queryFn: () => suggestionsApi.sources.list(),
+    // While any source is mid-harvest, poll so its "Processing" label + counts stay live.
+    refetchInterval: (q) =>
+      q.state.data?.some((s) => s.lastRunStatus === HARVEST_STATUS_PROCESSING) ? 2500 : false,
+  })
 
   const create = useMutation({
     mutationFn: (input: SuggestionSourceInput) => suggestionsApi.sources.create(input),
@@ -144,19 +153,28 @@ function SourceCard({ source, index }: { source: SuggestionSourceDto; index: num
   })
   const harvest = useMutation({
     mutationFn: () => suggestionsApi.sources.harvest(source.id),
+    // Open the history straight away so the run appears (and climbs) while it's working.
+    onMutate: () => setShowRuns(true),
     onSuccess: () => {
-      // Surface the result in the (single) history table rather than a separate card.
-      setShowRuns(true)
       queryClient.invalidateQueries({ queryKey: ['harvest-runs', source.id] })
       queryClient.invalidateQueries({ queryKey: SOURCES_KEY })
       queryClient.invalidateQueries({ queryKey: ['meal-suggestions'] })
       queryClient.invalidateQueries({ queryKey: ['weekly-ideas'] })
     },
   })
+
+  // A harvest survives a page refresh server-side, so drive the busy state off the
+  // persisted "Processing" status too — not just this tab's in-flight mutation.
+  const processing = source.lastRunStatus === HARVEST_STATUS_PROCESSING
+  const busy = harvest.isPending || processing
+
   const runsQ = useQuery({
     queryKey: ['harvest-runs', source.id],
     queryFn: () => suggestionsApi.sources.runs(source.id),
     enabled: showRuns,
+    // Poll while a run is active so In/Fail/Skip update live; stop once it finishes.
+    refetchInterval: (q) =>
+      busy || q.state.data?.some((r) => r.status === HARVEST_STATUS_PROCESSING) ? 1500 : false,
   })
 
   function patch(changes: Partial<SuggestionSourceInput>) {
@@ -239,10 +257,10 @@ function SourceCard({ source, index }: { source: SuggestionSourceDto; index: num
           <button
             type="button"
             onClick={() => harvest.mutate()}
-            disabled={harvest.isPending}
+            disabled={busy}
             className="w-full sm:w-auto shrink-0 inline-flex items-center justify-center gap-1.5 rounded-xl px-4 py-2.5 bg-butter text-[#1f2417] hover:bg-butter-deep disabled:opacity-60 transition-colors font-display font-semibold text-[0.82rem]"
           >
-            {harvest.isPending ? 'Harvesting…' : '⟳ Harvest now'}
+            {busy ? '⟳ Harvesting…' : '⟳ Harvest now'}
           </button>
         </div>
 

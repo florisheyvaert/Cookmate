@@ -11,4 +11,7 @@ public enum HarvestStatus
 
     /// <summary>Nothing succeeded — e.g. discovery failed for every source.</summary>
     Failed = 2,
+
+    /// <summary>The run is currently in progress — counts climb until it finalises.</summary>
+    Processing = 3,
 }

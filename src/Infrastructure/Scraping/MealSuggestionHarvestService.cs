@@ -37,6 +37,21 @@ public class MealSuggestionHarvestService : BackgroundService
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
+        // A restart mid-harvest would leave runs/sources stuck on "Processing" forever.
+        // Nothing can be harvesting at boot (single-instance, in-process), so clear them.
+        try
+        {
+            await ResetOrphanedRunsAsync(stoppingToken);
+        }
+        catch (OperationCanceledException)
+        {
+            return;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to reset orphaned harvest runs on startup.");
+        }
+
         using var timer = new PeriodicTimer(TickInterval, _timeProvider);
 
         while (!stoppingToken.IsCancellationRequested)
@@ -98,6 +113,31 @@ public class MealSuggestionHarvestService : BackgroundService
         _logger.LogInformation(
             "Scheduled harvest finished with status {Status}: {Inserted} inserted, {Skipped} skipped, {Failed} failed.",
             report.Status, report.Inserted, report.SkippedDuplicate, report.Failed);
+    }
+
+    /// <summary>Finalises any run/source left mid-harvest by a previous process so the UI never shows a stuck "processing".</summary>
+    private async Task ResetOrphanedRunsAsync(CancellationToken cancellationToken)
+    {
+        using var scope = _scopeFactory.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
+        var now = _timeProvider.GetUtcNow();
+
+        var stuckRuns = await db.SuggestionHarvestRuns
+            .Where(r => r.Status == HarvestStatus.Processing)
+            .ToListAsync(cancellationToken);
+        var stuckSources = await db.SuggestionSources
+            .Where(s => s.LastRunStatus == HarvestStatus.Processing)
+            .ToListAsync(cancellationToken);
+
+        if (stuckRuns.Count == 0 && stuckSources.Count == 0) return;
+
+        foreach (var run in stuckRuns) run.MarkInterrupted(now);
+        foreach (var source in stuckSources) source.MarkRunInterrupted();
+        await db.SaveChangesAsync(cancellationToken);
+
+        _logger.LogWarning(
+            "Reset {Runs} harvest run(s) and {Sources} source(s) left in Processing after a restart.",
+            stuckRuns.Count, stuckSources.Count);
     }
 
     /// <summary>The most recent moment matching the configured weekday + time at or before now.</summary>

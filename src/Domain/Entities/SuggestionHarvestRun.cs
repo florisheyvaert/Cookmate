@@ -42,6 +42,23 @@ public class SuggestionHarvestRun : BaseAuditableEntity
         Trigger = trigger;
         StartedAt = startedAt;
         SourceId = sourceId;
+        Status = HarvestStatus.Processing;
+    }
+
+    /// <summary>
+    /// Rolls up the counts from the sources handled so far while the run is still in
+    /// flight, leaving the status at <see cref="HarvestStatus.Processing"/>. Persisting
+    /// after each source lets the history show In/Fail/Skip climb live.
+    /// </summary>
+    public void UpdateProgress(IEnumerable<HarvestSourceLog> sources)
+    {
+        _sources.Clear();
+        _sources.AddRange(sources);
+
+        Discovered = _sources.Sum(s => s.Discovered);
+        Inserted = _sources.Sum(s => s.Inserted);
+        SkippedDuplicate = _sources.Sum(s => s.SkippedDuplicate);
+        Failed = _sources.Sum(s => s.Failed) + _sources.Count(s => s.Error is not null);
     }
 
     /// <summary>
@@ -64,6 +81,16 @@ public class SuggestionHarvestRun : BaseAuditableEntity
         Status = Failed == 0
             ? HarvestStatus.Succeeded
             : anySuccess ? HarvestStatus.PartialFailure : HarvestStatus.Failed;
+    }
+
+    /// <summary>
+    /// Finalises a run that was left in progress (e.g. the process restarted mid-harvest),
+    /// keeping whatever counts were persisted so it never stays stuck on Processing.
+    /// </summary>
+    public void MarkInterrupted(DateTimeOffset finishedAt)
+    {
+        FinishedAt = finishedAt;
+        Status = Inserted > 0 || SkippedDuplicate > 0 ? HarvestStatus.PartialFailure : HarvestStatus.Failed;
     }
 }
 

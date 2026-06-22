@@ -92,12 +92,28 @@ public class SuggestionSource : BaseAuditableEntity
         }
     }
 
+    /// <summary>Marks a harvest as in progress so the UI shows a live "processing" state.</summary>
+    public void MarkRunStarted(DateTimeOffset at)
+    {
+        LastRunAt = at;
+        LastRunStatus = HarvestStatus.Processing;
+    }
+
     /// <summary>Records the outcome of a harvest run for at-a-glance telemetry.</summary>
     public void RecordRun(DateTimeOffset at, HarvestStatus status, int insertedCount)
     {
         LastRunAt = at;
         LastRunStatus = status;
         LastRunCount = insertedCount;
+    }
+
+    /// <summary>Clears a stuck "processing" state left by a restart mid-harvest.</summary>
+    public void MarkRunInterrupted()
+    {
+        if (LastRunStatus == HarvestStatus.Processing)
+        {
+            LastRunStatus = LastRunCount > 0 ? HarvestStatus.PartialFailure : HarvestStatus.Failed;
+        }
     }
 
     /// <summary>

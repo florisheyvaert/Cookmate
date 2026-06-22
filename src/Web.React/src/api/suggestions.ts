@@ -1,13 +1,16 @@
 import { api } from '@/lib/api'
 
 // Enums mirror the backend; System.Text.Json serialises them as numbers.
-// HarvestStatus: 0=Succeeded, 1=PartialFailure, 2=Failed
+// HarvestStatus: 0=Succeeded, 1=PartialFailure, 2=Failed, 3=Processing
 // HarvestItemStatus: 0=Inserted, 1=SkippedDuplicate, 2=Failed
 // HarvestTrigger: 0=Scheduled, 1=Manual
+export const HARVEST_STATUS_PROCESSING = 3
+
 export const HARVEST_STATUS_LABELS: Record<number, string> = {
   0: 'Succeeded',
   1: 'Partial',
   2: 'Failed',
+  3: 'Processing',
 }
 
 export const HARVEST_ITEM_STATUS_LABELS: Record<number, string> = {
