@@ -25,6 +25,17 @@ public class WebApiFactory(string connectionString) : WebApplicationFactory<Prog
                     mock.SetupGet(x => x.Id).Returns(TestApp.GetUserId());
                     return mock.Object;
                 });
+
+            // Don't reach the network when creating/editing a source in tests.
+            services
+                .RemoveAll<IFaviconFetcher>()
+                .AddTransient(_ =>
+                {
+                    var mock = new Mock<IFaviconFetcher>();
+                    mock.Setup(x => x.FetchAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+                        .ReturnsAsync((string?)null);
+                    return mock.Object;
+                });
         });
     }
 }

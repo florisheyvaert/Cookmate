@@ -24,10 +24,10 @@ public class GetMealSuggestionQueryHandler : IRequestHandler<GetMealSuggestionQu
 
         Guard.Against.NotFound(request.Id, suggestion);
 
-        var sourceName = await _context.SuggestionSources
+        var source = await _context.SuggestionSources
             .AsNoTracking()
             .Where(src => src.Id == suggestion.SourceId)
-            .Select(src => src.Name)
+            .Select(src => new { src.Name, src.FaviconStorageKey })
             .FirstOrDefaultAsync(cancellationToken);
 
         return new MealSuggestionDetailDto
@@ -37,7 +37,8 @@ public class GetMealSuggestionQueryHandler : IRequestHandler<GetMealSuggestionQu
             Summary = suggestion.Summary,
             SourceUrl = suggestion.SourceUrl,
             SourceId = suggestion.SourceId,
-            SourceName = sourceName,
+            SourceName = source?.Name,
+            SourceFaviconUrl = source?.FaviconStorageKey != null ? $"/api/SuggestionSources/{suggestion.SourceId}/favicon" : null,
             BaseServings = suggestion.BaseServings,
             TotalTimeMinutes = suggestion.TotalTimeMinutes,
             Tags = suggestion.Tags,
@@ -64,6 +65,9 @@ public record MealSuggestionDetailDto
     public int SourceId { get; init; }
 
     public string? SourceName { get; init; }
+
+    /// <summary>Relative URL of the source site's locally-stored favicon, or null.</summary>
+    public string? SourceFaviconUrl { get; init; }
 
     public int BaseServings { get; init; }
 

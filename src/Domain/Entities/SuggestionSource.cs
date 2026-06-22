@@ -34,6 +34,9 @@ public class SuggestionSource : BaseAuditableEntity
     /// <summary>Number of suggestions inserted on the most recent run.</summary>
     public int? LastRunCount { get; private set; }
 
+    /// <summary>Storage key of the locally-downloaded site favicon, or null when none.</summary>
+    public string? FaviconStorageKey { get; private set; }
+
     private SuggestionSource() { }
 
     public SuggestionSource(string name, string host)
@@ -114,6 +117,12 @@ public class SuggestionSource : BaseAuditableEntity
         {
             LastRunStatus = LastRunCount > 0 ? HarvestStatus.PartialFailure : HarvestStatus.Failed;
         }
+    }
+
+    /// <summary>Stores (or clears) the locally-downloaded favicon for this source.</summary>
+    public void SetFavicon(string? storageKey)
+    {
+        FaviconStorageKey = string.IsNullOrWhiteSpace(storageKey) ? null : storageKey;
     }
 
     /// <summary>

@@ -22,10 +22,12 @@ public record UpdateSuggestionSourceCommand : IRequest
 public class UpdateSuggestionSourceCommandHandler : IRequestHandler<UpdateSuggestionSourceCommand>
 {
     private readonly IApplicationDbContext _context;
+    private readonly IFaviconFetcher _favicons;
 
-    public UpdateSuggestionSourceCommandHandler(IApplicationDbContext context)
+    public UpdateSuggestionSourceCommandHandler(IApplicationDbContext context, IFaviconFetcher favicons)
     {
         _context = context;
+        _favicons = favicons;
     }
 
     public async Task Handle(UpdateSuggestionSourceCommand request, CancellationToken cancellationToken)
@@ -40,6 +42,9 @@ public class UpdateSuggestionSourceCommandHandler : IRequestHandler<UpdateSugges
         source.SetEnabled(request.Enabled);
         source.SetListingUrls(request.ListingUrls);
         source.SetMaxPerRun(request.MaxPerRun);
+
+        // Refresh the favicon on every edit, so existing sources get one by re-saving.
+        source.SetFavicon(await _favicons.FetchAsync(source.Host, cancellationToken));
 
         await _context.SaveChangesAsync(cancellationToken);
     }

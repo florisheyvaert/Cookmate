@@ -33,6 +33,7 @@ public class ListSuggestionSourcesQueryHandler
                 LastRunAt = s.LastRunAt,
                 LastRunStatus = s.LastRunStatus,
                 LastRunCount = s.LastRunCount,
+                FaviconUrl = s.FaviconStorageKey != null ? $"/api/SuggestionSources/{s.Id}/favicon" : null,
             })
             .ToListAsync(cancellationToken);
     }
@@ -57,4 +58,7 @@ public record SuggestionSourceDto
     public HarvestStatus? LastRunStatus { get; init; }
 
     public int? LastRunCount { get; init; }
+
+    /// <summary>Relative URL of the locally-stored site favicon, or null when none.</summary>
+    public string? FaviconUrl { get; init; }
 }

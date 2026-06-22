@@ -1,3 +1,4 @@
+using System.Net;
 using System.Text;
 using Cookmate.Application.Common.Interfaces;
 using Cookmate.Application.MealSuggestions.Common;
@@ -164,6 +165,12 @@ public class HarvestMealSuggestionsCommandHandler : IRequestHandler<HarvestMealS
         // fill the pool from a large sitemap instead of stalling on the same first page.
         var cap = source.MaxPerRun ?? int.MaxValue;
         var scraper = _scrapers.For(source.Host);
+
+        // Stop after a few back-to-back blocks (403/429) — hammering a host that's
+        // blocking us only deepens the IP ban.
+        const int maxConsecutiveBlocks = 3;
+        var consecutiveBlocks = 0;
+
         foreach (var url in urls)
         {
             if (inserted >= cap) break;
@@ -203,6 +210,7 @@ public class HarvestMealSuggestionsCommandHandler : IRequestHandler<HarvestMealS
 
                 _context.MealSuggestions.Add(suggestion);
                 inserted++;
+                consecutiveBlocks = 0;
                 items.Add(new HarvestItemLog { Url = urlStr, Status = HarvestItemStatus.Inserted, Title = title });
                 await reportProgress(Snapshot());
             }
@@ -211,6 +219,15 @@ public class HarvestMealSuggestionsCommandHandler : IRequestHandler<HarvestMealS
                 failed++;
                 items.Add(new HarvestItemLog { Url = urlStr, Status = HarvestItemStatus.Failed, Error = Describe(ex) });
                 await reportProgress(Snapshot());
+
+                if (IsBlocked(ex))
+                {
+                    if (++consecutiveBlocks >= maxConsecutiveBlocks) break;
+                }
+                else
+                {
+                    consecutiveBlocks = 0;
+                }
             }
         }
 
@@ -245,6 +262,20 @@ public class HarvestMealSuggestionsCommandHandler : IRequestHandler<HarvestMealS
         }
 
         return sb.ToString().TrimEnd();
+    }
+
+    /// <summary>True when an error is the host turning us away (403 Forbidden / 429 Too Many Requests).</summary>
+    private static bool IsBlocked(Exception ex)
+    {
+        for (var current = ex; current is not null; current = current.InnerException)
+        {
+            if (current is HttpRequestException { StatusCode: HttpStatusCode.Forbidden or HttpStatusCode.TooManyRequests })
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static HarvestStatus StatusOf(HarvestSourceLog log)

@@ -116,20 +116,39 @@ public static class DependencyInjection
             AutomaticDecompression = DecompressionMethods.All,
         };
 
+        // Space requests per host so a harvest reads at a human pace instead of a
+        // bot-like burst (which gets the IP 403'd by Akamai on ah.nl).
+        builder.Services.Configure<ScraperThrottleOptions>(
+            builder.Configuration.GetSection(ScraperThrottleOptions.SectionName));
+        builder.Services.AddSingleton<ScraperThrottle>();
+        builder.Services.AddTransient<ThrottlingScraperHandler>();
+
         builder.Services.AddHttpClient<JsonLdRecipeScraper>(ConfigureScraperClient)
-            .ConfigurePrimaryHttpMessageHandler(ScraperHandler);
+            .ConfigurePrimaryHttpMessageHandler(ScraperHandler)
+            .AddHttpMessageHandler<ThrottlingScraperHandler>();
         builder.Services.AddHttpClient<IHostRecipeScraper, DagelijkseKostScraper>(ConfigureScraperClient)
-            .ConfigurePrimaryHttpMessageHandler(ScraperHandler);
+            .ConfigurePrimaryHttpMessageHandler(ScraperHandler)
+            .AddHttpMessageHandler<ThrottlingScraperHandler>();
         builder.Services.AddHttpClient<IHostRecipeScraper, LibelleLekkerScraper>(ConfigureScraperClient)
-            .ConfigurePrimaryHttpMessageHandler(ScraperHandler);
+            .ConfigurePrimaryHttpMessageHandler(ScraperHandler)
+            .AddHttpMessageHandler<ThrottlingScraperHandler>();
         builder.Services.AddHttpClient<ListingPageDiscoverer>(ConfigureScraperClient)
-            .ConfigurePrimaryHttpMessageHandler(ScraperHandler);
+            .ConfigurePrimaryHttpMessageHandler(ScraperHandler)
+            .AddHttpMessageHandler<ThrottlingScraperHandler>();
         builder.Services.AddHttpClient<IHostRecipeUrlDiscoverer, DagelijkseKostDiscoverer>(ConfigureScraperClient)
-            .ConfigurePrimaryHttpMessageHandler(ScraperHandler);
+            .ConfigurePrimaryHttpMessageHandler(ScraperHandler)
+            .AddHttpMessageHandler<ThrottlingScraperHandler>();
         builder.Services.AddHttpClient<IHostRecipeUrlDiscoverer, AlbertHeijnDiscoverer>(ConfigureScraperClient)
-            .ConfigurePrimaryHttpMessageHandler(ScraperHandler);
+            .ConfigurePrimaryHttpMessageHandler(ScraperHandler)
+            .AddHttpMessageHandler<ThrottlingScraperHandler>();
         builder.Services.AddHttpClient<IHostRecipeUrlDiscoverer, LibelleLekkerDiscoverer>(ConfigureScraperClient)
-            .ConfigurePrimaryHttpMessageHandler(ScraperHandler);
+            .ConfigurePrimaryHttpMessageHandler(ScraperHandler)
+            .AddHttpMessageHandler<ThrottlingScraperHandler>();
+
+        // Downloads a source's favicon (from its home page) when a source is created/edited.
+        builder.Services.AddHttpClient<IFaviconFetcher, FaviconFetcher>(ConfigureScraperClient)
+            .ConfigurePrimaryHttpMessageHandler(ScraperHandler)
+            .AddHttpMessageHandler<ThrottlingScraperHandler>();
 
         builder.Services.AddTransient<IRecipeScraperRegistry, RecipeScraperRegistry>();
         builder.Services.AddTransient<IRecipeUrlDiscovererRegistry, RecipeUrlDiscovererRegistry>();

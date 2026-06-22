@@ -2,9 +2,11 @@ using Cookmate.Application.MealSuggestions.Commands.CreateSuggestionSource;
 using Cookmate.Application.MealSuggestions.Commands.DeleteSuggestionSource;
 using Cookmate.Application.MealSuggestions.Commands.HarvestMealSuggestions;
 using Cookmate.Application.MealSuggestions.Commands.UpdateHarvestSchedule;
+using Cookmate.Application.Common.Interfaces;
 using Cookmate.Application.MealSuggestions.Commands.UpdateSuggestionSource;
 using Cookmate.Application.MealSuggestions.Common;
 using Cookmate.Application.MealSuggestions.Queries.GetHarvestSchedule;
+using Cookmate.Application.MealSuggestions.Queries.GetSuggestionSourceFavicon;
 using Cookmate.Application.MealSuggestions.Queries.ListHarvestRuns;
 using Cookmate.Application.MealSuggestions.Queries.ListSuggestionSources;
 using Cookmate.Domain.Constants;
@@ -23,6 +25,7 @@ public class SuggestionSources : IEndpointGroup
         // the source filter. The run history (exposes harvest stack traces) and schedule
         // are admin-only, matching the rest of the management surface.
         groupBuilder.MapGet(List);
+        groupBuilder.MapGet(GetFavicon, "{id:int}/favicon");
         groupBuilder.MapGet(ListRuns, "runs").RequireAuthorization(Roles.Administrator);
         groupBuilder.MapGet(ListRunsForSource, "{id:int}/runs").RequireAuthorization(Roles.Administrator);
         groupBuilder.MapGet(GetSchedule, "schedule").RequireAuthorization(Roles.Administrator);
@@ -42,6 +45,18 @@ public class SuggestionSources : IEndpointGroup
         var sources = await sender.Send(new ListSuggestionSourcesQuery());
 
         return TypedResults.Ok(sources);
+    }
+
+    [EndpointSummary("Stream a source's favicon")]
+    [EndpointDescription("Returns the locally stored favicon downloaded when the source was created or last edited. 404 when none.")]
+    public static async Task<Results<FileStreamHttpResult, NotFound>> GetFavicon(
+        ISender sender, IFileStorage storage, int id, CancellationToken cancellationToken)
+    {
+        var info = await sender.Send(new GetSuggestionSourceFaviconQuery(id), cancellationToken);
+
+        var stream = await storage.OpenReadAsync(info.StorageKey, cancellationToken);
+
+        return TypedResults.Stream(stream, info.ContentType);
     }
 
     [EndpointSummary("Add a suggestion source")]

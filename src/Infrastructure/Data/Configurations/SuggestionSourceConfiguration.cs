@@ -21,6 +21,9 @@ public class SuggestionSourceConfiguration : IEntityTypeConfiguration<Suggestion
         builder.Property(s => s.Enabled)
             .IsRequired();
 
+        builder.Property(s => s.FaviconStorageKey)
+            .HasMaxLength(200);
+
         builder.PrimitiveCollection(s => s.ListingUrls)
             .HasField("_listingUrls")
             .UsePropertyAccessMode(PropertyAccessMode.Field)
