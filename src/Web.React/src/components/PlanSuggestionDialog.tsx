@@ -51,6 +51,7 @@ export function PlanSuggestionDialog({
   const [servings, setServings] = useState(baseServings ?? 4)
   const [weekStart, setWeekStart] = useState(() => startOfWeek(new Date()))
   const [showOptions, setShowOptions] = useState(false)
+  const [selectedDate, setSelectedDate] = useState<string | null>(null)
 
   useEffect(() => {
     if (!open) return
@@ -58,6 +59,7 @@ export function PlanSuggestionDialog({
     setServings(baseServings ?? 4)
     setWeekStart(startOfWeek(new Date()))
     setShowOptions(false)
+    setSelectedDate(null)
   }, [open, baseServings])
 
   useEffect(() => {
@@ -198,19 +200,24 @@ export function PlanSuggestionDialog({
                     const head = list[0] ?? null
                     const isToday = iso === today
                     const isPast = iso < today
+                    const isSelected = iso === selectedDate
                     return (
                       <button
                         key={iso}
                         type="button"
-                        onClick={() => create.mutate(iso)}
+                        onClick={() => setSelectedDate(iso)}
                         disabled={isPast || create.isPending}
                         title={list.length > 0 ? `${list.length} planned · add another` : `Plan on ${iso}`}
                         className={[
                           'group flex flex-col rounded-lg border overflow-hidden transition-colors disabled:opacity-40 disabled:cursor-not-allowed',
-                          isToday ? 'border-paprika/60 ring-1 ring-inset ring-paprika/30' : 'border-cream-shadow hover:border-paprika/55',
+                          isSelected
+                            ? 'border-paprika ring-2 ring-inset ring-paprika/40'
+                            : isToday
+                              ? 'border-paprika/60 ring-1 ring-inset ring-paprika/30'
+                              : 'border-cream-shadow hover:border-paprika/55',
                         ].join(' ')}
                       >
-                        <span className={['px-1 py-1 text-center leading-none', isToday ? 'bg-paprika text-cream' : 'bg-cream-deep'].join(' ')}>
+                        <span className={['px-1 py-1 text-center leading-none', isSelected || isToday ? 'bg-paprika text-cream' : 'bg-cream-deep'].join(' ')}>
                           <span className="block font-mono text-[0.5rem] uppercase tracking-[0.1em] opacity-80">{WEEKDAYS[i]}</span>
                           <span className="block num text-[0.82rem] mt-0.5">{d.getDate()}</span>
                         </span>
@@ -318,14 +325,43 @@ export function PlanSuggestionDialog({
               </div>
 
               <footer className="px-6 py-4 border-t border-cream-shadow flex items-center justify-between gap-4">
-                <span className="font-mono text-[0.66rem] text-chestnut">Pick a day to plan it</span>
-                <button
-                  type="button"
-                  onClick={onClose}
-                  className="font-mono text-[0.66rem] uppercase tracking-[0.16em] text-chestnut hover:text-paprika transition-colors"
-                >
-                  Cancel
-                </button>
+                <span className="font-mono text-[0.66rem] text-chestnut min-w-0 truncate">
+                  {selectedDate ? (
+                    <>
+                      Planning <span className="text-paprika">{formatDay(selectedDate)}</span>
+                    </>
+                  ) : (
+                    'Pick a day to plan it'
+                  )}
+                </span>
+                <div className="flex items-center gap-4 shrink-0">
+                  <button
+                    type="button"
+                    onClick={onClose}
+                    className="font-mono text-[0.66rem] uppercase tracking-[0.16em] text-chestnut hover:text-paprika transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <motion.button
+                    // Re-mounts when the chosen day changes, so it pops each time it lights up.
+                    key={selectedDate ?? 'none'}
+                    type="button"
+                    initial={{ scale: selectedDate ? 0.9 : 1 }}
+                    animate={{ scale: selectedDate ? [0.9, 1.07, 1] : 1 }}
+                    transition={{ duration: 0.3, ease }}
+                    onClick={() => selectedDate && create.mutate(selectedDate)}
+                    disabled={!selectedDate || create.isPending}
+                    className={[
+                      'inline-flex items-center gap-1.5 rounded-xl px-5 py-2.5 font-display font-semibold text-[0.9rem] transition-colors',
+                      selectedDate
+                        ? 'bg-paprika text-cream hover:bg-paprika-deep shadow-[0_6px_18px_-6px_rgba(47,125,79,0.6)]'
+                        : 'bg-cream-shadow/60 text-chestnut-soft cursor-not-allowed',
+                    ].join(' ')}
+                  >
+                    {create.isPending ? 'Planning…' : 'Plan'}
+                    {selectedDate && !create.isPending && <span aria-hidden>→</span>}
+                  </motion.button>
+                </div>
               </footer>
             </div>
           </motion.div>
@@ -333,6 +369,11 @@ export function PlanSuggestionDialog({
       )}
     </AnimatePresence>
   )
+}
+
+function formatDay(iso: string): string {
+  const [y, m, d] = iso.split('-').map(Number)
+  return new Intl.DateTimeFormat(undefined, { weekday: 'short', day: 'numeric', month: 'short' }).format(new Date(y, m - 1, d))
 }
 
 function DishThumb({ url }: { url: string | null }) {

@@ -378,13 +378,13 @@ function SuggestionCard({ suggestion, index }: { suggestion: MealSuggestionDto; 
             type="button"
             onClick={() => setPlanOpen(true)}
             className={[
-              'w-full inline-flex items-center justify-center gap-1.5 rounded-lg px-3 py-2 border transition-colors font-mono text-[0.64rem] uppercase tracking-[0.14em]',
+              'w-full inline-flex items-center justify-center gap-1.5 rounded-lg px-3 py-2 transition-colors font-mono text-[0.64rem] uppercase tracking-[0.14em]',
               plannedDate
-                ? 'border-paprika/40 text-paprika hover:bg-paprika-tint'
-                : 'border-cream-shadow text-chestnut hover:border-paprika hover:text-paprika',
+                ? 'bg-paprika text-cream hover:bg-paprika-deep'
+                : 'bg-paprika-tint text-paprika-deep hover:bg-paprika hover:text-cream',
             ].join(' ')}
           >
-            {plannedDate ? '✓ Planned · add another' : '+ Add to plan'}
+            {plannedDate ? '✓ Planned · add another' : '🗓 Add to plan'}
           </button>
         </div>
       </div>
