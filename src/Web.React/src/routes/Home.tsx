@@ -448,39 +448,56 @@ function SuggestedThisWeek() {
       <SectionHeader title="This week's ideas" caption="Browse all" to="/suggestions" />
 
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-3">
-        {days.map((day, i) => (
-          <motion.div
-            key={day.date}
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 + i * 0.04, duration: 0.4, ease }}
-            className="rounded-xl border border-cream-shadow bg-cream-deep overflow-hidden flex flex-col"
-          >
-            <div className="aspect-[4/3] bg-cream-shadow/40 grid place-items-center overflow-hidden">
-              {day.suggestion?.imageUrl ? (
-                <img src={day.suggestion.imageUrl} alt="" loading="lazy" className="w-full h-full object-cover" />
-              ) : (
-                <span aria-hidden className="text-2xl leading-none opacity-60">🍽️</span>
-              )}
-            </div>
-            <div className="p-2.5 flex-1 flex flex-col">
-              <span className="font-mono text-[0.56rem] uppercase tracking-[0.16em] text-chestnut-soft">
-                {weekdayShort(day.date)}
-              </span>
+        {days.map((day, i) => {
+          const inner = (
+            <>
+              <div className="aspect-[4/3] bg-cream-shadow/40 grid place-items-center overflow-hidden">
+                {day.suggestion?.imageUrl ? (
+                  <img
+                    src={day.suggestion.imageUrl}
+                    alt=""
+                    loading="lazy"
+                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.04]"
+                  />
+                ) : (
+                  <span aria-hidden className="text-2xl leading-none opacity-60">🍽️</span>
+                )}
+              </div>
+              <div className="p-2.5 flex-1 flex flex-col">
+                <span className="font-mono text-[0.56rem] uppercase tracking-[0.16em] text-chestnut-soft">
+                  {weekdayShort(day.date)}
+                </span>
+                {day.suggestion ? (
+                  <span
+                    className="text-ink text-sm leading-tight mt-0.5 group-hover:text-paprika transition-colors line-clamp-2"
+                    style={{ fontWeight: 700, letterSpacing: '-0.01em' }}
+                  >
+                    {day.suggestion.title}
+                  </span>
+                ) : (
+                  <span className="text-chestnut-soft text-sm mt-0.5">—</span>
+                )}
+              </div>
+            </>
+          )
+          return (
+            <motion.div
+              key={day.date}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2 + i * 0.04, duration: 0.4, ease }}
+              className="rounded-xl border border-cream-shadow bg-cream-deep overflow-hidden flex flex-col hover:border-paprika/50 transition-colors"
+            >
               {day.suggestion ? (
-                <Link
-                  to={`/suggestions/${day.suggestion.id}`}
-                  className="text-ink text-sm leading-tight mt-0.5 hover:text-paprika transition-colors no-underline line-clamp-2"
-                  style={{ fontWeight: 700, letterSpacing: '-0.01em' }}
-                >
-                  {day.suggestion.title}
+                <Link to={`/suggestions/${day.suggestion.id}`} className="group flex flex-1 flex-col no-underline">
+                  {inner}
                 </Link>
               ) : (
-                <span className="text-chestnut-soft text-sm mt-0.5">—</span>
+                <div className="flex flex-1 flex-col">{inner}</div>
               )}
-            </div>
-          </motion.div>
-        ))}
+            </motion.div>
+          )
+        })}
       </div>
     </section>
   )

@@ -35,8 +35,16 @@ public class GetWeeklyProposalQueryHandler : IRequestHandler<GetWeeklyProposalQu
         var daysSinceMonday = ((int)today.DayOfWeek + 6) % 7;
         var weekStart = today.AddDays(-daysSinceMonday);
 
+        // Only main courses, like the "this week's ideas" list — detected from the scraped
+        // category tags ("hoofdgerecht" across dagelijksekost / AH / libelle, plus variants).
         var pool = await _context.MealSuggestions
             .AsNoTracking()
+            .Where(s =>
+                s.Tags.Contains("hoofdgerecht")
+                || s.Tags.Contains("hoofdgerechten")
+                || s.Tags.Contains("hoofdschotel")
+                || s.Tags.Contains("main course")
+                || s.Tags.Contains("main"))
             .ToListAsync(cancellationToken);
 
         var picked = _strategy.Pick(pool, weekStart, DaysPerWeek);
