@@ -7,6 +7,7 @@ import { recipesApi } from '@/api/recipes'
 import { mealPlanApi, MEAL_SLOT_ORDER, MEAL_SLOT_ICON, MEAL_SLOT_LABELS } from '@/api/mealPlan'
 import type { MealEntryDto } from '@/api/mealPlan'
 import { DayPlannerDialog } from '@/components/DayPlannerDialog'
+import { useSwipe } from '@/lib/useSwipe'
 import { suggestionsApi } from '@/api/suggestions'
 import { formatDuration } from '@/lib/format'
 import type { RecipeSummaryDto } from '@/api/types'
@@ -158,12 +159,14 @@ function Planner() {
   const today = useMemo(() => startOfToday(), [])
   const todayIso = toISO(today)
   const [anchor, setAnchor] = useState<Date>(today)
-  const [selectedDate, setSelectedDate] = useState<string | null>(null)
+  // `{ date }` plans a known day; `{ date: null }` opens the date-first wizard.
+  const [planner, setPlanner] = useState<{ date: string | null } | null>(null)
 
-  // The visible window slides one day at a time, so you can plan weeks ahead.
-  const days = useMemo(() => Array.from({ length: 7 }, (_, i) => addDays(anchor, i)), [anchor])
+  // Three days is enough up front: today, tomorrow, the day after. The window
+  // still slides a day at a time (arrows or swipe); the calendar covers the rest.
+  const days = useMemo(() => Array.from({ length: 3 }, (_, i) => addDays(anchor, i)), [anchor])
   const from = toISO(days[0])
-  const to = toISO(days[6])
+  const to = toISO(days[2])
   const gridQ = useQuery({ queryKey: ['meal-plan', from, to], queryFn: () => mealPlanApi.list({ from, to }) })
   const byDate = useMemo(() => groupByDate(gridQ.data ?? []), [gridQ.data])
 
@@ -176,15 +179,12 @@ function Planner() {
   const wdLong = new Intl.DateTimeFormat(undefined, { weekday: 'long' }).format(today)
   const wdShort = new Intl.DateTimeFormat(undefined, { weekday: 'short' })
   const fmtMd = new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 'short' })
-  const periodLabel = `${fmtMd.format(days[0])} – ${fmtMd.format(days[6])}`
+  const periodLabel = `${fmtMd.format(days[0])} – ${fmtMd.format(days[2])}`
   const atToday = toISO(anchor) === todayIso
 
-  const selectedEntries = selectedDate
-    ? selectedDate === todayIso
-      ? byDate.get(todayIso) ?? todayEntries
-      : byDate.get(selectedDate) ?? []
-    : []
-  const selectedEditable = selectedDate != null && selectedDate >= todayIso
+  const stepDay = (n: number) => setAnchor((a) => addDays(a, n))
+  // On touch, swipe the three-day window left/right.
+  const swipe = useSwipe(() => stepDay(1), () => stepDay(-1))
 
   return (
     <motion.section
@@ -222,7 +222,7 @@ function Planner() {
           {tonight?.imageUrl && (
             <button
               type="button"
-              onClick={() => setSelectedDate(todayIso)}
+              onClick={() => setPlanner({ date: todayIso })}
               className="shrink-0 block w-20 h-20 sm:w-24 sm:h-24 rounded-xl overflow-hidden border border-cream-shadow"
             >
               <img src={tonight.imageUrl} alt="" className="w-full h-full object-cover" />
@@ -237,7 +237,7 @@ function Planner() {
             {tonight ? (
               <button
                 type="button"
-                onClick={() => setSelectedDate(todayIso)}
+                onClick={() => setPlanner({ date: todayIso })}
                 className="text-left text-ink leading-tight flex items-baseline gap-2.5 hover:text-paprika transition-colors"
                 style={{ fontSize: 'clamp(1.5rem, 4vw, 2.4rem)', fontWeight: 700, letterSpacing: '-0.02em' }}
               >
@@ -257,12 +257,12 @@ function Planner() {
                 <Link to={`/recipes/${tonight.recipeId}/cook`} className={btnGold}>
                   ▷ Cook now
                 </Link>
-                <button type="button" onClick={() => setSelectedDate(todayIso)} className={quietLink}>
+                <button type="button" onClick={() => setPlanner({ date: todayIso })} className={quietLink}>
                   Details
                 </button>
               </div>
             ) : (
-              <button type="button" onClick={() => setSelectedDate(todayIso)} className={btnGreen}>
+              <button type="button" onClick={() => setPlanner({ date: todayIso })} className={btnGreen}>
                 {tonight ? 'Edit plan' : 'Plan tonight'}
               </button>
             )}
@@ -270,25 +270,33 @@ function Planner() {
         </div>
       </div>
 
-      {/* Week navigation */}
+      {/* Window navigation + planning actions */}
       <div className="flex items-center justify-between gap-3 mb-3.5 flex-wrap">
         <div className="flex items-center gap-2.5">
-          <NavArrow direction={-1} onClick={() => setAnchor((a) => addDays(a, -1))} label="Previous day" />
-          <NavArrow direction={1} onClick={() => setAnchor((a) => addDays(a, 1))} label="Next day" />
+          <NavArrow direction={-1} onClick={() => stepDay(-1)} label="Previous day" />
+          <NavArrow direction={1} onClick={() => stepDay(1)} label="Next day" />
           <span className="font-mono text-[0.72rem] uppercase tracking-[0.14em] text-ink ml-1">{periodLabel}</span>
+          <button
+            type="button"
+            onClick={() => setAnchor(today)}
+            disabled={atToday}
+            className="font-mono text-[0.62rem] uppercase tracking-[0.18em] text-chestnut hover:text-paprika transition-colors disabled:opacity-30 disabled:hover:text-chestnut"
+          >
+            ↺ Today
+          </button>
         </div>
-        <button
-          type="button"
-          onClick={() => setAnchor(today)}
-          disabled={atToday}
-          className="font-mono text-[0.62rem] uppercase tracking-[0.18em] text-chestnut hover:text-paprika transition-colors disabled:opacity-30 disabled:hover:text-chestnut"
-        >
-          ↺ Today
-        </button>
+        <div className="flex items-center gap-4 flex-wrap">
+          <button type="button" onClick={() => setPlanner({ date: null })} className={btnGreen}>
+            ＋ Plan a meal
+          </button>
+          <Link to="/calendar" className={quietLink}>
+            🗓️ Calendar →
+          </Link>
+        </div>
       </div>
 
-      {/* Days — click to view (past) or plan (today + future) */}
-      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
+      {/* Days — click to view (past) or plan (today + future). Swipe to slide. */}
+      <div className="grid grid-cols-3 gap-2.5 sm:gap-3 touch-pan-y" {...swipe}>
         {days.map((d, i) => {
           const iso = toISO(d)
           const list = byDate.get(iso) ?? []
@@ -305,7 +313,7 @@ function Planner() {
             >
               <button
                 type="button"
-                onClick={() => setSelectedDate(iso)}
+                onClick={() => setPlanner({ date: iso })}
                 className={[
                   'group block w-full text-left rounded-xl border overflow-hidden h-full min-h-[7.25rem] transition-colors',
                   isToday
@@ -360,11 +368,9 @@ function Planner() {
       </div>
 
       <DayPlannerDialog
-        open={selectedDate != null}
-        date={selectedDate ?? todayIso}
-        entries={selectedEntries}
-        editable={selectedEditable}
-        onClose={() => setSelectedDate(null)}
+        open={planner != null}
+        initialDate={planner?.date ?? null}
+        onClose={() => setPlanner(null)}
       />
     </motion.section>
   )
@@ -582,7 +588,7 @@ function RecipeThumb({ url }: { url: string | null }) {
 
 const closerTiles = [
   { to: '/recipes/new', icon: '🌱', title: 'Add a recipe', caption: 'Paste a link or write your own' },
-  { to: '#planner', icon: '🗓️', title: 'Plan a day', caption: 'Jump up to your planner' },
+  { to: '/calendar', icon: '🗓️', title: 'Open the calendar', caption: 'Plan any day, browse the month' },
   { to: '/suggestions', icon: '🥗', title: 'Browse ideas', caption: 'Fresh picks from your sources' },
   { to: '/shop', icon: '🛒', title: 'Build a shop', caption: 'A week of meals, one basket' },
 ]

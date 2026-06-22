@@ -20,6 +20,7 @@ import Users from '@/routes/Users'
 import Redeem from '@/routes/Redeem'
 import Shop from '@/routes/Shop'
 import ShopCart from '@/routes/ShopCart'
+import Calendar from '@/routes/Calendar'
 import Settings from '@/routes/Settings'
 import MealSuggestions from '@/routes/MealSuggestions'
 import MealSuggestionDetail from '@/routes/MealSuggestionDetail'
@@ -36,6 +37,14 @@ export default function App() {
               <Route path="login" element={<Login />} />
               <Route element={<Layout />}>
                 <Route index element={<Home />} />
+                <Route
+                  path="calendar"
+                  element={
+                    <RequireAuth>
+                      <Calendar />
+                    </RequireAuth>
+                  }
+                />
                 <Route
                   path="users"
                   element={

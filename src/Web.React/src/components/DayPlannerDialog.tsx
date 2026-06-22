@@ -11,58 +11,101 @@ import {
   MEAL_SLOT_ICON,
 } from '@/api/mealPlan'
 import type { MealEntryDto, MealSlot } from '@/api/mealPlan'
+import { MonthCalendar } from '@/components/MonthCalendar'
+import { firstOfMonth } from '@/lib/calendarDates'
 import { ApiError } from '@/lib/api'
 
 const ease = [0.22, 1, 0.36, 1] as const
 
-type View = 'menu' | 'recipe' | 'text'
+// Wizard steps. `date` only appears when no day was pre-selected (the generic
+// "Plan a meal" entry point). `menu` is the day overview; `slot` asks "as what?";
+// `assign` picks the actual meal (a recipe or free text).
+type View = 'date' | 'menu' | 'slot' | 'assign'
+type AssignMode = 'recipe' | 'text'
 type PickedRecipe = { id: number; title: string; baseServings?: number; image?: string | null }
 
 type Props = {
   open: boolean
-  /** yyyy-MM-dd */
-  date: string
-  entries: MealEntryDto[]
-  /** Future + today are editable; past days are view-only. */
-  editable: boolean
+  /** yyyy-MM-dd to plan straight away, or null to start the wizard at date-pick. */
+  initialDate?: string | null
   onClose: () => void
 }
 
+function pad(n: number) {
+  return String(n).padStart(2, '0')
+}
+function todayISO() {
+  const n = new Date()
+  return `${n.getFullYear()}-${pad(n.getMonth() + 1)}-${pad(n.getDate())}`
+}
+
 /**
- * The day planner. A small multi-step dialog: the menu lists what's planned and
- * offers three ways to add a meal — from a recipe, from this week's ideas
- * (navigates to the Ideas page), or as free text. Recipe + free text open as
- * sub-steps inside the same card. Past days show the meals read-only.
+ * The day planner, as a small wizard. Without a date it opens on a month
+ * calendar (pick a day → pick a type → assign a meal). With a date it opens on
+ * the day overview, where you can add more or delete. Past days are view-only.
  */
-export function DayPlannerDialog({ open, date, entries, editable, onClose }: Props) {
+export function DayPlannerDialog({ open, initialDate = null, onClose }: Props) {
   const qc = useQueryClient()
   const navigate = useNavigate()
+  const today = todayISO()
 
-  const [view, setView] = useState<View>('menu')
+  const [activeDate, setActiveDate] = useState<string | null>(initialDate)
+  const [view, setView] = useState<View>(initialDate ? 'menu' : 'date')
+  const [monthAnchor, setMonthAnchor] = useState(() => firstOfMonth(new Date()))
+
   const [slot, setSlot] = useState<MealSlot>(MealSlots.Dinner)
+  const [mode, setMode] = useState<AssignMode>('recipe')
   const [recipe, setRecipe] = useState<PickedRecipe | null>(null)
   const [servings, setServings] = useState<number | null>(null)
   const [text, setText] = useState('')
   const [error, setError] = useState<string | null>(null)
 
+  // The day is editable when it's today or later; past days are read-only.
+  const editable = activeDate != null && activeDate >= today
+
   function resetSub() {
     setSlot(MealSlots.Dinner)
+    setMode('recipe')
     setRecipe(null)
     setServings(null)
     setText('')
     setError(null)
   }
-  function backToMenu() {
-    setView('menu')
-    resetSub()
-  }
 
+  // Reset the whole wizard whenever it (re)opens.
   useEffect(() => {
-    if (open) {
-      setView('menu')
-      resetSub()
+    if (!open) return
+    setActiveDate(initialDate)
+    setView(initialDate ? 'menu' : 'date')
+    setMonthAnchor(firstOfMonth(new Date()))
+    resetSub()
+  }, [open, initialDate])
+
+  // Entries for the active day — fetched here so both entry points stay simple.
+  const entriesQ = useQuery({
+    queryKey: ['meal-plan', activeDate, activeDate],
+    queryFn: () => mealPlanApi.list({ from: activeDate!, to: activeDate! }),
+    enabled: open && activeDate != null,
+  })
+  const entries = useMemo(() => sortBySlot(entriesQ.data ?? []), [entriesQ.data])
+
+  // The step you go back to depends on where this wizard started.
+  function prevView(v: View): View | null {
+    if (v === 'assign') return 'slot'
+    if (v === 'slot') return initialDate ? 'menu' : 'date'
+    if (v === 'menu') return initialDate ? null : 'date'
+    return null // date
+  }
+  function goBack() {
+    const prev = prevView(view)
+    if (prev == null) {
+      onClose()
+      return
     }
-  }, [open, date])
+    setError(null)
+    if (prev !== 'assign') resetSub()
+    setView(prev)
+  }
 
   useEffect(() => {
     if (!open) return
@@ -71,8 +114,7 @@ export function DayPlannerDialog({ open, date, entries, editable, onClose }: Pro
     function onKey(e: KeyboardEvent) {
       if (e.key === 'Escape') {
         e.preventDefault()
-        if (view === 'menu') onClose()
-        else backToMenu()
+        goBack()
       }
     }
     window.addEventListener('keydown', onKey)
@@ -80,7 +122,8 @@ export function DayPlannerDialog({ open, date, entries, editable, onClose }: Pro
       window.removeEventListener('keydown', onKey)
       document.body.style.overflow = original
     }
-  }, [open, onClose, view])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, view, activeDate])
 
   const invalidate = () => qc.invalidateQueries({ queryKey: ['meal-plan'] })
 
@@ -88,7 +131,8 @@ export function DayPlannerDialog({ open, date, entries, editable, onClose }: Pro
     mutationFn: (payload: Parameters<typeof mealPlanApi.create>[0]) => mealPlanApi.create(payload),
     onSuccess: async () => {
       await invalidate()
-      backToMenu()
+      resetSub()
+      setView('menu') // land on the day overview so the new meal is visible
     },
     onError: (err) => setError(extractError(err)),
   })
@@ -99,30 +143,40 @@ export function DayPlannerDialog({ open, date, entries, editable, onClose }: Pro
     onError: (err) => setError(extractError(err)),
   })
 
-  function addRecipe() {
-    if (!recipe) {
-      setError('Pick a recipe first.')
-      return
-    }
-    create.mutate({ date, slot, recipeId: recipe.id, freeText: null, servings, notes: null })
+  function pickDate(iso: string) {
+    setActiveDate(iso)
+    // Future/today → straight into the wizard. Past day → its read-only overview.
+    setView(iso >= today ? 'slot' : 'menu')
   }
-  function addText() {
-    if (!text.trim()) {
-      setError('Type what you’re eating.')
-      return
+
+  function submit() {
+    if (!activeDate) return
+    if (mode === 'recipe') {
+      if (!recipe) {
+        setError('Pick a recipe first.')
+        return
+      }
+      create.mutate({ date: activeDate, slot, recipeId: recipe.id, freeText: null, servings, notes: null })
+    } else {
+      if (!text.trim()) {
+        setError('Type what you’re eating.')
+        return
+      }
+      create.mutate({ date: activeDate, slot, recipeId: null, freeText: text.trim(), servings: null, notes: null })
     }
-    create.mutate({ date, slot, recipeId: null, freeText: text.trim(), servings: null, notes: null })
   }
+
   function goToIdeas() {
     onClose()
     navigate('/suggestions')
   }
 
-  const dayTitle = useMemo(() => formatDay(date), [date])
-
+  const isRoot = prevView(view) == null
+  const dayTitle = activeDate ? formatDay(activeDate) : 'Plan a meal'
   const headerEyebrow =
-    view === 'recipe' ? 'Add · from a recipe'
-    : view === 'text' ? 'Add · free text'
+    view === 'date' ? 'Step 1 · pick a day'
+    : view === 'slot' ? 'Step 2 · as what?'
+    : view === 'assign' ? `Step 3 · ${MEAL_SLOT_LABELS[slot].toLowerCase()}`
     : editable ? 'Plan the day'
     : 'Past day · view only'
 
@@ -154,10 +208,10 @@ export function DayPlannerDialog({ open, date, entries, editable, onClose }: Pro
             <div className="w-full max-w-md bg-cream border border-cream-shadow shadow-[0_28px_70px_-18px_rgba(20,30,18,0.45)] pointer-events-auto rounded-2xl flex flex-col max-h-[88vh] overflow-hidden">
               <header className="px-6 sm:px-7 pt-6 pb-4 border-b border-cream-shadow flex items-start justify-between gap-4">
                 <div className="flex items-start gap-3 min-w-0">
-                  {view !== 'menu' && (
+                  {!isRoot && (
                     <button
                       type="button"
-                      onClick={backToMenu}
+                      onClick={goBack}
                       aria-label="Back"
                       className="shrink-0 grid place-items-center w-8 h-8 mt-0.5 rounded-full border border-cream-shadow text-chestnut hover:border-paprika hover:text-paprika transition-colors"
                     >
@@ -181,62 +235,69 @@ export function DayPlannerDialog({ open, date, entries, editable, onClose }: Pro
                 </button>
               </header>
 
+              {view === 'date' && (
+                <div className="flex-1 overflow-y-auto px-6 sm:px-7 py-6">
+                  <MonthCalendar month={monthAnchor} onMonthChange={setMonthAnchor} onPick={pickDate} disablePast />
+                  <p className="mt-4 font-mono text-[0.62rem] text-chestnut-soft text-center">Pick a day to plan it</p>
+                </div>
+              )}
+
               {view === 'menu' && (
                 <MenuView
                   entries={entries}
+                  loading={entriesQ.isPending && activeDate != null}
                   editable={editable}
                   onDelete={(id) => remove.mutate(id)}
-                  onPickRecipe={() => setView('recipe')}
-                  onPickText={() => setView('text')}
+                  onAdd={() => {
+                    resetSub()
+                    setView('slot')
+                  }}
                   onPickIdeas={goToIdeas}
                   error={error}
                 />
               )}
 
-              {view === 'recipe' && (
-                <SubView
-                  footer={
-                    <SubmitButton
-                      onClick={addRecipe}
-                      disabled={recipe == null || create.isPending}
-                      label={create.isPending ? 'Adding…' : 'Add to day'}
-                    />
-                  }
-                  error={error}
-                >
-                  <SlotSelector value={slot} onChange={setSlot} />
-                  <RecipeField
-                    recipe={recipe}
-                    servings={servings}
-                    onPick={(r) => {
-                      setRecipe(r)
-                      setServings(r.baseServings ?? null)
-                    }}
-                    onClear={() => {
-                      setRecipe(null)
-                      setServings(null)
-                    }}
-                    onServings={setServings}
-                  />
-                </SubView>
-              )}
+              {view === 'slot' && <SlotStep value={slot} onPick={(s) => { setSlot(s); setView('assign') }} />}
 
-              {view === 'text' && (
+              {view === 'assign' && (
                 <SubView
                   footer={
                     <SubmitButton
-                      onClick={addText}
-                      disabled={text.trim().length === 0 || create.isPending}
+                      onClick={submit}
+                      disabled={(mode === 'recipe' ? recipe == null : text.trim().length === 0) || create.isPending}
                       label={create.isPending ? 'Adding…' : 'Add to day'}
                     />
                   }
                   error={error}
                 >
-                  <SlotSelector value={slot} onChange={setSlot} />
-                  <div>
-                    <p className="eyebrow mb-2">What are you eating?</p>
-                    <FreeTextField value={text} onChange={setText} />
-                  </div>
+                  <ModeToggle value={mode} onChange={(m) => { setMode(m); setError(null) }} />
+                  {mode === 'recipe' ? (
+                    <RecipeField
+                      recipe={recipe}
+                      servings={servings}
+                      onPick={(r) => {
+                        setRecipe(r)
+                        setServings(r.baseServings ?? null)
+                      }}
+                      onClear={() => {
+                        setRecipe(null)
+                        setServings(null)
+                      }}
+                      onServings={setServings}
+                    />
+                  ) : (
+                    <div>
+                      <p className="eyebrow mb-2">What are you eating?</p>
+                      <FreeTextField value={text} onChange={setText} />
+                    </div>
+                  )}
+                  <button
+                    type="button"
+                    onClick={goToIdeas}
+                    className="font-mono text-[0.62rem] uppercase tracking-[0.14em] text-chestnut hover:text-paprika transition-colors"
+                  >
+                    Browse this week’s ideas ↗
+                  </button>
                 </SubView>
               )}
             </div>
@@ -247,31 +308,36 @@ export function DayPlannerDialog({ open, date, entries, editable, onClose }: Pro
   )
 }
 
-// ── Menu view ─────────────────────────────────────────────────────────────────
+function sortBySlot(entries: MealEntryDto[]) {
+  return [...entries].sort((a, b) => MEAL_SLOT_ORDER.indexOf(a.slot) - MEAL_SLOT_ORDER.indexOf(b.slot))
+}
+
+// ── Menu view (day overview) ─────────────────────────────────────────────────
 
 function MenuView({
   entries,
+  loading,
   editable,
   onDelete,
-  onPickRecipe,
-  onPickText,
+  onAdd,
   onPickIdeas,
   error,
 }: {
   entries: MealEntryDto[]
+  loading: boolean
   editable: boolean
   onDelete: (id: number) => void
-  onPickRecipe: () => void
-  onPickText: () => void
+  onAdd: () => void
   onPickIdeas: () => void
   error: string | null
 }) {
   return (
     <div className="flex-1 overflow-y-auto px-6 sm:px-7 py-6 space-y-7">
-      {/* Planned */}
       <div>
         <p className="eyebrow mb-2.5">Planned</p>
-        {entries.length === 0 ? (
+        {loading ? (
+          <p className="font-mono text-[0.66rem] text-chestnut-soft">Loading…</p>
+        ) : entries.length === 0 ? (
           <p className="text-ink-soft">Nothing planned yet.</p>
         ) : (
           <ul className="divide-y divide-cream-shadow border-y border-cream-shadow">
@@ -307,15 +373,22 @@ function MenuView({
 
       {error && <p className="font-mono text-[0.72rem] text-paprika-deep">{error}</p>}
 
-      {/* Add controls */}
       {editable ? (
-        <div>
-          <p className="eyebrow mb-3">Add a meal</p>
-          <div className="space-y-2.5">
-            <AddTile icon="🍲" title="From a recipe" caption="Search your saved recipes" onClick={onPickRecipe} />
-            <AddTile icon="🥗" title="From this week’s ideas" caption="Opens this week’s ideas" external onClick={onPickIdeas} />
-            <AddTile icon="✏️" title="As free text" caption="Leftovers, takeaway, a quick note" onClick={onPickText} />
-          </div>
+        <div className="space-y-2.5">
+          <button
+            type="button"
+            onClick={onAdd}
+            className="w-full inline-flex items-center justify-center gap-2 rounded-xl px-5 py-3.5 bg-paprika text-cream font-display font-semibold text-[0.95rem] leading-none hover:bg-paprika-deep transition-colors"
+          >
+            <span aria-hidden className="text-base leading-none">＋</span> Add a meal
+          </button>
+          <button
+            type="button"
+            onClick={onPickIdeas}
+            className="w-full text-center font-mono text-[0.62rem] uppercase tracking-[0.14em] text-chestnut hover:text-paprika transition-colors py-1"
+          >
+            Or browse this week’s ideas ↗
+          </button>
         </div>
       ) : (
         <p className="font-mono text-[0.66rem] uppercase tracking-[0.14em] text-chestnut-soft">
@@ -326,36 +399,65 @@ function MenuView({
   )
 }
 
-function AddTile({
-  icon,
-  title,
-  caption,
-  external,
-  onClick,
-}: {
-  icon: string
-  title: string
-  caption: string
-  external?: boolean
-  onClick: () => void
-}) {
+// ── Slot step ("as what?") ───────────────────────────────────────────────────
+
+function SlotStep({ value, onPick }: { value: MealSlot; onPick: (s: MealSlot) => void }) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="group w-full text-left flex items-center gap-3.5 rounded-xl border border-cream-shadow bg-cream-deep/40 px-4 py-3.5 hover:border-paprika/55 hover:bg-paprika-tint transition-colors"
-    >
-      <span className="text-2xl leading-none shrink-0" aria-hidden>{icon}</span>
-      <span className="flex-1 min-w-0">
-        <span className="block font-display text-ink group-hover:text-paprika transition-colors" style={{ fontWeight: 700, letterSpacing: '-0.01em' }}>
-          {title}
-        </span>
-        <span className="block font-mono text-[0.58rem] uppercase tracking-[0.13em] text-chestnut-soft mt-0.5">{caption}</span>
-      </span>
-      <span aria-hidden className="shrink-0 font-mono text-sm text-chestnut group-hover:text-paprika transition-colors">
-        {external ? '↗' : '→'}
-      </span>
-    </button>
+    <div className="flex-1 overflow-y-auto px-6 sm:px-7 py-6">
+      <div className="grid grid-cols-2 gap-3">
+        {MEAL_SLOT_ORDER.map((s) => {
+          const active = s === value
+          return (
+            <button
+              key={s}
+              type="button"
+              onClick={() => onPick(s)}
+              className={[
+                'flex flex-col items-center justify-center gap-2 rounded-2xl border px-4 py-7 transition-colors',
+                active
+                  ? 'border-paprika bg-paprika-tint'
+                  : 'border-cream-shadow bg-cream-deep/40 hover:border-paprika/55 hover:bg-paprika-tint',
+              ].join(' ')}
+            >
+              <span aria-hidden className="text-3xl leading-none">{MEAL_SLOT_ICON[s]}</span>
+              <span className="font-display text-ink" style={{ fontWeight: 700, letterSpacing: '-0.01em' }}>
+                {MEAL_SLOT_LABELS[s]}
+              </span>
+            </button>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+// ── Assign step: recipe / free-text toggle ───────────────────────────────────
+
+function ModeToggle({ value, onChange }: { value: AssignMode; onChange: (m: AssignMode) => void }) {
+  const opts: { value: AssignMode; icon: string; label: string }[] = [
+    { value: 'recipe', icon: '🍲', label: 'From a recipe' },
+    { value: 'text', icon: '✏️', label: 'Free text' },
+  ]
+  return (
+    <div className="grid grid-cols-2 gap-2">
+      {opts.map((o) => {
+        const active = o.value === value
+        return (
+          <button
+            key={o.value}
+            type="button"
+            onClick={() => onChange(o.value)}
+            className={[
+              'flex items-center justify-center gap-2 font-mono text-[0.64rem] uppercase tracking-[0.12em] px-3 py-2.5 border rounded-lg transition-colors',
+              active ? 'bg-paprika text-cream border-paprika' : 'text-chestnut border-cream-shadow hover:border-paprika hover:text-paprika',
+            ].join(' ')}
+          >
+            <span aria-hidden className="text-sm leading-none">{o.icon}</span>
+            <span className="truncate">{o.label}</span>
+          </button>
+        )
+      })}
+    </div>
   )
 }
 
@@ -384,35 +486,6 @@ function SubmitButton({ onClick, disabled, label }: { onClick: () => void; disab
       {label}
       <span aria-hidden>→</span>
     </button>
-  )
-}
-
-// ── Slot selector ─────────────────────────────────────────────────────────────
-
-function SlotSelector({ value, onChange }: { value: MealSlot; onChange: (s: MealSlot) => void }) {
-  return (
-    <div>
-      <p className="eyebrow mb-2">Type</p>
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-        {MEAL_SLOT_ORDER.map((slot) => {
-          const active = slot === value
-          return (
-            <button
-              key={slot}
-              type="button"
-              onClick={() => onChange(slot)}
-              className={[
-                'flex items-center justify-center gap-1.5 font-mono text-[0.62rem] uppercase tracking-[0.12em] px-2.5 py-2.5 border rounded-lg transition-colors',
-                active ? 'bg-paprika text-cream border-paprika' : 'text-chestnut border-cream-shadow hover:border-paprika hover:text-paprika',
-              ].join(' ')}
-            >
-              <span aria-hidden className="text-sm leading-none">{MEAL_SLOT_ICON[slot]}</span>
-              <span className="truncate">{MEAL_SLOT_LABELS[slot]}</span>
-            </button>
-          )
-        })}
-      </div>
-    </div>
   )
 }
 
