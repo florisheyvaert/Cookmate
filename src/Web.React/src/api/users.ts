@@ -32,6 +32,8 @@ export type Me = {
   id: string
   email: string
   roles: string[]
+  hasPassword: boolean
+  externalLogins: string[]
 }
 
 export const usersApi = {
