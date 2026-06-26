@@ -14,6 +14,11 @@
     <PackageVersion Include="FluentValidation.DependencyInjectionExtensions" Version="12.1.1" />
     <PackageVersion Include="MediatR" Version="14.1.0" />
     <PackageVersion Include="MediatR.Contracts" Version="2.0.1" />
+    <!-- Transitive via Aspire. Pinned to the patched 2.x: 2.5.192 is flagged by
+         NuGet audit (CVE-2026-48109 / GHSA-hv8m-jj95-wg3x, LZ4 decompression DoS,
+         plus related advisories). Transitive pinning is enabled, so this lifts the
+         resolved version across AppHost/TestAppHost/FunctionalTests. -->
+    <PackageVersion Include="MessagePack" Version="2.5.301" />
     <PackageVersion Include="Microsoft.AspNetCore.Diagnostics.EntityFrameworkCore" Version="10.0.5" />
     <PackageVersion Include="Microsoft.AspNetCore.Authentication.OpenIdConnect" Version="10.0.5" />
     <PackageVersion Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="10.0.5" />
