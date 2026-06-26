@@ -60,7 +60,7 @@ public static class DependencyInjection
         builder.Configuration.GetSection(OidcOptions.SectionName).Bind(oidcOptions);
         builder.Services.Configure<OidcOptions>(builder.Configuration.GetSection(OidcOptions.SectionName));
 
-        foreach (var provider in oidcOptions.Providers.Where(p => p.Enabled))
+        foreach (var provider in oidcOptions.Providers.Where(p => p.IsUsable))
         {
             authBuilder.AddOpenIdConnect(provider.Scheme, provider.DisplayName, options =>
             {

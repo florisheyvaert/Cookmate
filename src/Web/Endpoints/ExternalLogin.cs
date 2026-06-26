@@ -31,7 +31,7 @@ public class ExternalLogin : IEndpointGroup
     public static Ok<IReadOnlyList<ExternalProviderDto>> ListProviders(IOptions<OidcOptions> oidcOptions)
     {
         var providers = oidcOptions.Value.Providers
-            .Where(p => p.Enabled)
+            .Where(p => p.IsUsable)
             .Select(p => new ExternalProviderDto { Scheme = p.Scheme, DisplayName = p.DisplayName })
             .ToList();
 
@@ -46,7 +46,7 @@ public class ExternalLogin : IEndpointGroup
         string scheme,
         string? returnUrl)
     {
-        if (!oidcOptions.Value.Providers.Any(p => p.Enabled && p.Scheme == scheme))
+        if (!oidcOptions.Value.Providers.Any(p => p.IsUsable && p.Scheme == scheme))
             return Results.NotFound();
 
         var safeReturn = SafeReturnUrl(returnUrl);

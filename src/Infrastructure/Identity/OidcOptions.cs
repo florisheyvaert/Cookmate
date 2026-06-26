@@ -45,4 +45,15 @@ public class OidcProviderOptions
 
     /// <summary>Set false to register the provider config but keep it disabled.</summary>
     public bool Enabled { get; set; } = true;
+
+    /// <summary>
+    /// True when the provider is enabled and minimally configured. Lets a deployment
+    /// leave the OIDC env vars blank (e.g. docker-compose with an empty .env) without
+    /// registering a broken handler or rendering an empty sign-in button.
+    /// </summary>
+    public bool IsUsable =>
+        Enabled
+        && !string.IsNullOrWhiteSpace(Scheme)
+        && !string.IsNullOrWhiteSpace(Authority)
+        && !string.IsNullOrWhiteSpace(ClientId);
 }
