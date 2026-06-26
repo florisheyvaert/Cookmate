@@ -9,6 +9,7 @@ using Cookmate.Infrastructure.Scraping;
 using Cookmate.Infrastructure.Scraping.Discovery;
 using Cookmate.Infrastructure.Shopping;
 using Cookmate.Infrastructure.Storage;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -42,10 +43,64 @@ public static class DependencyInjection
         builder.Services.AddScoped<ApplicationDbContextInitialiser>();
 
         // Both schemes registered. Cookies for the React SPA (?useCookies=true on login),
-        // bearer for the future mobile app.
-        builder.Services.AddAuthentication()
+        // bearer for the future mobile app. Keep the AuthenticationBuilder itself
+        // (AddIdentityCookies returns a narrower IdentityCookiesBuilder) so the OIDC
+        // providers below can be added to it.
+        var authBuilder = builder.Services.AddAuthentication();
+        authBuilder
             .AddBearerToken(IdentityConstants.BearerScheme)
             .AddIdentityCookies();
+
+        // External OpenID Connect providers (Authentik first; generic over N providers
+        // via config). Each handler signs in to Identity's external cookie; the
+        // ExternalLogin endpoints then exchange that for a real Identity session and
+        // auto-provision/link a local account. Local password login keeps working
+        // untouched. Secrets come from user-secrets / Key Vault, not appsettings.json.
+        var oidcOptions = new OidcOptions();
+        builder.Configuration.GetSection(OidcOptions.SectionName).Bind(oidcOptions);
+        builder.Services.Configure<OidcOptions>(builder.Configuration.GetSection(OidcOptions.SectionName));
+
+        foreach (var provider in oidcOptions.Providers.Where(p => p.IsUsable))
+        {
+            authBuilder.AddOpenIdConnect(provider.Scheme, provider.DisplayName, options =>
+            {
+                // The OIDC handler parks the external identity in Identity's external
+                // cookie; SignInManager.GetExternalLoginInfoAsync reads it in the callback.
+                options.SignInScheme = IdentityConstants.ExternalScheme;
+
+                options.Authority = provider.Authority;
+                options.ClientId = provider.ClientId;
+                options.ClientSecret = provider.ClientSecret;
+
+                // Authorization-code flow with PKCE — the secure default for a
+                // confidential web client.
+                options.ResponseType = "code";
+                options.UsePkce = true;
+                options.SaveTokens = true;
+                options.GetClaimsFromUserInfoEndpoint = true;
+
+                options.Scope.Clear();
+                foreach (var scope in provider.Scopes)
+                    options.Scope.Add(scope);
+
+                // Callback lives under /api so Vite's dev proxy (which only forwards
+                // /api) carries the redirect back from the IdP. This exact path must be
+                // registered as a redirect URI in the provider (e.g. Authentik).
+                options.CallbackPath = $"/api/auth/{provider.Scheme}/signin-callback";
+
+                // Dev runs over http (Vite proxy); prod terminates TLS at the reverse
+                // proxy. SameAsRequest keeps the correlation/nonce cookies usable in both.
+                // Fully qualified: System.Net (imported above) also defines SameSiteMode.
+                options.CorrelationCookie.SameSite = Microsoft.AspNetCore.Http.SameSiteMode.Lax;
+                options.CorrelationCookie.SecurePolicy = Microsoft.AspNetCore.Http.CookieSecurePolicy.SameAsRequest;
+                options.NonceCookie.SameSite = Microsoft.AspNetCore.Http.SameSiteMode.Lax;
+                options.NonceCookie.SecurePolicy = Microsoft.AspNetCore.Http.CookieSecurePolicy.SameAsRequest;
+
+                // Read the standard OIDC email/name claims directly.
+                options.TokenValidationParameters.NameClaimType = "email";
+                options.ClaimActions.MapJsonKey("email_verified", "email_verified");
+            });
+        }
 
         // Default policy accepts either scheme so RequireAuthorization() works for both.
         // Named policies must specify schemes too — without them the framework

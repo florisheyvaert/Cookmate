@@ -64,11 +64,16 @@ public class Users : IEndpointGroup
         if (user is null) return TypedResults.Unauthorized();
 
         var roles = await userManager.GetRolesAsync(user);
+        var logins = await userManager.GetLoginsAsync(user);
         return TypedResults.Ok(new MeDto
         {
             Id = user.Id,
             Email = user.Email ?? string.Empty,
             Roles = roles.ToArray(),
+            // Lets the SPA show "set a password" vs "change password" for accounts
+            // that only ever signed in through an external provider.
+            HasPassword = await userManager.HasPasswordAsync(user),
+            ExternalLogins = logins.Select(l => l.LoginProvider).ToArray(),
         });
     }
 
@@ -112,6 +117,7 @@ public class Users : IEndpointGroup
         foreach (var u in users)
         {
             var roles = await userManager.GetRolesAsync(u);
+            var logins = await userManager.GetLoginsAsync(u);
             summaries.Add(new UserSummaryDto
             {
                 Id = u.Id,
@@ -119,6 +125,7 @@ public class Users : IEndpointGroup
                 Roles = roles.ToArray(),
                 IsAdmin = roles.Contains(Roles.Administrator),
                 HasPassword = await userManager.HasPasswordAsync(u),
+                ExternalLogins = logins.Select(l => l.LoginProvider).ToArray(),
             });
         }
 
@@ -342,6 +349,8 @@ public record MeDto
     public string Id { get; init; } = string.Empty;
     public string Email { get; init; } = string.Empty;
     public string[] Roles { get; init; } = Array.Empty<string>();
+    public bool HasPassword { get; init; }
+    public string[] ExternalLogins { get; init; } = Array.Empty<string>();
 }
 
 public record UserSummaryDto
@@ -351,6 +360,7 @@ public record UserSummaryDto
     public string[] Roles { get; init; } = Array.Empty<string>();
     public bool IsAdmin { get; init; }
     public bool HasPassword { get; init; }
+    public string[] ExternalLogins { get; init; } = Array.Empty<string>();
 }
 
 public record InviteUserDto

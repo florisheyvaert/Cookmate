@@ -35,6 +35,16 @@ services:
       # Double underscore maps to ":" in ASP.NET Core configuration.
       ConnectionStrings__CookmateDb: "Host=postgres;Port=5432;Database=cookmate;Username=cookmate;Password=${POSTGRES_PASSWORD}"
       FileStorage__RootPath: /app/App_Data/media
+      # External OIDC login (optional). Leave the OIDC_* vars blank in .env to keep
+      # external login disabled — the API only registers a provider when scheme,
+      # authority and client id are all set; local email/password login always works.
+      # Register this redirect URI in the provider (e.g. Authentik):
+      #   https://<your-public-host>/api/auth/<OIDC_SCHEME>/signin-callback
+      Authentication__Oidc__Providers__0__Scheme: ${OIDC_SCHEME:-}
+      Authentication__Oidc__Providers__0__DisplayName: ${OIDC_DISPLAY_NAME:-}
+      Authentication__Oidc__Providers__0__Authority: ${OIDC_AUTHORITY:-}
+      Authentication__Oidc__Providers__0__ClientId: ${OIDC_CLIENT_ID:-}
+      Authentication__Oidc__Providers__0__ClientSecret: ${OIDC_CLIENT_SECRET:-}
     volumes:
       - media:/app/App_Data/media
     # Internal-only by default; expose to host for debugging if you need to hit Scalar directly.
