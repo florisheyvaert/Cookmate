@@ -8,6 +8,8 @@ public interface IApplicationDbContext
 
     DbSet<GroceryProduct> GroceryProducts { get; }
 
+    DbSet<Promotion> Promotions { get; }
+
     DbSet<RecipeIngredientProductLink> RecipeIngredientProductLinks { get; }
 
     DbSet<IngredientProductPreference> IngredientProductPreferences { get; }

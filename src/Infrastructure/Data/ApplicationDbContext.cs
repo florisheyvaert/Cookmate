@@ -15,6 +15,8 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>, IApplica
 
     public DbSet<GroceryProduct> GroceryProducts => Set<GroceryProduct>();
 
+    public DbSet<Promotion> Promotions => Set<Promotion>();
+
     public DbSet<RecipeIngredientProductLink> RecipeIngredientProductLinks => Set<RecipeIngredientProductLink>();
 
     public DbSet<IngredientProductPreference> IngredientProductPreferences => Set<IngredientProductPreference>();

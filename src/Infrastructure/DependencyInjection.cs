@@ -188,6 +188,7 @@ public static class DependencyInjection
         builder.Services.AddSingleton<AlbertHeijnTokenSource>();
         builder.Services.AddTransient<AlbertHeijnStore>();
         builder.Services.AddTransient<IGroceryStore>(sp => sp.GetRequiredService<AlbertHeijnStore>());
+        builder.Services.AddTransient<IStorePromotionSource>(sp => sp.GetRequiredService<AlbertHeijnStore>());
         builder.Services.AddTransient<IGroceryStoreRegistry, GroceryStoreRegistry>();
     }
 }

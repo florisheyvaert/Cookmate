@@ -21,13 +21,19 @@ namespace Cookmate.Infrastructure.Shopping;
 ///    in a warning log + empty list, so the UI degrades to the paste-URL
 ///    fallback if AH ever closes this off.
 /// </summary>
-public class AlbertHeijnStore : IGroceryStore
+public class AlbertHeijnStore : IGroceryStore, IStorePromotionSource
 {
     public const string StoreCode = "ah";
 
     private const int MaxItemsPerDeeplink = 50;
     private const string SearchEndpoint = "/mobile-services/product/search/v2";
     private const string ProductDetailEndpoint = "/mobile-services/product/detail/v4/fir/";
+
+    // The weekly "bonus" promotions are the regular product search filtered to
+    // bonus-only. AH caps total search results, so we page through a bounded number
+    // of pages — plenty for the few hundred products that are ever on bonus.
+    private const int PromoPageSize = 100;
+    private const int MaxPromoPages = 6;
 
     private static readonly Regex ProductUrlRegex = new(
         @"^https?://(?:www\.)?ah\.nl/producten/product/wi(?<sku>\d+)\b",
@@ -148,6 +154,69 @@ public class AlbertHeijnStore : IGroceryStore
         }
     }
 
+    public async Task<IReadOnlyList<StorePromotion>> GetPromotionsAsync(CancellationToken cancellationToken)
+    {
+        var token = await _tokens.GetAsync(cancellationToken);
+        if (token is null) return Array.Empty<StorePromotion>();
+
+        var promotions = new List<StorePromotion>();
+        var seen = new HashSet<string>();
+
+        try
+        {
+            for (var page = 0; page < MaxPromoPages; page++)
+            {
+                // Empty query + the bonus filter returns the current bonus assortment.
+                var path = $"{SearchEndpoint}?query=&filters=bonus%3Dtrue&size={PromoPageSize}&page={page}";
+
+                var response = await SendAsync(path, token, cancellationToken);
+                if (response.StatusCode == HttpStatusCode.Unauthorized)
+                {
+                    response.Dispose();
+                    var fresh = await _tokens.RefreshAsync(cancellationToken);
+                    if (fresh is null) break;
+                    token = fresh;
+                    response = await SendAsync(path, token, cancellationToken);
+                }
+
+                using (response)
+                {
+                    if (!response.IsSuccessStatusCode)
+                    {
+                        _logger.LogInformation(
+                            "AH bonus search returned {Status} on page {Page}",
+                            (int)response.StatusCode, page);
+                        break;
+                    }
+
+                    await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
+                    var payload = await JsonSerializer.DeserializeAsync<SearchResponse>(
+                        stream, JsonOptions, cancellationToken);
+
+                    var products = payload?.Products;
+                    if (products is null || products.Count == 0) break;
+
+                    foreach (var product in products)
+                    {
+                        var promo = ToPromotion(product);
+                        // Dedupe across pages and skip non-bonus rows defensively.
+                        if (promo is not null && seen.Add(promo.Sku)) promotions.Add(promo);
+                    }
+
+                    // Last (partial) page reached.
+                    if (products.Count < PromoPageSize) break;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "AH bonus fetch failed");
+            // Return whatever we gathered before the failure rather than nothing.
+        }
+
+        return promotions;
+    }
+
     public GroceryDeeplink BuildAddToListDeeplink(IReadOnlyList<DeeplinkLineItem> items)
     {
         ArgumentNullException.ThrowIfNull(items);
@@ -233,6 +302,45 @@ public class AlbertHeijnStore : IGroceryStore
             CanonicalUrl: canonical);
     }
 
+    private static StorePromotion? ToPromotion(Product? product)
+    {
+        if (product is null) return null;
+        if (product.WebshopId is null or 0) return null;
+        if (string.IsNullOrWhiteSpace(product.Title)) return null;
+
+        var image = product.Images?.FirstOrDefault()?.Url;
+        var canonical = $"https://www.ah.nl/producten/product/wi{product.WebshopId.Value}";
+
+        return new StorePromotion(
+            Sku: product.WebshopId.Value.ToString(),
+            Name: product.Title.Trim(),
+            BrandOrSubtitle: !string.IsNullOrWhiteSpace(product.Brand)
+                ? product.Brand.Trim()
+                : product.Subtitle?.Trim(),
+            PackSize: ParseSalesUnitSize(product.SalesUnitSize),
+            // Null for multi-buy mechanisms ("2 voor 0.99"); DiscountLabel carries those.
+            OriginalPrice: product.PriceBeforeBonus,
+            PromoPrice: product.CurrentPrice,
+            DiscountLabel: string.IsNullOrWhiteSpace(product.BonusMechanism)
+                ? null
+                : product.BonusMechanism.Trim(),
+            Currency: "EUR",
+            ImageUrl: image,
+            CanonicalUrl: canonical,
+            ValidFrom: ParseIsoDate(product.BonusStartDate),
+            ValidTo: ParseIsoDate(product.BonusEndDate));
+    }
+
+    private static DateOnly? ParseIsoDate(string? raw) =>
+        DateOnly.TryParseExact(
+            raw,
+            "yyyy-MM-dd",
+            System.Globalization.CultureInfo.InvariantCulture,
+            System.Globalization.DateTimeStyles.None,
+            out var date)
+            ? date
+            : null;
+
     private static readonly Regex SalesUnitRegex = new(
         @"^\s*(?<amount>[\d.,]+)\s*(?<unit>[a-zA-Z]+)?\s*$",
         RegexOptions.Compiled);
@@ -283,6 +391,14 @@ public class AlbertHeijnStore : IGroceryStore
         public string? SalesUnitSize { get; init; }
         public PriceV2? PriceV2 { get; init; }
         public List<Image>? Images { get; init; }
+
+        // Bonus/promotion fields — present on bonus-filtered search results.
+        public bool? IsBonus { get; init; }
+        public decimal? CurrentPrice { get; init; }
+        public decimal? PriceBeforeBonus { get; init; }
+        public string? BonusMechanism { get; init; }
+        public string? BonusStartDate { get; init; }
+        public string? BonusEndDate { get; init; }
     }
 
     private record PriceV2
