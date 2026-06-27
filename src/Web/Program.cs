@@ -1,4 +1,5 @@
 using Cookmate.Infrastructure.Data;
+using Microsoft.AspNetCore.HttpOverrides;
 using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -12,6 +13,22 @@ builder.AddInfrastructureServices();
 builder.AddWebServices();
 
 var app = builder.Build();
+
+// Behind a TLS-terminating reverse proxy (docker-compose nginx, Traefik, Cloudflare,
+// …) honour X-Forwarded-Proto/Host so the public https origin is used when building
+// OIDC redirect_uri and other absolute links — otherwise the internal http scheme
+// leaks out and the external login round-trip breaks. KnownNetworks/Proxies are
+// cleared because the proxy sits at an arbitrary container IP; the API is not meant
+// to be exposed directly. No-op in dev (Vite proxy sends no forwarded headers).
+var forwardedHeadersOptions = new ForwardedHeadersOptions
+{
+    ForwardedHeaders = ForwardedHeaders.XForwardedFor
+        | ForwardedHeaders.XForwardedProto
+        | ForwardedHeaders.XForwardedHost,
+};
+forwardedHeadersOptions.KnownIPNetworks.Clear();
+forwardedHeadersOptions.KnownProxies.Clear();
+app.UseForwardedHeaders(forwardedHeadersOptions);
 
 // Apply EF migrations + seed identity in every environment so containers come up clean.
 await app.InitialiseDatabaseAsync();

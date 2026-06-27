@@ -18,6 +18,8 @@ type AuthFormProps = {
   isSubmitting: boolean
   error: string | null
   onSubmit: (email: string, password: string) => void
+  /** Optional content rendered below the form (e.g. external-login buttons). */
+  footer?: ReactNode
 }
 
 /**
@@ -35,6 +37,7 @@ export function AuthForm({
   isSubmitting,
   error,
   onSubmit,
+  footer,
 }: AuthFormProps) {
   function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -172,6 +175,8 @@ export function AuthForm({
               <span aria-hidden>→</span>
             </button>
           </form>
+
+          {footer}
         </motion.div>
       </main>
     </div>
