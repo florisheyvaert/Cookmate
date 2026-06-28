@@ -131,7 +131,7 @@ export default function SuggestionSources() {
                   Add a source
                 </span>
                 <span className="block font-mono text-[0.66rem] text-chestnut-soft mt-0.5">
-                  e.g. dagelijksekost.vrt.be · ah.nl · libelle-lekker.be
+                  e.g. dagelijksekost.vrt.be · ah.be · libelle-lekker.be
                 </span>
               </span>
             </motion.button>

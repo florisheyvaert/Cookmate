@@ -18,16 +18,23 @@ public class PromotionConfiguration : IEntityTypeConfiguration<Promotion>
             .IsRequired()
             .HasMaxLength(64);
 
+        builder.Property(p => p.Name).IsRequired().HasMaxLength(300);
+        builder.Property(p => p.BrandOrSubtitle).HasMaxLength(200);
+        builder.Property(p => p.ImageUrl).HasMaxLength(500);
+        builder.Property(p => p.PackSize).HasMaxLength(100);
+        builder.Property(p => p.CanonicalUrl).HasMaxLength(500);
         builder.Property(p => p.DiscountLabel).HasMaxLength(200);
         builder.Property(p => p.Currency).HasMaxLength(8);
 
         builder.Property(p => p.OriginalPrice).HasPrecision(12, 2);
         builder.Property(p => p.PromoPrice).HasPrecision(12, 2);
 
-        // One current promo per SKU per store; refresh upserts on this key.
-        builder.HasIndex(p => new { p.StoreCode, p.Sku }).IsUnique();
+        // One promo per SKU per store per bonus week; refresh upserts on this key
+        // (the same product can be on bonus in two visible weeks at once).
+        builder.HasIndex(p => new { p.StoreCode, p.Sku, p.ValidFrom }).IsUnique();
 
-        // Pruning expired promos queries by store + end date.
+        // Listing a week + pruning expired promos query by store + dates.
+        builder.HasIndex(p => new { p.StoreCode, p.ValidFrom });
         builder.HasIndex(p => new { p.StoreCode, p.ValidTo });
     }
 }

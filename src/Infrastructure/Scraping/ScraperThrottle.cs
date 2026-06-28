@@ -4,7 +4,7 @@ using Microsoft.Extensions.Options;
 namespace Cookmate.Infrastructure.Scraping;
 
 /// <summary>
-/// Spacing for outbound scraper requests. Recipe sites (notably ah.nl, behind
+/// Spacing for outbound scraper requests. Recipe sites (notably ah.be, behind
 /// Akamai) flag a fast, regular burst of requests from one IP as a bot and start
 /// returning 403s — so we leave a randomised gap between requests to each host.
 /// </summary>

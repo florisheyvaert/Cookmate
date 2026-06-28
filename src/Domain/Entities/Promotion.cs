@@ -1,19 +1,31 @@
 namespace Cookmate.Domain.Entities;
 
 /// <summary>
-/// A current promotion ("bonus") for a single SKU at a single store. Shared
-/// catalogue data, not user-owned — identity is (<see cref="StoreCode"/>,
-/// <see cref="Sku"/>). Refreshed in bulk from the store; expired rows are pruned.
-/// Product metadata (name, image, pack size) lives on the matching
-/// <see cref="GroceryProduct"/>; this row only carries the promo-specific fields.
-/// Prices are nullable because multi-buy mechanisms ("2 voor 0.99") have no single
-/// before/after price — <see cref="DiscountLabel"/> is the reliable display value then.
+/// A promotion ("bonus") for a single SKU at a single store, for one bonus week.
+/// Shared catalogue data, not user-owned — identity is (<see cref="StoreCode"/>,
+/// <see cref="Sku"/>, <see cref="ValidFrom"/>) so the same product can be on bonus in
+/// two visible weeks at once. Refreshed in bulk from the store; expired rows are pruned.
+/// Carries its own display fields (name, image, pack size) so combi-deal tiles that have
+/// no individual product — most of the bonus folder — still render; for single-product
+/// promos a matching <see cref="GroceryProduct"/> also exists (by SKU) for the cart.
+/// Prices are nullable because multi-buy mechanisms ("2 voor 0.99", "1 + 1 gratis") have
+/// no single before/after price — <see cref="DiscountLabel"/> is the reliable value then.
 /// </summary>
 public class Promotion : BaseAuditableEntity
 {
     public string StoreCode { get; private set; } = string.Empty;
 
     public string Sku { get; private set; } = string.Empty;
+
+    public string Name { get; private set; } = string.Empty;
+
+    public string? BrandOrSubtitle { get; private set; }
+
+    public string? ImageUrl { get; private set; }
+
+    public string? PackSize { get; private set; }
+
+    public string? CanonicalUrl { get; private set; }
 
     public string? DiscountLabel { get; private set; }
 
@@ -52,6 +64,11 @@ public class Promotion : BaseAuditableEntity
     }
 
     public void Update(
+        string name,
+        string? brandOrSubtitle,
+        string? imageUrl,
+        string? packSize,
+        string? canonicalUrl,
         string? discountLabel,
         decimal? originalPrice,
         decimal? promoPrice,
@@ -59,6 +76,11 @@ public class Promotion : BaseAuditableEntity
         DateOnly? validFrom,
         DateOnly? validTo)
     {
+        Name = string.IsNullOrWhiteSpace(name) ? Sku : name.Trim();
+        BrandOrSubtitle = string.IsNullOrWhiteSpace(brandOrSubtitle) ? null : brandOrSubtitle.Trim();
+        ImageUrl = string.IsNullOrWhiteSpace(imageUrl) ? null : imageUrl.Trim();
+        PackSize = string.IsNullOrWhiteSpace(packSize) ? null : packSize.Trim();
+        CanonicalUrl = string.IsNullOrWhiteSpace(canonicalUrl) ? null : canonicalUrl.Trim();
         DiscountLabel = string.IsNullOrWhiteSpace(discountLabel) ? null : discountLabel.Trim();
         OriginalPrice = originalPrice;
         PromoPrice = promoPrice;

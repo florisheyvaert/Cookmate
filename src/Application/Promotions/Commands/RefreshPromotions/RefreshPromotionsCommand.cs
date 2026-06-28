@@ -1,5 +1,6 @@
 using Cookmate.Application.Common.Interfaces;
 using Cookmate.Domain.Entities;
+using Cookmate.Domain.ValueObjects;
 using Microsoft.EntityFrameworkCore;
 
 namespace Cookmate.Application.Promotions.Commands.RefreshPromotions;
@@ -34,6 +35,10 @@ public class RefreshPromotionsCommandHandler : IRequestHandler<RefreshPromotions
 
         var fresh = await source.GetPromotionsAsync(cancellationToken);
 
+        // A fully empty result means the fetch failed (network/auth) — don't wipe the
+        // cache on a bad refresh; keep the last good snapshot.
+        if (fresh.Count == 0) return 0;
+
         // Batch-load existing rows for this store so the upsert is a few queries, not N.
         var existingProducts = await _context.GroceryProducts
             .Where(p => p.StoreCode == code)
@@ -41,43 +46,55 @@ public class RefreshPromotionsCommandHandler : IRequestHandler<RefreshPromotions
         var existingPromotions = await _context.Promotions
             .Where(p => p.StoreCode == code)
             .ToListAsync(cancellationToken);
-        var promotionBySku = existingPromotions.ToDictionary(p => p.Sku);
+        // Identity is per bonus week, so the same SKU can appear twice (two visible weeks).
+        var promotionByKey = existingPromotions.ToDictionary(p => (p.Sku, p.ValidFrom));
 
-        var freshSkus = new HashSet<string>();
+        var freshKeys = new HashSet<(string, DateOnly?)>();
 
         foreach (var promo in fresh)
         {
             if (string.IsNullOrWhiteSpace(promo.Sku)) continue;
-            freshSkus.Add(promo.Sku);
+            freshKeys.Add((promo.Sku, promo.ValidFrom));
 
-            // Upsert the cached product straight from the promo payload — no extra
-            // per-SKU fetch. UnitPrice carries the normal (pre-bonus) price.
-            if (!existingProducts.TryGetValue(promo.Sku, out var product))
+            // Only single products are cart-linkable (a CanonicalUrl means a real webshop
+            // SKU). Combi-group tiles carry no product — keep them as promo rows only, and
+            // don't pollute the grocery catalogue with synthetic SKUs.
+            if (promo.CanonicalUrl is not null)
             {
-                product = new GroceryProduct(code, promo.Sku, promo.Name);
-                _context.GroceryProducts.Add(product);
-                existingProducts[promo.Sku] = product;
+                if (!existingProducts.TryGetValue(promo.Sku, out var product))
+                {
+                    product = new GroceryProduct(code, promo.Sku, promo.Name);
+                    _context.GroceryProducts.Add(product);
+                    existingProducts[promo.Sku] = product;
+                }
+                product.UpdateMetadata(
+                    promo.Name, promo.BrandOrSubtitle, promo.ImageUrl, promo.CanonicalUrl,
+                    promo.PackSize, promo.OriginalPrice, promo.Currency);
             }
-            product.UpdateMetadata(
-                promo.Name, promo.BrandOrSubtitle, promo.ImageUrl, promo.CanonicalUrl,
-                promo.PackSize, promo.OriginalPrice, promo.Currency);
 
-            if (!promotionBySku.TryGetValue(promo.Sku, out var promotion))
+            if (!promotionByKey.TryGetValue((promo.Sku, promo.ValidFrom), out var promotion))
             {
                 promotion = new Promotion(code, promo.Sku);
                 _context.Promotions.Add(promotion);
-                promotionBySku[promo.Sku] = promotion;
+                promotionByKey[(promo.Sku, promo.ValidFrom)] = promotion;
             }
             promotion.Update(
-                promo.DiscountLabel, promo.OriginalPrice, promo.PromoPrice,
+                promo.Name, promo.BrandOrSubtitle, promo.ImageUrl, FormatPackSize(promo.PackSize),
+                promo.CanonicalUrl, promo.DiscountLabel, promo.OriginalPrice, promo.PromoPrice,
                 promo.Currency, promo.ValidFrom, promo.ValidTo);
         }
 
         // Drop promos that are no longer on offer (the snapshot is authoritative).
-        var stale = existingPromotions.Where(p => !freshSkus.Contains(p.Sku)).ToList();
+        var stale = existingPromotions.Where(p => !freshKeys.Contains((p.Sku, p.ValidFrom))).ToList();
         if (stale.Count > 0) _context.Promotions.RemoveRange(stale);
 
         await _context.SaveChangesAsync(cancellationToken);
-        return freshSkus.Count;
+        return freshKeys.Count;
+    }
+
+    private static string? FormatPackSize(Quantity? packSize)
+    {
+        if (packSize is null || string.IsNullOrWhiteSpace(packSize.Unit)) return null;
+        return packSize.Amount > 0 ? $"{packSize.Amount:0.##} {packSize.Unit}" : packSize.Unit;
     }
 }

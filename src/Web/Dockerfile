@@ -30,6 +30,17 @@ RUN dotnet publish src/Web/Web.csproj \
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
 WORKDIR /app
 
+# Google Chrome — Playwright drives it (Channel="chrome") to scrape the ah.be bonus
+# folder. The site is gated by Akamai bot-management, which 403s Chromium's headless-shell
+# build; real Chrome passes. Chrome pulls its own runtime deps via apt.
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends wget gnupg ca-certificates \
+ && wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmor -o /usr/share/keyrings/google-chrome.gpg \
+ && echo "deb [arch=amd64 signed-by=/usr/share/keyrings/google-chrome.gpg] https://dl.google.com/linux/chrome/deb/ stable main" > /etc/apt/sources.list.d/google-chrome.list \
+ && apt-get update \
+ && apt-get install -y --no-install-recommends google-chrome-stable \
+ && rm -rf /var/lib/apt/lists/*
+
 # Non-root user for the app process.
 RUN groupadd --system cookmate && useradd --system --gid cookmate cookmate
 
@@ -41,7 +52,8 @@ COPY --from=build --chown=cookmate:cookmate /app/publish .
 
 ENV ASPNETCORE_ENVIRONMENT=Production \
     ASPNETCORE_URLS=http://+:8080 \
-    DOTNET_RUNNING_IN_CONTAINER=true
+    DOTNET_RUNNING_IN_CONTAINER=true \
+    HOME=/tmp
 
 EXPOSE 8080
 

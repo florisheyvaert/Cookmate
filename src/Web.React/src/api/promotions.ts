@@ -21,8 +21,18 @@ export type PromoUsage = {
   discountLabel: string | null
   /** True = remembered link, false = best-effort match the user can confirm. */
   confirmed: boolean
+  /** True for single products (confirmable); false for combi-group tiles (name match only). */
+  linkable: boolean
   /** The dish ingredient this promo matched — used when confirming. */
   ingredientName: string
+}
+
+export type PromoPeriod = {
+  /** ISO date yyyy-MM-dd, or null. */
+  validFrom: string | null
+  validTo: string | null
+  count: number
+  isCurrent: boolean
 }
 
 export type PromoDish = {
@@ -40,12 +50,19 @@ export type PromoDish = {
 }
 
 export const promotionsApi = {
-  list: (storeCode: string) =>
-    api<PromotionDto[]>(`/api/Promotions/${encodeURIComponent(storeCode)}`),
+  /** The cached bonus weeks for a store (oldest first), for the week filter. */
+  periods: (storeCode: string) =>
+    api<PromoPeriod[]>(`/api/Promotions/${encodeURIComponent(storeCode)}/periods`),
 
-  dishes: (storeCode: string, skus: string[], limit = 24) => {
+  list: (storeCode: string, validFrom?: string | null) => {
+    const qs = validFrom ? `?validFrom=${encodeURIComponent(validFrom)}` : ''
+    return api<PromotionDto[]>(`/api/Promotions/${encodeURIComponent(storeCode)}${qs}`)
+  },
+
+  dishes: (storeCode: string, skus: string[], validFrom?: string | null, limit = 24) => {
     const qs = new URLSearchParams()
     for (const sku of skus) qs.append('skus', sku)
+    if (validFrom) qs.set('validFrom', validFrom)
     qs.set('limit', String(limit))
     return api<PromoDish[]>(`/api/Promotions/${encodeURIComponent(storeCode)}/dishes?${qs.toString()}`)
   },

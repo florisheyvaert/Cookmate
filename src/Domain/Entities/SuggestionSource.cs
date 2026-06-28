@@ -4,7 +4,7 @@ namespace Cookmate.Domain.Entities;
 
 /// <summary>
 /// An external site Cookmate harvests meal suggestions from (e.g.
-/// dagelijksekost.vrt.be, ah.nl). The user adds these from the UI and can
+/// dagelijksekost.vrt.be, ah.be). The user adds these from the UI and can
 /// enable/disable them. Discovery uses the configured <see cref="ListingUrls"/>
 /// (overview/category pages) to find recipe URLs, unless a per-host discoverer
 /// overrides that in code. Run telemetry is kept so the last outcome is visible

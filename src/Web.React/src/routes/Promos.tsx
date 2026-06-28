@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { motion } from 'motion/react'
 import { useAuth } from '@/auth/AuthContext'
 import { promotionsApi } from '@/api/promotions'
-import type { PromoDish, PromoUsage, PromotionDto } from '@/api/promotions'
+import type { PromoDish, PromoPeriod, PromoUsage, PromotionDto } from '@/api/promotions'
 import { PlanSuggestionDialog } from '@/components/PlanSuggestionDialog'
 
 const STORE = 'ah'
@@ -11,22 +11,47 @@ const STORE_NAME = 'Albert Heijn'
 
 const euro = new Intl.NumberFormat('nl-NL', { style: 'currency', currency: 'EUR' })
 
+const dayMonth = new Intl.DateTimeFormat('nl-BE', { day: 'numeric', month: 'short' })
+const dayOnly = new Intl.DateTimeFormat('nl-BE', { day: 'numeric' })
+
+/** "22–28 jun" within one month, "29 jun–5 jul" across months. */
+function formatWeek(from: string | null, to: string | null): string {
+  if (!from) return 'Bonus'
+  const f = new Date(`${from}T00:00:00`)
+  if (!to) return dayMonth.format(f)
+  const t = new Date(`${to}T00:00:00`)
+  const sameMonth = f.getMonth() === t.getMonth() && f.getFullYear() === t.getFullYear()
+  return sameMonth ? `${dayOnly.format(f)}–${dayMonth.format(t)}` : `${dayMonth.format(f)}–${dayMonth.format(t)}`
+}
+
 export default function Promos() {
   const { isAdmin } = useAuth()
   const qc = useQueryClient()
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [planning, setPlanning] = useState<PromoDish | null>(null)
+  // null until the user picks a week — falls back to the current week below.
+  const [week, setWeek] = useState<string | null>(null)
+
+  const periodsQ = useQuery({
+    queryKey: ['promo-periods', STORE],
+    queryFn: () => promotionsApi.periods(STORE),
+    staleTime: 5 * 60_000,
+  })
+
+  const periods = periodsQ.data ?? []
+  const currentWeek = periods.find((p) => p.isCurrent)?.validFrom ?? periods[0]?.validFrom ?? null
+  const activeWeek = week ?? currentWeek
 
   const promosQ = useQuery({
-    queryKey: ['promotions', STORE],
-    queryFn: () => promotionsApi.list(STORE),
+    queryKey: ['promotions', STORE, activeWeek],
+    queryFn: () => promotionsApi.list(STORE, activeWeek),
     staleTime: 5 * 60_000,
   })
 
   const selectedSkus = useMemo(() => Array.from(selected), [selected])
   const dishesQ = useQuery({
-    queryKey: ['promo-dishes', STORE, selectedSkus],
-    queryFn: () => promotionsApi.dishes(STORE, selectedSkus),
+    queryKey: ['promo-dishes', STORE, activeWeek, selectedSkus],
+    queryFn: () => promotionsApi.dishes(STORE, selectedSkus, activeWeek),
     enabled: (promosQ.data?.length ?? 0) > 0,
     staleTime: 60_000,
   })
@@ -34,10 +59,16 @@ export default function Promos() {
   const refresh = useMutation({
     mutationFn: () => promotionsApi.refresh(STORE),
     onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['promo-periods', STORE] })
       qc.invalidateQueries({ queryKey: ['promotions', STORE] })
       qc.invalidateQueries({ queryKey: ['promo-dishes', STORE] })
     },
   })
+
+  function pickWeek(validFrom: string | null) {
+    setWeek(validFrom)
+    setSelected(new Set()) // selections belong to a week
+  }
 
   const confirm = useMutation({
     mutationFn: (u: PromoUsage) => promotionsApi.confirmMatch(STORE, u.ingredientName, u.sku),
@@ -61,7 +92,7 @@ export default function Promos() {
       {/* ── Header ─────────────────────────────────────────────────────────── */}
       <header className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-5 mb-10">
         <div>
-          <p className="eyebrow text-paprika mb-2.5">{STORE_NAME} · This week</p>
+          <p className="eyebrow text-paprika mb-2.5">{STORE_NAME} · Bonus folder</p>
           <h1
             className="font-display text-ink"
             style={{ fontSize: 'clamp(2.4rem, 6vw, 4rem)', lineHeight: 0.98, fontWeight: 800, letterSpacing: '-0.035em' }}
@@ -89,6 +120,9 @@ export default function Promos() {
           </button>
         )}
       </header>
+
+      {/* ── Week filter ────────────────────────────────────────────────────── */}
+      {periods.length > 0 && <WeekTabs periods={periods} active={activeWeek} onPick={pickWeek} />}
 
       {/* ── Empty / loading states ─────────────────────────────────────────── */}
       {promosQ.isPending ? (
@@ -167,6 +201,58 @@ export default function Promos() {
         imageUrl={planning?.imageUrl}
       />
     </div>
+  )
+}
+
+function WeekTabs({
+  periods,
+  active,
+  onPick,
+}: {
+  periods: PromoPeriod[]
+  active: string | null
+  onPick: (validFrom: string | null) => void
+}) {
+  return (
+    <nav aria-label="Bonus week" className="flex flex-wrap gap-2.5 mb-12">
+      {periods.map((p) => {
+        const isActive = p.validFrom === active
+        return (
+          <button
+            key={p.validFrom ?? 'unknown'}
+            type="button"
+            onClick={() => onPick(p.validFrom)}
+            aria-pressed={isActive}
+            className={[
+              'flex flex-col items-start rounded-xl border px-4 py-2.5 text-left transition-colors',
+              isActive
+                ? 'border-paprika bg-paprika text-cream shadow-sm'
+                : 'border-cream-shadow bg-cream text-ink hover:border-paprika/55',
+            ].join(' ')}
+          >
+            <span
+              className={[
+                'font-mono text-[0.54rem] uppercase tracking-[0.18em]',
+                isActive ? 'text-cream/75' : 'text-paprika',
+              ].join(' ')}
+            >
+              {p.isCurrent ? 'This week' : 'Next week'}
+            </span>
+            <span className="flex items-baseline gap-2">
+              <span
+                className="font-display"
+                style={{ fontWeight: 700, fontSize: '1.05rem', letterSpacing: '-0.02em' }}
+              >
+                {formatWeek(p.validFrom, p.validTo)}
+              </span>
+              <span className={['num text-[0.7rem]', isActive ? 'text-cream/70' : 'text-chestnut-soft'].join(' ')}>
+                {p.count}
+              </span>
+            </span>
+          </button>
+        )
+      })}
+    </nav>
   )
 }
 
@@ -286,16 +372,31 @@ function DishCard({
 
       {/* Used promos — confirmed (filled) vs suggested (outline, tap to confirm) */}
       <div className="px-4 pb-3 flex flex-wrap gap-1.5">
-        {dish.usedPromos.map((u) =>
-          u.confirmed ? (
-            <span
-              key={u.sku}
-              title={`Linked: ${u.ingredientName} → ${u.name}`}
-              className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-paprika/12 text-paprika font-mono text-[0.58rem] uppercase tracking-[0.06em] leading-none"
-            >
-              <span aria-hidden>✓</span> {u.name}
-            </span>
-          ) : (
+        {dish.usedPromos.map((u) => {
+          if (u.confirmed) {
+            return (
+              <span
+                key={u.sku}
+                title={`Linked: ${u.ingredientName} → ${u.name}`}
+                className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-paprika/12 text-paprika font-mono text-[0.58rem] uppercase tracking-[0.06em] leading-none"
+              >
+                <span aria-hidden>✓</span> {u.name}
+              </span>
+            )
+          }
+          // Combi-group tiles have no single SKU — they match by name but can't be confirmed.
+          if (!u.linkable) {
+            return (
+              <span
+                key={u.sku}
+                title={u.discountLabel ? `${u.name} · ${u.discountLabel}` : u.name}
+                className="inline-flex items-center gap-1 px-2 py-1 rounded-md border border-dashed border-cream-shadow text-chestnut-soft font-mono text-[0.58rem] uppercase tracking-[0.06em] leading-none"
+              >
+                {u.name}
+              </span>
+            )
+          }
+          return (
             <button
               key={u.sku}
               type="button"
@@ -306,8 +407,8 @@ function DishCard({
             >
               <span aria-hidden>+</span> {u.name}
             </button>
-          ),
-        )}
+          )
+        })}
       </div>
 
       <footer className="mt-auto px-4 py-3 border-t border-cream-shadow flex items-center justify-between gap-3">

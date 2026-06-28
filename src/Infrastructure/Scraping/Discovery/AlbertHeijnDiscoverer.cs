@@ -8,14 +8,14 @@ namespace Cookmate.Infrastructure.Scraping.Discovery;
 /// </summary>
 public class AlbertHeijnDiscoverer : SitemapHostDiscoverer
 {
-    public const string HostName = "ah.nl";
+    public const string HostName = "ah.be";
 
     public AlbertHeijnDiscoverer(HttpClient http) : base(http) { }
 
     public override string Host => HostName;
 
     protected override IReadOnlyList<string> DefaultSitemapUrls =>
-        new[] { "https://www.ah.nl/sitemaps/entities/allerhande/recipes.xml" };
+        new[] { "https://www.ah.be/sitemaps/entities/allerhande/recipes.xml" };
 
     // The recipes sitemap is a flat urlset — no sub-sitemaps to recurse.
     protected override bool IsRecipeSubSitemap(string loc) => false;

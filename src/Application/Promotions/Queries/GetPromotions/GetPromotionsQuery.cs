@@ -1,12 +1,19 @@
 using Cookmate.Application.Common.Interfaces;
+using Cookmate.Application.Promotions.Common;
 using Microsoft.EntityFrameworkCore;
 
 namespace Cookmate.Application.Promotions.Queries.GetPromotions;
 
-/// <summary>The store's current cached promotions, joined with product metadata for display.</summary>
+/// <summary>
+/// A store's cached promotions for one bonus week. With no <see cref="ValidFrom"/> the
+/// current week is used (the period covering today, else the next upcoming one).
+/// </summary>
 public record GetPromotionsQuery : IRequest<IReadOnlyList<PromotionDto>>
 {
     public string StoreCode { get; init; } = string.Empty;
+
+    /// <summary>Bonus week to return (its start date). Null = current week.</summary>
+    public DateOnly? ValidFrom { get; init; }
 }
 
 public class GetPromotionsQueryHandler : IRequestHandler<GetPromotionsQuery, IReadOnlyList<PromotionDto>>
@@ -27,39 +34,26 @@ public class GetPromotionsQueryHandler : IRequestHandler<GetPromotionsQuery, IRe
             .ToListAsync(cancellationToken);
         if (promos.Count == 0) return [];
 
-        var skus = promos.Select(p => p.Sku).ToHashSet();
-        var products = await _context.GroceryProducts.AsNoTracking()
-            .Where(p => p.StoreCode == code && skus.Contains(p.Sku))
-            .ToListAsync(cancellationToken);
-        var productBySku = products.ToDictionary(p => p.Sku);
+        var week = request.ValidFrom ?? PromoWeeks.Current(promos.Select(p => (p.ValidFrom, p.ValidTo)));
 
         return promos
-            .Select(p =>
+            .Where(p => p.ValidFrom == week)
+            .Select(p => new PromotionDto
             {
-                productBySku.TryGetValue(p.Sku, out var product);
-                return new PromotionDto
-                {
-                    Sku = p.Sku,
-                    Name = product?.Name ?? p.Sku,
-                    BrandOrSubtitle = product?.BrandOrSubtitle,
-                    ImageUrl = product?.ImageUrl,
-                    PackSize = FormatPackSize(product?.PackSize?.Amount, product?.PackSize?.Unit),
-                    OriginalPrice = p.OriginalPrice,
-                    PromoPrice = p.PromoPrice,
-                    DiscountLabel = p.DiscountLabel,
-                    Currency = p.Currency,
-                    ValidFrom = p.ValidFrom,
-                    ValidTo = p.ValidTo,
-                };
+                Sku = p.Sku,
+                Name = p.Name,
+                BrandOrSubtitle = p.BrandOrSubtitle,
+                ImageUrl = p.ImageUrl,
+                PackSize = p.PackSize,
+                OriginalPrice = p.OriginalPrice,
+                PromoPrice = p.PromoPrice,
+                DiscountLabel = p.DiscountLabel,
+                Currency = p.Currency,
+                ValidFrom = p.ValidFrom,
+                ValidTo = p.ValidTo,
             })
             .OrderBy(p => p.Name)
             .ToList();
-    }
-
-    private static string? FormatPackSize(decimal? amount, string? unit)
-    {
-        if (string.IsNullOrWhiteSpace(unit)) return null;
-        return amount is > 0 ? $"{amount.Value:0.##} {unit}" : unit;
     }
 }
 
