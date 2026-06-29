@@ -32,7 +32,7 @@ export default function Redeem() {
     mutationFn: () => usersApi.redeem(userId, token, password),
     onSuccess: async () => {
       await refresh()
-      navigate('/recipes', { replace: true })
+      navigate('/', { replace: true })
     },
     onError: (err) => setError(extractError(err)),
   })

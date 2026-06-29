@@ -143,14 +143,16 @@ export function AuthForm({
           </h2>
 
           <form onSubmit={handleSubmit}>
-            <Field number="01" label="Email" name="email" type="email" autoComplete="email" required placeholder="you@example.com" />
+            {/* autoComplete="username" + "current-password" (and no minLength) tell password
+                managers this is a sign-in form — fill the saved credential rather than offering
+                to generate a new one. */}
+            <Field number="01" label="Email" name="email" type="email" autoComplete="username" required placeholder="you@example.com" />
             <Field
               number="02"
               label="Password"
               name="password"
               type="password"
               autoComplete="current-password"
-              minLength={6}
               required
               placeholder="••••••••"
             />
