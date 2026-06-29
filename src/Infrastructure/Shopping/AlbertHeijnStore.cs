@@ -167,7 +167,7 @@ public class AlbertHeijnStore : IGroceryStore
             return $"p={Uri.EscapeDataString(i.Sku)}:{i.Quantity}";
         }));
 
-        var url = new Uri($"https://www.ah.nl/mijnlijst/add-multiple?{query}");
+        var url = new Uri($"https://www.ah.be/mijnlijst/add-multiple?{query}");
         return new GroceryDeeplink(url, truncated);
     }
 
@@ -218,7 +218,7 @@ public class AlbertHeijnStore : IGroceryStore
 
         var packSize = ParseSalesUnitSize(product.SalesUnitSize);
         var image = product.Images?.FirstOrDefault()?.Url;
-        var canonical = $"https://www.ah.nl/producten/product/wi{product.WebshopId.Value}";
+        var canonical = $"https://www.ah.be/producten/product/wi{product.WebshopId.Value}";
 
         return new GroceryProductCandidate(
             Sku: product.WebshopId.Value.ToString(),

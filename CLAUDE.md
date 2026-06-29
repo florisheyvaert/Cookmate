@@ -14,7 +14,7 @@ A "cooking buddy" that grows with the user: today it stores and scales recipes; 
 - **Servings scaling**: recipes are tied to a number of persons; changing the persons recalculates ingredient quantities proportionally.
 - **Two source types**:
   - Family recipes (manually entered).
-  - Recipes adapted from external sites — common sources are [Dagelijkse Kost (VRT)](https://dagelijksekost.vrt.be) and [Albert Heijn Allerhande](https://www.ah.nl/allerhande).
+  - Recipes adapted from external sites — common sources are [Dagelijkse Kost (VRT)](https://dagelijksekost.vrt.be) and [Albert Heijn Allerhande](https://www.ah.be/allerhande).
 
 ## Future Features (out of scope for MVP)
 
