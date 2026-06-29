@@ -1,7 +1,9 @@
 using System.Security.Claims;
+using Cookmate.Domain.Constants;
 using Cookmate.Infrastructure.Identity;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 
 namespace Cookmate.Web.Endpoints;
@@ -65,6 +67,7 @@ public class ExternalLogin : IEndpointGroup
     public static async Task<IResult> Callback(
         SignInManager<ApplicationUser> signInManager,
         UserManager<ApplicationUser> userManager,
+        RoleManager<IdentityRole> roleManager,
         IOptions<OidcOptions> oidcOptions,
         string scheme,
         string? returnUrl)
@@ -104,6 +107,12 @@ public class ExternalLogin : IEndpointGroup
         var user = await userManager.FindByEmailAsync(email);
         if (user is null)
         {
+            // First-run bootstrap: while the user table is empty, the first person
+            // through the door becomes the administrator — whether they arrive via
+            // POST /api/Setup or, as here, via OIDC during onboarding. Captured
+            // before CreateAsync so the new account itself doesn't count.
+            var isFirstUser = !await userManager.Users.AnyAsync();
+
             user = new ApplicationUser
             {
                 UserName = email,
@@ -115,6 +124,13 @@ public class ExternalLogin : IEndpointGroup
             var createResult = await userManager.CreateAsync(user);
             if (!createResult.Succeeded)
                 return Results.Redirect("/login?error=provision");
+
+            if (isFirstUser)
+            {
+                if (!await roleManager.RoleExistsAsync(Roles.Administrator))
+                    await roleManager.CreateAsync(new IdentityRole(Roles.Administrator));
+                await userManager.AddToRoleAsync(user, Roles.Administrator);
+            }
         }
 
         var linkResult = await userManager.AddLoginAsync(
