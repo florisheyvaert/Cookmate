@@ -15,7 +15,7 @@ import { SearchProductDialog } from '@/components/SearchProductDialog'
 const ease = [0.22, 1, 0.36, 1] as const
 
 const STORE_BROWSE_URLS: Record<string, string> = {
-  ah: 'https://www.ah.nl/zoeken?query=',
+  ah: 'https://www.ah.be/zoeken?query=',
 }
 
 type ShoppingSectionProps = {

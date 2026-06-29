@@ -150,7 +150,7 @@ public static class DependencyInjection
         void ConfigureScraperClient(HttpClient client)
         {
             client.Timeout = TimeSpan.FromSeconds(15);
-            // A browser User-Agent: some sites (e.g. ah.nl) return 403 to non-browser
+            // A browser User-Agent: some sites (e.g. ah.be) return 403 to non-browser
             // clients on their recipe HTML. Public recipe pages are fine to read this way.
             client.DefaultRequestHeaders.UserAgent.ParseAdd(
                 "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36");
@@ -172,7 +172,7 @@ public static class DependencyInjection
         };
 
         // Space requests per host so a harvest reads at a human pace instead of a
-        // bot-like burst (which gets the IP 403'd by Akamai on ah.nl).
+        // bot-like burst (which gets the IP 403'd by Akamai on ah.be).
         builder.Services.Configure<ScraperThrottleOptions>(
             builder.Configuration.GetSection(ScraperThrottleOptions.SectionName));
         builder.Services.AddSingleton<ScraperThrottle>();
@@ -231,7 +231,7 @@ public static class DependencyInjection
         // to accept indefinitely.
         builder.Services.AddHttpClient(AlbertHeijnTokenSource.ClientName, client =>
         {
-            client.BaseAddress = new Uri("https://api.ah.nl");
+            client.BaseAddress = new Uri("https://api.ah.be");
             client.Timeout = TimeSpan.FromSeconds(15);
             client.DefaultRequestHeaders.UserAgent.ParseAdd("Appie/8.22.3 Model/phone Android/7.0-API24");
             client.DefaultRequestHeaders.Accept.ParseAdd("application/json");

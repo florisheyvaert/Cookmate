@@ -9,7 +9,7 @@ import { SearchProductDialog } from '@/components/SearchProductDialog'
 import { btnPrimary, quietBtn } from '@/lib/ui'
 
 const ease = [0.22, 1, 0.36, 1] as const
-const STORE_BROWSE_URLS: Record<string, string> = { ah: 'https://www.ah.nl/zoeken?query=' }
+const STORE_BROWSE_URLS: Record<string, string> = { ah: 'https://www.ah.be/zoeken?query=' }
 
 function formatAmount(n: number): string {
   if (!Number.isFinite(n) || n <= 0) return ''
