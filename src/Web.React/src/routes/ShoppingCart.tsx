@@ -314,10 +314,10 @@ export default function ShoppingCart() {
       )}
       </div>
 
-      {/* ── Undo toast — floats a clear gap ABOVE the checkout footer, never over it ── */}
+      {/* ── Undo toast — a small floating pill above the checkout, never a full-width bar ── */}
       <div
-        className="pointer-events-none sticky z-30 -mx-5 sm:-mx-6 lg:-mx-8 px-5 sm:px-6 lg:px-8"
-        style={{ bottom: hasCheckout ? footerH + 24 : 14 }}
+        className="pointer-events-none sticky z-30 -mx-5 sm:-mx-6 lg:-mx-8 px-5 sm:px-6 lg:px-8 flex justify-center"
+        style={{ bottom: hasCheckout ? footerH + 16 : 18 }}
       >
         <AnimatePresence>
           {undo && (
@@ -327,7 +327,7 @@ export default function ShoppingCart() {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 6 }}
               transition={{ duration: 0.18, ease }}
-              className="pointer-events-auto flex items-center justify-between gap-3 rounded-xl border border-cream-shadow bg-cream px-3.5 py-2 shadow-[0_4px_16px_-8px_rgba(20,30,18,0.3)]"
+              className="pointer-events-auto inline-flex max-w-full items-center gap-3 rounded-full border border-cream-shadow bg-cream py-1.5 pl-4 pr-1.5 shadow-[0_6px_20px_-8px_rgba(20,30,18,0.4)]"
             >
               <span className="min-w-0 truncate font-mono text-[0.6rem] uppercase tracking-[0.12em] text-chestnut-soft">
                 Removed “{undo.displayName}”
@@ -335,7 +335,7 @@ export default function ShoppingCart() {
               <button
                 type="button"
                 onClick={handleUndo}
-                className="shrink-0 font-mono text-[0.62rem] uppercase tracking-[0.16em] text-paprika hover:text-paprika-deep transition-colors"
+                className="shrink-0 rounded-full bg-paprika/12 px-3 py-1 font-mono text-[0.6rem] uppercase tracking-[0.16em] text-paprika hover:bg-paprika/20 transition-colors"
               >
                 Undo
               </button>
