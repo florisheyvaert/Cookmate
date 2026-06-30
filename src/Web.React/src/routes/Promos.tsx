@@ -400,8 +400,9 @@ function EmptyPromos({ isAdmin, onRefresh, refreshing }: { isAdmin: boolean; onR
   )
 }
 
-// Row on mobile (image left, AH-style list), big photo card from sm up. Tapping the card
-// drills into the group's products (like ah.be); the corner control toggles selection.
+// Row on mobile (image left, AH-style list), big photo card from sm up. A single product
+// selects on tap (it feeds the meal count); a group tile (multiple products) drills into
+// its members instead. The corner control always toggles selection, groups included.
 function PromoCard({
   promo,
   selected,
@@ -413,6 +414,7 @@ function PromoCard({
   onToggle: () => void
   onDrill: () => void
 }) {
+  const isGroup = promo.productCount > 1
   return (
     <div
       className={[
@@ -420,7 +422,12 @@ function PromoCard({
         selected ? 'border-paprika ring-2 ring-inset ring-paprika/40' : 'border-cream-shadow hover:border-paprika/55',
       ].join(' ')}
     >
-      <button type="button" onClick={onDrill} className="text-left flex flex-row sm:flex-col flex-1 min-w-0">
+      <button
+        type="button"
+        onClick={isGroup ? onDrill : onToggle}
+        aria-pressed={isGroup ? undefined : selected}
+        className="text-left flex flex-row sm:flex-col flex-1 min-w-0"
+      >
         <span className="relative shrink-0 w-28 sm:w-full aspect-square bg-cream-deep grid place-items-center overflow-hidden">
           {promo.imageUrl ? (
             <img src={promo.imageUrl} alt="" loading="lazy" className="w-full h-full object-cover" />
