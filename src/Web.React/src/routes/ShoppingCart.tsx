@@ -260,8 +260,12 @@ export default function ShoppingCart() {
             <button
               type="button"
               onClick={onClear}
-              className="ml-auto font-mono text-[0.62rem] uppercase tracking-[0.16em] text-chestnut hover:text-red-600 transition-colors"
+              className="ml-auto inline-flex items-center gap-1.5 rounded-lg border border-red-500/40 px-2.5 py-1.5 font-mono text-[0.62rem] uppercase tracking-[0.16em] text-red-600 hover:bg-red-500/10 hover:border-red-500/60 transition-colors"
             >
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                <path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6" />
+                <path d="M10 11v6M14 11v6" />
+              </svg>
               Empty cart
             </button>
           </div>
