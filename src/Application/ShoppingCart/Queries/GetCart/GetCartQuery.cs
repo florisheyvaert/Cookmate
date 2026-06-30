@@ -27,6 +27,7 @@ public class GetCartQueryHandler : IRequestHandler<GetCartQuery, CartDto>
                 StoreCode = i.StoreCode,
                 Sku = i.Sku,
                 ImageUrl = i.ImageUrl,
+                Category = i.Category,
                 Quantity = i.Quantity,
                 Source = i.Source,
                 IsLinked = i.StoreCode != null && i.Sku != null,
@@ -56,6 +57,7 @@ public record CartLineDto
     public string? StoreCode { get; init; }
     public string? Sku { get; init; }
     public string? ImageUrl { get; init; }
+    public string? Category { get; init; }
     public int Quantity { get; init; }
     public CartItemSource Source { get; init; }
     public bool IsLinked { get; init; }

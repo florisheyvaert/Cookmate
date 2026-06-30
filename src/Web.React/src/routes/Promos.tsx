@@ -6,6 +6,7 @@ import { useAuth } from '@/auth/AuthContext'
 import { promotionsApi } from '@/api/promotions'
 import type { PromoPeriod, PromotionDto } from '@/api/promotions'
 import { cartApi } from '@/api/shoppingCart'
+import { CartDock, type CartDockHandle } from '@/components/CartDock'
 
 const STORE = 'ah'
 const STORE_NAME = 'Albert Heijn'
@@ -44,6 +45,7 @@ export default function Promos() {
   const [params, setParams] = useSearchParams()
   const [drillGroup, setDrillGroup] = useState<PromotionDto | null>(null)
   const [added, setAdded] = useState<Set<string>>(() => new Set())
+  const dock = useRef<CartDockHandle>(null)
 
   const periodsQ = useQuery({
     queryKey: ['promo-periods', STORE],
@@ -55,18 +57,22 @@ export default function Promos() {
   const currentWeek = periods.find((p) => p.isCurrent)?.validFrom ?? periods[0]?.validFrom ?? null
   const activeWeek = params.get('week') ?? currentWeek
 
+  // We have some bonus weeks cached, but not the live one — the auto-refresh hasn't caught up.
+  const showStaleBanner = periodsQ.isSuccess && periods.length > 0 && !periods.some((p) => p.isCurrent)
+
   const promosQ = useQuery({
     queryKey: ['promotions', STORE, activeWeek],
     queryFn: () => promotionsApi.list(STORE, activeWeek),
     staleTime: 5 * 60_000,
   })
-  const promos = promosQ.data ?? []
+  const promos = useMemo(() => promosQ.data ?? [], [promosQ.data])
 
   function pickWeek(validFrom: string | null) {
     setParams(
       (prev) => {
         const p = new URLSearchParams(prev)
-        validFrom ? p.set('week', validFrom) : p.delete('week')
+        if (validFrom) p.set('week', validFrom)
+        else p.delete('week')
         return p
       },
       { replace: true },
@@ -74,8 +80,8 @@ export default function Promos() {
   }
 
   const addToCart = useMutation({
-    mutationFn: (item: { sku: string; name: string; imageUrl: string | null }) =>
-      cartApi.add({ displayName: item.name, storeCode: STORE, sku: item.sku, imageUrl: item.imageUrl, source: 1 }),
+    mutationFn: (item: { sku: string; name: string; imageUrl: string | null; category: string | null }) =>
+      cartApi.add({ displayName: item.name, storeCode: STORE, sku: item.sku, imageUrl: item.imageUrl, category: item.category, source: 1 }),
     onSuccess: (_id, item) => {
       setAdded((prev) => new Set(prev).add(item.sku))
       qc.invalidateQueries({ queryKey: ['shopping-cart'] })
@@ -83,9 +89,20 @@ export default function Promos() {
     },
   })
 
-  // Scroll-to-load: reveal the already-fetched week in batches.
+  // Add to cart and throw the product image into the floating cart button.
+  function addPromo(promo: PromotionDto, origin: DOMRect | null) {
+    if (origin) dock.current?.fly(origin, promo.imageUrl)
+    addToCart.mutate({ sku: promo.sku, name: promo.name, imageUrl: promo.imageUrl, category: promo.category })
+  }
+
+  // Scroll-to-load: reveal the already-fetched week in batches. When the week changes, reset the
+  // reveal count during render (the React-recommended way) rather than in an effect.
   const [visible, setVisible] = useState(PAGE)
-  useEffect(() => setVisible(PAGE), [activeWeek])
+  const [shownWeek, setShownWeek] = useState(activeWeek)
+  if (shownWeek !== activeWeek) {
+    setShownWeek(activeWeek)
+    setVisible(PAGE)
+  }
   const sentinel = useRef<HTMLDivElement | null>(null)
   useEffect(() => {
     const el = sentinel.current
@@ -121,38 +138,29 @@ export default function Promos() {
   }, [promos])
 
   return (
-    <div className="px-5 sm:px-6 md:px-12 lg:px-20 py-8 sm:py-12 pb-20 max-w-[1400px] mx-auto">
+    <div className="px-5 sm:px-6 md:px-12 lg:px-20 py-8 sm:py-12 pb-20">
       {/* ── Header ─────────────────────────────────────────────────────────── */}
-      <header className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-5 mb-8 sm:mb-10">
-        <div>
-          <p className="eyebrow text-paprika mb-2.5">{STORE_NAME} · Bonus folder</p>
-          <h1
-            className="font-display text-ink"
-            style={{ fontSize: 'clamp(2.4rem, 6vw, 4rem)', lineHeight: 0.98, fontWeight: 800, letterSpacing: '-0.035em' }}
-          >
-            Cook the{' '}
-            <span className="italic" style={{ fontFamily: 'var(--font-body)', color: 'var(--color-paprika)' }}>
-              bonus
-            </span>
-            .
-          </h1>
-          <p className="mt-4 text-ink-soft text-lg leading-relaxed max-w-xl" style={{ fontFamily: 'var(--font-body)' }}>
-            Browse the bonus and add what you want to your cart. See what you can cook with it over on the cart.
-          </p>
-        </div>
-
-        {isAdmin && (
-          <button
-            type="button"
-            onClick={() => refresh.mutate()}
-            disabled={refresh.isPending}
-            className="shrink-0 inline-flex items-center gap-2 rounded-xl px-5 py-3 border border-cream-shadow text-ink font-mono text-[0.66rem] uppercase tracking-[0.16em] hover:border-paprika hover:text-paprika transition-colors disabled:opacity-50"
-          >
-            <span aria-hidden className={refresh.isPending ? 'animate-spin' : ''}>↻</span>
-            {refresh.isPending ? 'Refreshing…' : 'Refresh promos'}
-          </button>
-        )}
+      <header className="mb-8 sm:mb-10 max-w-xl">
+        <p className="eyebrow text-paprika mb-2.5">{STORE_NAME} · Bonus folder</p>
+        <h1
+          className="font-display text-ink"
+          style={{ fontSize: 'clamp(2.4rem, 6vw, 4rem)', lineHeight: 0.98, fontWeight: 800, letterSpacing: '-0.035em' }}
+        >
+          Cook the{' '}
+          <span className="italic" style={{ fontFamily: 'var(--font-body)', color: 'var(--color-paprika)' }}>
+            bonus
+          </span>
+          .
+        </h1>
+        <p className="mt-4 text-ink-soft text-lg leading-relaxed" style={{ fontFamily: 'var(--font-body)' }}>
+          Browse the bonus and add what you want to your cart. See what you can cook with it over on the cart.
+        </p>
       </header>
+
+      {/* This week's bonus hasn't been pulled yet — it refreshes itself weekly, but offer a nudge. */}
+      {showStaleBanner && (
+        <StaleWeekBanner isAdmin={isAdmin} onRefresh={() => refresh.mutate()} refreshing={refresh.isPending} />
+      )}
 
       {/* ── Week filter ────────────────────────────────────────────────────── */}
       {periods.length > 0 && <WeekTabs periods={periods} active={activeWeek} onPick={pickWeek} />}
@@ -185,14 +193,13 @@ export default function Promos() {
                   <span className="num text-chestnut-soft text-xs">{categoryTotals.get(g.category) ?? g.items.length}</span>
                   <span className="flex-1 h-px bg-cream-shadow" />
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
                   {g.items.map((p) => (
                     <PromoCard
                       key={p.sku}
                       promo={p}
                       added={added.has(p.sku)}
-                      adding={addToCart.isPending}
-                      onAdd={() => addToCart.mutate({ sku: p.sku, name: p.name, imageUrl: p.imageUrl })}
+                      onAdd={(origin) => addPromo(p, origin)}
                       onDrill={() => setDrillGroup(p)}
                     />
                   ))}
@@ -212,11 +219,37 @@ export default function Promos() {
             group={drillGroup}
             week={activeWeek}
             added={added}
-            onAdd={(item) => addToCart.mutate(item)}
+            onAdd={(promo, origin) => addPromo(promo, origin)}
             onClose={() => setDrillGroup(null)}
           />
         )}
       </AnimatePresence>
+
+      {/* ── Floating cart (count badge, inline drawer, fly-to-cart target) ───── */}
+      <CartDock ref={dock} />
+    </div>
+  )
+}
+
+function StaleWeekBanner({ isAdmin, onRefresh, refreshing }: { isAdmin: boolean; onRefresh: () => void; refreshing: boolean }) {
+  return (
+    <div className="mb-8 flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-2xl border border-paprika/35 bg-paprika/8 px-4 sm:px-5 py-3.5">
+      <p className="text-ink leading-snug" style={{ fontFamily: 'var(--font-body)' }}>
+        <span aria-hidden className="mr-1.5">🛎️</span>
+        This week's bonus isn't loaded yet
+        {isAdmin ? '.' : ' — an admin can refresh it.'}
+      </p>
+      {isAdmin && (
+        <button
+          type="button"
+          onClick={onRefresh}
+          disabled={refreshing}
+          className="shrink-0 inline-flex items-center gap-2 rounded-xl px-4 py-2 bg-paprika text-cream font-display font-semibold text-[0.85rem] hover:bg-paprika-deep transition-colors disabled:opacity-50"
+        >
+          <span aria-hidden className={refreshing ? 'animate-spin' : ''}>↻</span>
+          {refreshing ? 'Refreshing…' : 'Refresh now'}
+        </button>
+      )}
     </div>
   )
 }
@@ -231,7 +264,7 @@ function WeekTabs({
   onPick: (validFrom: string | null) => void
 }) {
   return (
-    <nav aria-label="Bonus week" className="flex flex-wrap gap-2.5 mb-10 sm:mb-12">
+    <nav aria-label="Bonus week" className="flex gap-2.5 mb-10 sm:mb-12 max-w-md">
       {periods.map((p) => {
         const isActive = p.validFrom === active
         return (
@@ -241,7 +274,7 @@ function WeekTabs({
             onClick={() => onPick(p.validFrom)}
             aria-pressed={isActive}
             className={[
-              'flex flex-col items-start rounded-xl border px-4 py-2.5 text-left transition-colors',
+              'flex flex-1 basis-0 min-w-0 flex-col items-start rounded-xl border px-4 py-2.5 text-left transition-colors',
               isActive
                 ? 'border-paprika bg-paprika text-cream shadow-sm'
                 : 'border-cream-shadow bg-cream text-ink hover:border-paprika/55',
@@ -300,17 +333,17 @@ function EmptyPromos({ isAdmin, onRefresh, refreshing }: { isAdmin: boolean; onR
 function PromoCard({
   promo,
   added,
-  adding,
   onAdd,
   onDrill,
 }: {
   promo: PromotionDto
   added: boolean
-  adding: boolean
-  onAdd: () => void
+  onAdd: (origin: DOMRect | null) => void
   onDrill: () => void
 }) {
   const isGroup = promo.productCount > 1
+  const imgRef = useRef<HTMLSpanElement>(null)
+  const add = () => onAdd(imgRef.current?.getBoundingClientRect() ?? null)
   return (
     <div
       className={[
@@ -318,66 +351,117 @@ function PromoCard({
         added ? 'border-paprika ring-2 ring-inset ring-paprika/40' : 'border-cream-shadow hover:border-paprika/55',
       ].join(' ')}
     >
-      <button type="button" onClick={isGroup ? onDrill : onAdd} className="text-left flex flex-row sm:flex-col flex-1 min-w-0">
-        <span className="relative shrink-0 w-28 sm:w-full aspect-square bg-cream-deep grid place-items-center overflow-hidden">
+      {/* The whole card is the action: a single product adds; a group opens its products. */}
+      <button type="button" onClick={isGroup ? onDrill : add} className="text-left flex flex-row sm:flex-col flex-1 min-w-0">
+        <span ref={imgRef} className="relative shrink-0 w-24 sm:w-full aspect-square bg-cream-deep grid place-items-center overflow-hidden">
           {promo.imageUrl ? (
             <img src={promo.imageUrl} alt="" loading="lazy" className="w-full h-full object-cover" />
           ) : (
             <span aria-hidden className="text-3xl opacity-40">🛒</span>
           )}
-        </span>
-
-        <span className="flex-1 min-w-0 flex flex-col gap-1 px-3.5 py-3 sm:px-4 sm:py-3.5">
-          <span
-            className="font-display text-ink text-[0.95rem] sm:text-base leading-tight line-clamp-2"
-            style={{ fontWeight: 600 }}
-          >
-            {promo.name}
-          </span>
-          {promo.packSize && (
-            <span className="font-mono text-[0.58rem] uppercase tracking-[0.1em] text-chestnut-soft">{promo.packSize}</span>
-          )}
-          <span className="mt-auto flex items-center flex-wrap gap-x-2 gap-y-1.5 pt-1.5">
-            {promo.discountLabel && (
-              <span className="px-2 py-1 rounded-md bg-paprika text-cream font-mono text-[0.58rem] uppercase tracking-[0.08em] leading-none">
-                {promo.discountLabel}
-              </span>
-            )}
-            {promo.promoPrice != null ? (
-              <span className="flex items-baseline gap-1.5">
-                <span className="num text-paprika text-lg">{euro.format(promo.promoPrice)}</span>
-                {promo.originalPrice != null && promo.originalPrice > promo.promoPrice && (
-                  <span className="num text-chestnut-soft text-xs line-through">{euro.format(promo.originalPrice)}</span>
-                )}
-              </span>
-            ) : promo.originalPrice != null ? (
-              <span className="num text-ink text-sm">{euro.format(promo.originalPrice)}</span>
-            ) : null}
-          </span>
-          {isGroup && (
-            <span className="font-mono text-[0.56rem] uppercase tracking-[0.14em] text-chestnut group-hover:text-paprika transition-colors">
-              {promo.productCount} producten ›
+          {/* Deal label — overlaid on the photo, top-left; solid gold so it stays readable. */}
+          {promo.discountLabel && (
+            <span className="absolute top-1.5 left-1.5 rounded-md bg-butter px-2 py-1 font-display text-[0.72rem] sm:text-[0.8rem] font-bold leading-none text-[#3b2a05] shadow-md">
+              {promo.discountLabel}
             </span>
           )}
         </span>
-      </button>
 
-      {/* Add to cart — single products only; groups add their members from the drill-down. */}
-      {!isGroup && (
-        <button
-          type="button"
-          onClick={onAdd}
-          disabled={adding}
-          aria-label={added ? 'In cart' : 'Add to cart'}
+        <span className="flex-1 min-w-0 flex flex-col gap-1.5 px-3 py-2.5 sm:py-3">
+          <span className="font-display text-ink text-[0.9rem] leading-tight line-clamp-2" style={{ fontWeight: 600 }}>
+            {promo.name}
+          </span>
+          {promo.packSize && (
+            <span className="-mt-0.5 font-mono text-[0.54rem] uppercase tracking-[0.1em] text-chestnut-soft">{promo.packSize}</span>
+          )}
+
+          {/* Price (the deal badge now lives on the photo). */}
+          {promo.promoPrice != null ? (
+            <span className="flex items-baseline gap-1.5">
+              <span className="num text-paprika text-base">{euro.format(promo.promoPrice)}</span>
+              {promo.originalPrice != null && promo.originalPrice > promo.promoPrice && (
+                <span className="num text-chestnut-soft text-xs line-through">{euro.format(promo.originalPrice)}</span>
+              )}
+            </span>
+          ) : promo.originalPrice != null ? (
+            <span className="num text-ink text-sm">{euro.format(promo.originalPrice)}</span>
+          ) : null}
+
+          {/* Affordance (the card itself is the button): filled "Add" = one product,
+              outlined "N producten" = a group you open. */}
+          <span className="mt-auto pt-1.5">
+            {isGroup ? (
+              <span className="inline-flex items-center gap-1.5 rounded-lg border border-paprika/45 px-2.5 py-1.5 font-mono text-[0.6rem] uppercase tracking-[0.1em] text-paprika-deep transition-colors group-hover:border-paprika group-hover:bg-paprika group-hover:text-cream">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                  <rect x="3" y="3" width="13" height="13" rx="2" />
+                  <path d="M8 21h11a2 2 0 0 0 2-2V8" />
+                </svg>
+                {promo.productCount} producten
+                <span aria-hidden>→</span>
+              </span>
+            ) : (
+              <span
+                className={[
+                  'inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 font-display font-semibold text-[0.82rem] transition-colors',
+                  added ? 'bg-paprika/15 text-paprika-deep' : 'bg-paprika text-cream group-hover:bg-paprika-deep',
+                ].join(' ')}
+              >
+                {added ? '✓ In cart' : '+ Add'}
+              </span>
+            )}
+          </span>
+        </span>
+      </button>
+    </div>
+  )
+}
+
+// One member product inside the drill-down; adds itself to the cart and flies its image up.
+function DrillRow({
+  product,
+  inCart,
+  onAdd,
+}: {
+  product: PromotionDto
+  inCart: boolean
+  onAdd: (promo: PromotionDto, origin: DOMRect | null) => void
+}) {
+  const imgRef = useRef<HTMLSpanElement>(null)
+  return (
+    <li>
+      {/* The whole row adds to the cart; the pill on the right is just the affordance. */}
+      <button
+        type="button"
+        onClick={() => onAdd(product, imgRef.current?.getBoundingClientRect() ?? null)}
+        aria-label={inCart ? `Add ${product.name} again` : `Add ${product.name} to cart`}
+        className="group w-full flex items-center gap-4 py-3 px-2 -mx-2 rounded-xl text-left hover:bg-cream-deep/60 transition-colors"
+      >
+        <span ref={imgRef} className="shrink-0 w-16 h-16 rounded-lg overflow-hidden border border-cream-shadow bg-cream-deep grid place-items-center">
+          {product.imageUrl ? (
+            <img src={product.imageUrl} alt="" loading="lazy" className="w-full h-full object-cover" />
+          ) : (
+            <span aria-hidden className="opacity-40">🛒</span>
+          )}
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block font-display text-ink leading-tight line-clamp-2" style={{ fontWeight: 600 }}>
+            {product.name}
+          </span>
+          {product.packSize && (
+            <span className="block font-mono text-[0.56rem] uppercase tracking-[0.1em] text-chestnut-soft mt-0.5">{product.packSize}</span>
+          )}
+          {product.promoPrice != null && <span className="block num text-paprika text-base mt-0.5">{euro.format(product.promoPrice)}</span>}
+        </span>
+        <span
           className={[
-            'absolute top-2 right-2 w-8 h-8 rounded-full grid place-items-center text-[0.9rem] leading-none transition-colors shadow-sm disabled:opacity-60',
-            added ? 'bg-paprika text-cream' : 'bg-cream/90 text-chestnut hover:text-paprika',
+            'shrink-0 inline-flex items-center gap-1.5 rounded-xl px-3.5 py-2 font-display font-semibold text-[0.8rem] transition-colors',
+            inCart ? 'bg-paprika/15 text-paprika-deep' : 'bg-paprika text-cream group-hover:bg-paprika-deep',
           ].join(' ')}
         >
-          <span aria-hidden>{added ? '✓' : '+'}</span>
-        </button>
-      )}
-    </div>
+          {inCart ? '✓ In cart' : '+ Add'}
+        </span>
+      </button>
+    </li>
   )
 }
 
@@ -392,7 +476,7 @@ function GroupDrillDown({
   group: PromotionDto
   week: string | null
   added: Set<string>
-  onAdd: (item: { sku: string; name: string; imageUrl: string | null }) => void
+  onAdd: (promo: PromotionDto, origin: DOMRect | null) => void
   onClose: () => void
 }) {
   const q = useQuery({
@@ -466,42 +550,9 @@ function GroupDrillDown({
             </p>
           ) : (
             <ul className="divide-y divide-cream-shadow">
-              {products.map((p) => {
-                const inCart = added.has(p.sku)
-                return (
-                  <li key={p.sku} className="flex items-center gap-4 py-3">
-                    <span className="shrink-0 w-16 h-16 rounded-lg overflow-hidden border border-cream-shadow bg-cream-deep grid place-items-center">
-                      {p.imageUrl ? (
-                        <img src={p.imageUrl} alt="" loading="lazy" className="w-full h-full object-cover" />
-                      ) : (
-                        <span aria-hidden className="opacity-40">🛒</span>
-                      )}
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <p className="font-display text-ink leading-tight line-clamp-2" style={{ fontWeight: 600 }}>
-                        {p.name}
-                      </p>
-                      {p.packSize && (
-                        <p className="font-mono text-[0.56rem] uppercase tracking-[0.1em] text-chestnut-soft mt-0.5">
-                          {p.packSize}
-                        </p>
-                      )}
-                      {p.promoPrice != null && <p className="num text-paprika text-base mt-0.5">{euro.format(p.promoPrice)}</p>}
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => onAdd({ sku: p.sku, name: p.name, imageUrl: p.imageUrl })}
-                      aria-label={inCart ? 'In cart' : 'Add to cart'}
-                      className={[
-                        'shrink-0 inline-flex items-center gap-1.5 rounded-xl px-3.5 py-2 font-display font-semibold text-[0.8rem] transition-colors',
-                        inCart ? 'bg-paprika/15 text-paprika-deep' : 'bg-paprika text-cream hover:bg-paprika-deep',
-                      ].join(' ')}
-                    >
-                      {inCart ? '✓ In cart' : '+ Add'}
-                    </button>
-                  </li>
-                )
-              })}
+              {products.map((p) => (
+                <DrillRow key={p.sku} product={p} inCart={added.has(p.sku)} onAdd={onAdd} />
+              ))}
             </ul>
           )}
         </div>

@@ -76,19 +76,28 @@ export default function Settings() {
     return all.filter((s) => !s.adminOnly || isAdmin)
   }, [isAdmin])
 
-  // Deep link: ?section=<id> opens just that section, collapses the rest, and scrolls
-  // it into view. Used e.g. from Ideas → "Manage sources" (?section=integrations).
+  // Deep link: ?section=<id> opens just that section, collapses the rest, and scrolls it into
+  // view. Used e.g. from Ideas → "Manage sources" (?section=integrations).
   const sectionParam = searchParams.get('section')
+  const linkedSection = sectionParam && sections.some((s) => s.id === sectionParam) ? sectionParam : null
+
+  // Open the linked section the first time it appears — done during render (the React-recommended
+  // way) rather than in an effect, so it doesn't fight the user's own toggles.
+  const [appliedSection, setAppliedSection] = useState<string | null>(null)
+  if (linkedSection && linkedSection !== appliedSection) {
+    setAppliedSection(linkedSection)
+    setOpenIds(new Set([linkedSection]))
+  }
+
+  // Scrolling is a genuine side effect, so it stays in an effect.
   useEffect(() => {
-    if (!sectionParam) return
-    if (!sections.some((s) => s.id === sectionParam)) return
-    setOpenIds(new Set([sectionParam]))
+    if (!linkedSection) return
     // After the route's scroll-to-top and this render settle, bring the section into view.
     const t = setTimeout(() => {
-      document.getElementById(sectionParam)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      document.getElementById(linkedSection)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
     }, 140)
     return () => clearTimeout(t)
-  }, [sectionParam, sections])
+  }, [linkedSection])
 
   const q = query.trim().toLowerCase()
   const terms = q.split(/\s+/).filter(Boolean)
@@ -109,15 +118,14 @@ export default function Settings() {
   }
 
   return (
-    <div className="px-5 sm:px-6 md:px-12 lg:px-20 pt-14 md:pt-16 pb-24">
+    <div className="mx-auto w-full max-w-3xl px-5 sm:px-6 lg:px-8 pt-14 md:pt-16 pb-24">
       <PageHeader
         eyebrow="Cookbook · Settings"
         title="Settings"
         subtitle="Make Cookmate yours — appearance, shopping rules, and the sources it cooks from."
       />
 
-      <div className="max-w-3xl">
-        <SearchField value={query} onChange={setQuery} resultCount={visible.length} total={sections.length} />
+      <SearchField value={query} onChange={setQuery} resultCount={visible.length} total={sections.length} />
 
         {visible.length === 0 ? (
           <p className="mt-8 text-ink-soft leading-relaxed">
@@ -128,11 +136,10 @@ export default function Settings() {
           <div className="mt-6 space-y-4">
             {visible.map((s) => (
               // While searching, matching sections open so their content is visible.
-              <SectionCard key={s.id} section={s} open={searching || openIds.has(s.id)} onToggle={() => toggle(s.id)} />
+              <SectionCard key={s.id} section={s} terms={terms} open={searching || openIds.has(s.id)} onToggle={() => toggle(s.id)} />
             ))}
           </div>
         )}
-      </div>
     </div>
   )
 }
@@ -169,7 +176,7 @@ function SearchField({
   )
 }
 
-function SectionCard({ section, open, onToggle }: { section: Section; open: boolean; onToggle: () => void }) {
+function SectionCard({ section, terms, open, onToggle }: { section: Section; terms: string[]; open: boolean; onToggle: () => void }) {
   // Let inner dropdowns (schedule day/time pickers) escape the card once the open
   // animation has settled; clip during the height transition.
   const [animating, setAnimating] = useState(false)
@@ -187,7 +194,7 @@ function SectionCard({ section, open, onToggle }: { section: Section; open: bool
       >
         <span className="w-1 h-5 rounded-full bg-paprika shrink-0" aria-hidden />
         <h2 className="text-ink text-base sm:text-lg min-w-0 truncate" style={{ fontWeight: 700, letterSpacing: '-0.015em' }}>
-          {section.title}
+          <Highlight text={section.title} terms={terms} />
         </h2>
         <span className="text-base sm:text-lg leading-none shrink-0" aria-hidden>{section.emoji}</span>
         <span className="ml-auto flex items-center gap-2.5 sm:gap-3 shrink-0">
@@ -212,13 +219,39 @@ function SectionCard({ section, open, onToggle }: { section: Section; open: bool
             className={animating ? 'overflow-hidden' : 'overflow-visible'}
           >
             <div className="px-4 sm:px-7 pb-5 sm:pb-7 pt-1">
-              <p className="text-ink-soft leading-relaxed mb-5">{section.description}</p>
+              <p className="text-ink-soft leading-relaxed mb-5">
+                <Highlight text={section.description} terms={terms} />
+              </p>
               {section.body}
             </div>
           </motion.div>
         )}
       </AnimatePresence>
     </section>
+  )
+}
+
+const escapeRegExp = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+
+// Wraps every occurrence of a search term in the text with a paprika highlight. Case-insensitive,
+// keeps the original casing on screen. Longer terms first so they win over shorter overlaps.
+function Highlight({ text, terms }: { text: string; terms: string[] }) {
+  if (terms.length === 0) return <>{text}</>
+  const pattern = terms.map(escapeRegExp).sort((a, b) => b.length - a.length).join('|')
+  const isHit = new RegExp(`^(?:${pattern})$`, 'i')
+  const parts = text.split(new RegExp(`(${pattern})`, 'gi'))
+  return (
+    <>
+      {parts.map((part, i) =>
+        part && isHit.test(part) ? (
+          <mark key={i} className="rounded-[0.2em] bg-yellow-300 text-ink px-0.5">
+            {part}
+          </mark>
+        ) : (
+          part
+        ),
+      )}
+    </>
   )
 }
 

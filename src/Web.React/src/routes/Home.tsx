@@ -1,19 +1,20 @@
 import { useMemo, useState } from 'react'
 import { Link, Navigate } from 'react-router'
-import { useQuery } from '@tanstack/react-query'
+import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { motion } from 'motion/react'
 import { useAuth } from '@/auth/AuthContext'
 import { recipesApi } from '@/api/recipes'
 import { mealPlanApi, MEAL_SLOT_ORDER, MEAL_SLOT_ICON, MEAL_SLOT_LABELS } from '@/api/mealPlan'
 import type { MealEntryDto } from '@/api/mealPlan'
 import { DayPlannerDialog } from '@/components/DayPlannerDialog'
-import { useSwipe } from '@/lib/useSwipe'
-import { useMediaQuery } from '@/lib/useMediaQuery'
+import { Carousel } from '@/components/Carousel'
 import { suggestionsApi } from '@/api/suggestions'
+import { promotionsApi } from '@/api/promotions'
 import { formatDuration } from '@/lib/format'
 import type { RecipeSummaryDto } from '@/api/types'
 
 const ease = [0.22, 1, 0.36, 1] as const
+const euro = new Intl.NumberFormat('nl-NL', { style: 'currency', currency: 'EUR' })
 
 // Shared button styles — Bricolage, sentence-case, soft corners. Hierarchy by
 // weight (solid green = primary, solid ink = strongest, outline = secondary).
@@ -98,6 +99,8 @@ function SignedInHome() {
 
       <SuggestedThisWeek />
 
+      <HomePromos />
+
       {recent.length > 0 && <FromTheShelf recipes={recent} />}
 
       <CloserActions />
@@ -150,35 +153,29 @@ function Masthead({ totalRecipes }: { totalRecipes: number }) {
   )
 }
 
-// ── Planner — three plannable days in a carousel ─────────────────────────────
+// ── Planner — days you can plan, in a horizontal scroll ──────────────────────
 
 function Planner() {
   const today = useMemo(() => startOfToday(), [])
   const todayIso = toISO(today)
   const tomorrowIso = toISO(addDays(today, 1))
-  const [anchor, setAnchor] = useState<Date>(today)
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
 
-  // Three days up front on mobile; a full week once there's room on desktop. The
-  // window slides a day at a time (carousel arrows or swipe); the calendar covers
-  // anything further out.
-  const dayCount = useMediaQuery('(min-width: 1024px)') ? 7 : 3
-  const days = useMemo(() => Array.from({ length: dayCount }, (_, i) => addDays(anchor, i)), [anchor, dayCount])
+  // Days scroll horizontally from today; scrolling to the end loads more (up to ~8 weeks).
+  const [daysShown, setDaysShown] = useState(14)
+  const days = useMemo(() => Array.from({ length: daysShown }, (_, i) => addDays(today, i)), [today, daysShown])
   const from = toISO(days[0])
   const to = toISO(days[days.length - 1])
-  const gridQ = useQuery({ queryKey: ['meal-plan', from, to], queryFn: () => mealPlanApi.list({ from, to }) })
+  const gridQ = useQuery({
+    queryKey: ['meal-plan', from, to],
+    queryFn: () => mealPlanApi.list({ from, to }),
+    placeholderData: keepPreviousData,
+  })
   const byDate = useMemo(() => groupByDate(gridQ.data ?? []), [gridQ.data])
 
   const plannedCount = gridQ.data?.length ?? 0
   const wdShort = new Intl.DateTimeFormat(undefined, { weekday: 'short' })
   const fmtMon = new Intl.DateTimeFormat(undefined, { month: 'short' })
-  const fmtMd = new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 'short' })
-  const periodLabel = `${fmtMd.format(days[0])} – ${fmtMd.format(days[days.length - 1])}`
-  const atToday = toISO(anchor) === todayIso
-
-  const stepDay = (n: number) => setAnchor((a) => addDays(a, n))
-  // On touch, swipe the three-day window left/right.
-  const swipe = useSwipe(() => stepDay(1), () => stepDay(-1))
 
   return (
     <motion.section
@@ -188,7 +185,7 @@ function Planner() {
       transition={{ delay: 0.14, duration: 0.6, ease }}
       className="mb-20 md:mb-28 scroll-mt-24"
     >
-      {/* Title + the three week actions, on one line */}
+      {/* Title + the four actions, on one line */}
       <div className="flex items-end justify-between gap-4 mb-6 flex-wrap">
         <div className="flex items-baseline gap-3">
           <h2 className="text-ink text-2xl" style={{ fontWeight: 700, letterSpacing: '-0.02em' }}>
@@ -202,10 +199,13 @@ function Planner() {
         </div>
         <div className="flex items-center gap-2.5 sm:gap-3 flex-wrap">
           <Link to="/suggestions" className={`${btnGreen} whitespace-nowrap`}>
-            🥗 This week&rsquo;s ideas →
+            🥗 Meal ideas →
           </Link>
-          <Link to="/shop" className={`${btnGoldGhost} whitespace-nowrap`}>
-            🛒 Shop the week →
+          <Link to="/shopping-cart" className={`${btnGoldGhost} whitespace-nowrap`}>
+            🛒 Shopping cart →
+          </Link>
+          <Link to="/promos" className={`${btnGoldGhost} whitespace-nowrap`}>
+            🏷️ Promos →
           </Link>
           <Link to="/calendar" className={`${btnGoldGhost} whitespace-nowrap`}>
             🗓️ Calendar →
@@ -213,107 +213,83 @@ function Planner() {
         </div>
       </div>
 
-      {/* Period caption + reset to today */}
-      <div className="flex items-center justify-between gap-3 mb-3">
-        <span className="font-mono text-[0.72rem] uppercase tracking-[0.14em] text-ink">{periodLabel}</span>
-        <button
-          type="button"
-          onClick={() => setAnchor(today)}
-          disabled={atToday}
-          className="font-mono text-[0.62rem] uppercase tracking-[0.18em] text-chestnut hover:text-paprika transition-colors disabled:opacity-30 disabled:hover:text-chestnut"
-        >
-          ↺ Today
-        </button>
-      </div>
+      <Carousel ariaLabel="Plan your days" hasMore={daysShown < 56} onLoadMore={() => setDaysShown((d) => Math.min(d + 14, 56))}>
+        {days.map((d) => {
+          const iso = toISO(d)
+          const list = byDate.get(iso) ?? []
+          const head = list[0] ?? null
+          const extra = Math.max(0, list.length - 1)
+          const isToday = iso === todayIso
+          const isPast = iso < todayIso
+          const isWeekend = d.getDay() === 0 || d.getDay() === 6
+          const relLabel = isToday ? 'Today' : iso === tomorrowIso ? 'Tomorrow' : null
 
-      {/* Carousel — arrows flank the cards (desktop); swipe on touch. */}
-      <div className="flex items-stretch gap-2 sm:gap-3">
-        <CarouselArrow direction={-1} onClick={() => stepDay(-1)} label="Previous day" />
-        <div className="flex-1 grid grid-cols-3 lg:grid-cols-7 gap-2.5 sm:gap-3 touch-pan-y" {...swipe}>
-          {days.map((d, i) => {
-            const iso = toISO(d)
-            const list = byDate.get(iso) ?? []
-            const head = list[0] ?? null
-            const extra = Math.max(0, list.length - 1)
-            const isToday = iso === todayIso
-            const isPast = iso < todayIso
-            const isWeekend = d.getDay() === 0 || d.getDay() === 6
-            const relLabel = isToday ? 'Today' : iso === tomorrowIso ? 'Tomorrow' : null
+          // Colour-coded date band so the day — and whether it's a weekend — reads at a
+          // glance: today fills paprika, weekends carry butter.
+          const band = isToday
+            ? 'bg-paprika text-cream'
+            : isWeekend
+              ? 'bg-butter-tint text-butter-deep'
+              : 'bg-cream-shadow/25 text-ink'
 
-            // Colour-coded date band so the day — and whether it's a weekend —
-            // reads at a glance: today fills paprika, weekends carry butter.
-            const band = isToday
-              ? 'bg-paprika text-cream'
-              : isWeekend
-                ? 'bg-butter-tint text-butter-deep'
-                : 'bg-cream-shadow/25 text-ink'
+          return (
+            <button
+              key={iso}
+              type="button"
+              onClick={() => setSelectedDate(iso)}
+              className={[
+                'group shrink-0 snap-start basis-[31%] sm:basis-[22%] lg:basis-[14.5%] text-left rounded-xl border overflow-hidden transition-colors',
+                isToday ? 'border-paprika/60 ring-1 ring-inset ring-paprika/30' : 'border-cream-shadow hover:border-paprika/50',
+                isPast ? 'opacity-55 hover:opacity-100' : '',
+              ].join(' ')}
+            >
+              {/* Date band — the clear "which day is this" header */}
+              <div className={['px-3 py-2 flex items-center justify-between gap-2', band].join(' ')}>
+                <span className="font-display leading-none truncate" style={{ fontWeight: 700, fontSize: '0.95rem', letterSpacing: '-0.01em' }}>
+                  {relLabel ?? wdShort.format(d)}
+                </span>
+                <span className="num leading-none shrink-0 text-[0.86rem]">
+                  {d.getDate()} {fmtMon.format(d)}
+                </span>
+              </div>
 
-            return (
-              <motion.div
-                key={iso}
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.04 * i, duration: 0.4, ease }}
-              >
-                <button
-                  type="button"
-                  onClick={() => setSelectedDate(iso)}
-                  className={[
-                    'group block w-full text-left rounded-xl border overflow-hidden h-full transition-colors',
-                    isToday ? 'border-paprika/60 ring-1 ring-inset ring-paprika/30' : 'border-cream-shadow hover:border-paprika/50',
-                    isPast ? 'opacity-55 hover:opacity-100' : '',
-                  ].join(' ')}
-                >
-                  {/* Date band — the clear "which day is this" header */}
-                  <div className={['px-3 py-2 flex items-center justify-between gap-2', band].join(' ')}>
-                    <span className="font-display leading-none truncate" style={{ fontWeight: 700, fontSize: '0.95rem', letterSpacing: '-0.01em' }}>
-                      {relLabel ?? wdShort.format(d)}
+              {/* Photo area — reserved so every card is the same height */}
+              <div className="aspect-[3/2] overflow-hidden bg-cream-shadow/20 grid place-items-center">
+                {head?.imageUrl ? (
+                  <img
+                    src={head.imageUrl}
+                    alt=""
+                    loading="lazy"
+                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.04]"
+                  />
+                ) : (
+                  <span aria-hidden className="text-2xl leading-none opacity-25">🍽️</span>
+                )}
+              </div>
+
+              <div className="p-3 sm:p-4 bg-cream-deep">
+                {head ? (
+                  <div className="flex items-start gap-1.5">
+                    <span aria-hidden className="text-sm leading-snug shrink-0" title={MEAL_SLOT_LABELS[head.slot]}>
+                      {MEAL_SLOT_ICON[head.slot]}
                     </span>
-                    <span className="num leading-none shrink-0 text-[0.86rem]">
-                      {d.getDate()} {fmtMon.format(d)}
+                    <span className="text-ink text-[0.9rem] leading-snug line-clamp-2">
+                      {entryLabel(head)}
+                      {extra > 0 && <span className="text-chestnut-soft"> +{extra}</span>}
                     </span>
                   </div>
-
-                  {/* Photo area — reserved so every card is the same height */}
-                  <div className="aspect-[3/2] overflow-hidden bg-cream-shadow/20 grid place-items-center">
-                    {head?.imageUrl ? (
-                      <img
-                        src={head.imageUrl}
-                        alt=""
-                        loading="lazy"
-                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.04]"
-                      />
-                    ) : (
-                      <span aria-hidden className="text-2xl leading-none opacity-25">🍽️</span>
-                    )}
-                  </div>
-
-                  <div className="p-3 sm:p-4 bg-cream-deep">
-                    {head ? (
-                      <div className="flex items-start gap-1.5">
-                        <span aria-hidden className="text-sm leading-snug shrink-0" title={MEAL_SLOT_LABELS[head.slot]}>
-                          {MEAL_SLOT_ICON[head.slot]}
-                        </span>
-                        <span className="text-ink text-[0.9rem] leading-snug line-clamp-2">
-                          {entryLabel(head)}
-                          {extra > 0 && <span className="text-chestnut-soft"> +{extra}</span>}
-                        </span>
-                      </div>
-                    ) : isPast ? (
-                      <span className="font-mono text-[0.58rem] text-chestnut-soft/60">—</span>
-                    ) : (
-                      <span className="font-mono text-[0.58rem] text-chestnut-soft/70 inline-flex items-center gap-1 group-hover:text-paprika transition-colors">
-                        <span className="text-base leading-none">+</span> plan
-                      </span>
-                    )}
-                  </div>
-                </button>
-              </motion.div>
-            )
-          })}
-        </div>
-        <CarouselArrow direction={1} onClick={() => stepDay(1)} label="Next day" />
-      </div>
+                ) : isPast ? (
+                  <span className="font-mono text-[0.58rem] text-chestnut-soft/60">—</span>
+                ) : (
+                  <span className="font-mono text-[0.58rem] text-chestnut-soft/70 inline-flex items-center gap-1 group-hover:text-paprika transition-colors">
+                    <span className="text-base leading-none">+</span> plan
+                  </span>
+                )}
+              </div>
+            </button>
+          )
+        })}
+      </Carousel>
 
       <DayPlannerDialog
         open={selectedDate != null}
@@ -321,21 +297,6 @@ function Planner() {
         onClose={() => setSelectedDate(null)}
       />
     </motion.section>
-  )
-}
-
-// Carousel-style stepper, vertically centred beside the cards. Hidden on touch
-// (where you swipe instead) to keep the three cards as wide as possible.
-function CarouselArrow({ direction, onClick, label }: { direction: number; onClick: () => void; label: string }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-label={label}
-      className="hidden sm:flex shrink-0 self-center w-11 h-11 items-center justify-center rounded-full font-mono text-lg text-chestnut border border-cream-shadow bg-cream-deep hover:border-paprika hover:text-paprika hover:bg-paprika-tint transition-colors"
-    >
-      {direction < 0 ? '‹' : '›'}
-    </button>
   )
 }
 
@@ -503,6 +464,67 @@ function SuggestedThisWeek() {
   )
 }
 
+// ── Featured promos (this week's bonus) ─────────────────────────────────────
+
+function HomePromos() {
+  const promosQ = useQuery({
+    queryKey: ['promotions', 'ah', 'home'],
+    queryFn: () => promotionsApi.list('ah'),
+    staleTime: 5 * 60_000,
+  })
+  const all = promosQ.data ?? []
+  const [visible, setVisible] = useState(12)
+  // Stay out of the way until the bonus is loaded.
+  if (!promosQ.isSuccess || all.length === 0) return null
+
+  const shown = all.slice(0, visible)
+  const hasMore = visible < all.length
+
+  return (
+    <section className="mb-20 md:mb-28">
+      <SectionHeader title="In the bonus" caption="Shop promos" to="/promos" />
+
+      <Carousel ariaLabel="This week's promos" hasMore={hasMore} onLoadMore={() => setVisible((v) => Math.min(v + 12, all.length))}>
+        {shown.map((p) => (
+          <div key={p.sku} className="shrink-0 snap-start basis-[42%] sm:basis-[28%] md:basis-[22%] lg:basis-[15.5%]">
+            <Link
+              to="/promos"
+              className="group flex h-full flex-col rounded-xl border border-cream-shadow bg-cream-deep overflow-hidden no-underline hover:border-paprika/50 transition-colors"
+            >
+              <span className="relative aspect-square bg-cream-shadow/20 grid place-items-center overflow-hidden">
+                {p.imageUrl ? (
+                  <img
+                    src={p.imageUrl}
+                    alt=""
+                    loading="lazy"
+                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.04]"
+                  />
+                ) : (
+                  <span aria-hidden className="text-2xl leading-none opacity-30">🛒</span>
+                )}
+                {p.discountLabel && (
+                  <span className="absolute top-1.5 left-1.5 rounded bg-butter px-1.5 py-0.5 font-display font-bold text-[0.62rem] leading-none text-[#3b2a05] shadow">
+                    {p.discountLabel}
+                  </span>
+                )}
+              </span>
+              <span className="p-2.5 flex flex-1 flex-col gap-1">
+                <span
+                  className="text-ink text-[0.82rem] leading-tight line-clamp-2 group-hover:text-paprika transition-colors"
+                  style={{ fontWeight: 600 }}
+                >
+                  {p.name}
+                </span>
+                {p.promoPrice != null && <span className="num text-paprika text-sm mt-auto pt-1">{euro.format(p.promoPrice)}</span>}
+              </span>
+            </Link>
+          </div>
+        ))}
+      </Carousel>
+    </section>
+  )
+}
+
 function FromTheShelf({ recipes }: { recipes: RecipeSummaryDto[] }) {
   return (
     <section className="mb-20 md:mb-28">
@@ -557,7 +579,7 @@ const closerTiles = [
   { to: '/recipes/new', icon: '🌱', title: 'Add a recipe', caption: 'Paste a link or write your own' },
   { to: '/calendar', icon: '🗓️', title: 'Open the calendar', caption: 'Plan any day, browse the month' },
   { to: '/suggestions', icon: '🥗', title: 'Browse ideas', caption: 'Fresh picks from your sources' },
-  { to: '/shop', icon: '🛒', title: 'Build a shop', caption: 'A week of meals, one basket' },
+  { to: '/shopping-cart', icon: '🛒', title: 'Shopping cart', caption: 'Your one running basket' },
 ]
 
 const closerTileClass =

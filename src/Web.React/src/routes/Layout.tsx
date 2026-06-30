@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link, NavLink, Outlet } from 'react-router'
+import { Link, NavLink, Outlet, useLocation } from 'react-router'
 import { Logo } from '@/components/Logo'
 import { AppMenu } from '@/components/AppMenu'
 import { useAuth } from '@/auth/AuthContext'
@@ -7,6 +7,9 @@ import { useAuth } from '@/auth/AuthContext'
 export default function Layout() {
   const { user } = useAuth()
   const [menuOpen, setMenuOpen] = useState(false)
+  // The shopping cart is a self-contained, viewport-height screen with its own bottom checkout,
+  // so the editorial colophon footer would just get in the way there.
+  const hideFooter = useLocation().pathname === '/shopping-cart'
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -46,7 +49,7 @@ export default function Layout() {
         <Outlet />
       </main>
 
-      <Footer />
+      {!hideFooter && <Footer />}
 
       <AppMenu open={menuOpen} onClose={() => setMenuOpen(false)} />
     </div>

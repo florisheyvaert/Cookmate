@@ -9,6 +9,8 @@ export type CartLine = {
   storeCode: string | null
   sku: string | null
   imageUrl: string | null
+  /** Store aisle/category (from the promo it was added from); null for free text / meal-plan lines. */
+  category: string | null
   quantity: number
   source: CartSource
   isLinked: boolean
@@ -39,6 +41,7 @@ export type AddCartItemInput = {
   storeCode?: string | null
   sku?: string | null
   imageUrl?: string | null
+  category?: string | null
   quantity?: number
   source?: CartSource
 }
