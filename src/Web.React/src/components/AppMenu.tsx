@@ -3,8 +3,6 @@ import { Link, NavLink, useLocation, useNavigate } from 'react-router'
 import { AnimatePresence, motion } from 'motion/react'
 import { useAuth } from '@/auth/AuthContext'
 import { Logo } from '@/components/Logo'
-import { useTheme } from '@/components/ThemeProvider'
-import type { Theme } from '@/lib/theme'
 
 const ease = [0.22, 1, 0.36, 1] as const
 
@@ -26,7 +24,9 @@ const chapters = [
   { to: '/suggestions', label: 'Ideas', numeral: 'II' },
   { to: '/promos', label: 'Promos', numeral: 'III' },
   { to: '/shop', label: 'Shop', numeral: 'IV' },
+  { to: '/settings', label: 'Settings', numeral: 'V' },
   // Meal planning now lives on the home page; Pantry is hidden until it works.
+  // Theme + member management live inside Settings.
 ]
 
 type AppMenuProps = {
@@ -35,8 +35,7 @@ type AppMenuProps = {
 }
 
 export function AppMenu({ open, onClose }: AppMenuProps) {
-  const { user, isAdmin, logout } = useAuth()
-  const { theme, setTheme } = useTheme()
+  const { user, logout } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
 
@@ -189,29 +188,14 @@ export function AppMenu({ open, onClose }: AppMenuProps) {
               )}
             </div>
 
-            {/* controls — theme on its own line, account actions below (tidy on mobile) */}
-            <div className="flex flex-col gap-3 sm:items-end">
-              <ThemePill value={theme} onChange={setTheme} />
-              {user && (
-                <div className="grid grid-cols-2 sm:flex sm:items-center gap-2.5">
-                  <Link to="/settings" onClick={onClose} className={`${ghostPill} justify-center`}>
-                    Settings
-                  </Link>
-                  {isAdmin && (
-                    <Link to="/users" onClick={onClose} className={`${ghostPill} justify-center`}>
-                      Members
-                    </Link>
-                  )}
-                  <button
-                    type="button"
-                    onClick={handleLogout}
-                    className={`${ghostPill} justify-center ${isAdmin ? 'col-span-2' : ''}`}
-                  >
-                    Sign out
-                  </button>
-                </div>
-              )}
-            </div>
+            {/* account actions — theme + member management now live in Settings */}
+            {user && (
+              <div className="sm:flex sm:items-end">
+                <button type="button" onClick={handleLogout} className={`${ghostPill} justify-center w-full sm:w-auto`}>
+                  Sign out
+                </button>
+              </div>
+            )}
           </motion.footer>
         </motion.div>
       )}
@@ -219,36 +203,3 @@ export function AppMenu({ open, onClose }: AppMenuProps) {
   )
 }
 
-const themeOptions: { value: Theme; label: string }[] = [
-  { value: 'system', label: 'Sys' },
-  { value: 'light', label: 'Light' },
-  { value: 'dark', label: 'Dark' },
-]
-
-function ThemePill({ value, onChange }: { value: Theme; onChange: (t: Theme) => void }) {
-  return (
-    <div
-      role="radiogroup"
-      aria-label="Theme"
-      className="flex w-full sm:w-auto sm:inline-flex items-center gap-0.5 rounded-lg p-0.5"
-      style={{ border: '1px solid rgba(243,239,228,0.18)', background: 'rgba(243,239,228,0.04)' }}
-    >
-      {themeOptions.map((o) => {
-        const active = value === o.value
-        return (
-          <button
-            key={o.value}
-            type="button"
-            role="radio"
-            aria-checked={active}
-            onClick={() => onChange(o.value)}
-            className="flex-1 sm:flex-none text-center px-3 sm:px-2.5 py-2 sm:py-1.5 font-mono uppercase tracking-[0.14em] text-[0.6rem] transition-colors rounded-md"
-            style={active ? { background: '#e6b23e', color: '#1f2417' } : { color: 'rgba(243,239,228,0.62)' }}
-          >
-            {o.label}
-          </button>
-        )
-      })}
-    </div>
-  )
-}
