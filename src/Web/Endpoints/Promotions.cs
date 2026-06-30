@@ -2,13 +2,11 @@ using Cookmate.Application.MealSuggestions.Common;
 using Cookmate.Application.Promotions.Commands.RefreshPromotions;
 using Cookmate.Application.Promotions.Commands.UpdatePromotionSchedule;
 using Cookmate.Application.Promotions.Commands.UpdateStorePromotionSetting;
-using Cookmate.Application.Promotions.Queries.GetPromoDishes;
 using Cookmate.Application.Promotions.Queries.GetPromoPeriods;
 using Cookmate.Application.Promotions.Queries.GetPromotions;
 using Cookmate.Application.Promotions.Queries.GetPromotionSchedule;
 using Cookmate.Application.Promotions.Queries.ListPromotionIntegrations;
 using Cookmate.Application.Promotions.Queries.ListPromotionRuns;
-using Cookmate.Application.Shopping.Commands.SetIngredientProductPreference;
 using Cookmate.Domain.Constants;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
@@ -16,10 +14,8 @@ using Microsoft.AspNetCore.Mvc;
 namespace Cookmate.Web.Endpoints;
 
 /// <summary>
-/// Promotions ("bonus") flow: refresh a store's current promos, browse them, find dishes from
-/// the suggestion pool you can make with the selected promos, and confirm a promo↔ingredient
-/// match (which the weekly cart then reuses). Planning a dish reuses the existing meal-plan
-/// endpoints; building the cart reuses the existing weekly-cart endpoint.
+/// Promotions ("bonus") flow: refresh a store's current promos and browse them (week filter +
+/// group drill-down). Adding promos to the cart and "what can I make" both live on the cart.
 /// </summary>
 public class Promotions : IEndpointGroup
 {
@@ -29,8 +25,6 @@ public class Promotions : IEndpointGroup
 
         groupBuilder.MapGet(ListPeriods, "{storeCode}/periods");
         groupBuilder.MapGet(ListPromotions, "{storeCode}");
-        groupBuilder.MapGet(GetDishes, "{storeCode}/dishes");
-        groupBuilder.MapPost(ConfirmMatch, "match/confirm");
 
         // Managing integrations (refresh, toggle, schedule, history) hits store APIs and writes
         // the shared cache/config — admin-gated like the meal-harvest management.
@@ -60,28 +54,6 @@ public class Promotions : IEndpointGroup
         return TypedResults.Ok(promos);
     }
 
-    [EndpointSummary("Dishes you can make from the selected promos")]
-    [EndpointDescription("Ranks suggestion-pool dishes by how many of their non-staple ingredients are covered by the selected promo SKUs (or all of the week's promos when none are selected).")]
-    public static async Task<Ok<IReadOnlyList<PromoDishDto>>> GetDishes(
-        ISender sender, string storeCode, [FromQuery] string[]? skus, [FromQuery] DateOnly? validFrom, int? limit)
-    {
-        var dishes = await sender.Send(new GetPromoDishesQuery
-        {
-            StoreCode = storeCode,
-            Skus = skus ?? [],
-            ValidFrom = validFrom,
-            Limit = limit ?? 24,
-        });
-        return TypedResults.Ok(dishes);
-    }
-
-    [EndpointSummary("Confirm a promo ↔ ingredient match")]
-    [EndpointDescription("Remembers that an ingredient name maps to a promo product, hardening the match and pre-filling the weekly cart. Reuses the shopping product-preference command.")]
-    public static async Task<NoContent> ConfirmMatch(ISender sender, [FromBody] SetIngredientProductPreferenceCommand command)
-    {
-        await sender.Send(command);
-        return TypedResults.NoContent();
-    }
 
     [EndpointSummary("Promotion integrations (admin)")]
     [EndpointDescription("Every store Cookmate can pull promotions from, with its enabled toggle, last-refresh telemetry, and cached promo count.")]

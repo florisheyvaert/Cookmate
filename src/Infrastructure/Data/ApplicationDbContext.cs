@@ -23,6 +23,8 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>, IApplica
 
     public DbSet<IgnoredIngredient> IgnoredIngredients => Set<IgnoredIngredient>();
 
+    public DbSet<ShoppingCartItem> ShoppingCartItems => Set<ShoppingCartItem>();
+
     public DbSet<MealEntry> MealEntries => Set<MealEntry>();
 
     public DbSet<SuggestionSource> SuggestionSources => Set<SuggestionSource>();

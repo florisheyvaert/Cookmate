@@ -17,10 +17,8 @@ import CookMode from '@/routes/CookMode'
 import Login from '@/routes/Login'
 import Setup from '@/routes/Setup'
 import Redeem from '@/routes/Redeem'
-import Shop from '@/routes/Shop'
-import ShopCart from '@/routes/ShopCart'
+import ShoppingCart from '@/routes/ShoppingCart'
 import Promos from '@/routes/Promos'
-import PromoMeals from '@/routes/PromoMeals'
 import Calendar from '@/routes/Calendar'
 import Settings from '@/routes/Settings'
 import MealSuggestions from '@/routes/MealSuggestions'
@@ -49,13 +47,16 @@ export default function App() {
                 {/* Member management now lives in Settings → Members. */}
                 <Route path="users" element={<Navigate to="/settings" replace />} />
                 <Route
-                  path="shop"
+                  path="shopping-cart"
                   element={
                     <RequireAuth>
-                      <Shop />
+                      <ShoppingCart />
                     </RequireAuth>
                   }
                 />
+                {/* Old shop routes fold into the unified cart. */}
+                <Route path="shop" element={<Navigate to="/shopping-cart" replace />} />
+                <Route path="shop/cart" element={<Navigate to="/shopping-cart" replace />} />
                 <Route
                   path="promos"
                   element={
@@ -64,22 +65,8 @@ export default function App() {
                     </RequireAuth>
                   }
                 />
-                <Route
-                  path="promos/meals"
-                  element={
-                    <RequireAuth>
-                      <PromoMeals />
-                    </RequireAuth>
-                  }
-                />
-                <Route
-                  path="shop/cart"
-                  element={
-                    <RequireAuth>
-                      <ShopCart />
-                    </RequireAuth>
-                  }
-                />
+                {/* Promo meal-matching moved into the cart's "what can I make". */}
+                <Route path="promos/meals" element={<Navigate to="/promos" replace />} />
                 <Route
                   path="settings"
                   element={

@@ -60,43 +60,6 @@ export type LinkIngredientByUrlInput = {
   defaultPackQuantity: number
 }
 
-export type RecipeSelection = {
-  recipeId: number
-  servings: number | null
-}
-
-// ── Weekly cart ──────────────────────────────────────────────────────────────
-export type CartItemDto = {
-  ingredientName: string
-  amount: number
-  unit: string
-  meals: string[]
-  // product (present when a preference exists for the ingredient)
-  sku: string | null
-  productName: string | null
-  imageUrl: string | null
-  packs: number | null
-  packSizeAmount: number | null
-  packSizeUnit: string | null
-}
-
-export type WeeklyCartDto = {
-  storeCode: string
-  storeDisplayName: string
-  toBuy: CartItemDto[]
-  probablyHave: CartItemDto[]
-  unmatched: CartItemDto[]
-  deeplink: string | null
-  truncated: boolean
-}
-
-export type SetPreferenceInput = {
-  storeCode: string
-  ingredientName: string
-  sku: string
-  defaultPackQuantity: number
-}
-
 export type DeeplinkItem = { sku: string; quantity: number }
 
 export type CartDeeplinkDto = {
@@ -129,26 +92,6 @@ export const shoppingApi = {
       `/api/Shopping/recipes/${recipeId}/${encodeURIComponent(storeCode)}${qs}`,
     )
   },
-
-  buildListDeeplink: (storeCode: string, selections: RecipeSelection[]) =>
-    api<ShoppingDeeplinkResultDto>(
-      `/api/Shopping/list/${encodeURIComponent(storeCode)}`,
-      { method: 'POST', json: { selections } },
-    ),
-
-  weeklyCart: (storeCode: string, from: string, to: string) =>
-    api<WeeklyCartDto>(
-      `/api/Shopping/cart/${encodeURIComponent(storeCode)}?from=${from}&to=${to}`,
-    ),
-
-  setPreference: (input: SetPreferenceInput) =>
-    api<void>('/api/Shopping/preferences', { method: 'POST', json: input }),
-
-  clearPreference: (storeCode: string, ingredientName: string) =>
-    api<void>(
-      `/api/Shopping/preferences?storeCode=${encodeURIComponent(storeCode)}&ingredientName=${encodeURIComponent(ingredientName)}`,
-      { method: 'DELETE' },
-    ),
 
   buildDeeplink: (storeCode: string, items: DeeplinkItem[]) =>
     api<CartDeeplinkDto>('/api/Shopping/deeplink', { method: 'POST', json: { storeCode, items } }),
