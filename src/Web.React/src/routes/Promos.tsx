@@ -132,7 +132,7 @@ export default function Promos() {
   }, [promos])
 
   return (
-    <div className="px-5 sm:px-6 md:px-12 lg:px-20 py-8 sm:py-12 pb-20 max-w-[1400px] mx-auto">
+    <div className="px-5 sm:px-6 md:px-12 lg:px-20 py-8 sm:py-12 pb-20">
       {/* ── Header ─────────────────────────────────────────────────────────── */}
       <header className="mb-8 sm:mb-10 max-w-xl">
         <p className="eyebrow text-paprika mb-2.5">{STORE_NAME} · Bonus folder</p>

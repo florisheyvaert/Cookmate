@@ -109,15 +109,14 @@ export default function Settings() {
   }
 
   return (
-    <div className="px-5 sm:px-6 md:px-12 lg:px-20 pt-14 md:pt-16 pb-24">
+    <div className="mx-auto w-full max-w-3xl px-5 sm:px-6 lg:px-8 pt-14 md:pt-16 pb-24">
       <PageHeader
         eyebrow="Cookbook · Settings"
         title="Settings"
         subtitle="Make Cookmate yours — appearance, shopping rules, and the sources it cooks from."
       />
 
-      <div className="max-w-3xl">
-        <SearchField value={query} onChange={setQuery} resultCount={visible.length} total={sections.length} />
+      <SearchField value={query} onChange={setQuery} resultCount={visible.length} total={sections.length} />
 
         {visible.length === 0 ? (
           <p className="mt-8 text-ink-soft leading-relaxed">
@@ -132,7 +131,6 @@ export default function Settings() {
             ))}
           </div>
         )}
-      </div>
     </div>
   )
 }
