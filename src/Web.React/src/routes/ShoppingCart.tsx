@@ -37,6 +37,8 @@ export default function ShoppingCart() {
   const [periodOpen, setPeriodOpen] = useState(false)
   const [showDishes, setShowDishes] = useState(false)
   const [sortMode, setSortMode] = useCartSort()
+  // The last line you removed — kept briefly so you can undo an accidental delete.
+  const [undo, setUndo] = useState<CartLine | null>(null)
 
   const storesQ = useQuery({ queryKey: ['shop-stores'], queryFn: () => shoppingApi.listStores() })
   const cartQ = useQuery({ queryKey: CART_KEY, queryFn: () => cartApi.get() })
@@ -126,6 +128,34 @@ export default function ShoppingCart() {
     })
     if (ok) clear.mutate()
   }
+
+  function handleRemove(line: CartLine) {
+    setUndo(line)
+    removeItem.mutate(line.id)
+  }
+
+  // Re-add the last removed line, restoring its quantity, link and source.
+  function handleUndo() {
+    if (!undo) return
+    const l = undo
+    setUndo(null)
+    addItem.mutate({
+      displayName: l.displayName,
+      storeCode: l.storeCode,
+      sku: l.sku,
+      imageUrl: l.imageUrl,
+      category: l.category,
+      quantity: l.quantity,
+      source: l.source,
+    })
+  }
+
+  // The undo offer fades on its own after a few seconds.
+  useEffect(() => {
+    if (!undo) return
+    const t = setTimeout(() => setUndo(null), 6000)
+    return () => clearTimeout(t)
+  }, [undo])
 
   const linkedForStore = items.filter((i) => i.isLinked && i.storeCode === storeCode).length
   const totalItems = items.reduce((n, i) => n + i.quantity, 0)
@@ -241,7 +271,7 @@ export default function ShoppingCart() {
                         busy={setQty.isPending}
                         onInc={() => setQty.mutate({ id: line.id, quantity: line.quantity + 1 })}
                         onDec={() => setQty.mutate({ id: line.id, quantity: line.quantity - 1 })}
-                        onRemove={() => removeItem.mutate(line.id)}
+                        onRemove={() => handleRemove(line)}
                         onLink={() => setSearch({ mode: 'link', line })}
                       />
                     ))}
@@ -254,24 +284,50 @@ export default function ShoppingCart() {
       )}
       </div>
 
-      {/* ── Checkout — sticks to the bottom while scrolling, never over the colophon ── */}
-      {items.length > 0 && (
-        <div className="sticky bottom-0 z-20 -mx-5 sm:-mx-6 lg:-mx-8 mt-4 px-5 sm:px-6 lg:px-8 pt-5 pb-4 bg-gradient-to-t from-cream via-cream to-transparent">
-          <div className="rounded-2xl border border-cream-shadow bg-cream-deep shadow-[0_-6px_24px_-12px_rgba(20,30,18,0.3)] p-3.5 sm:p-4 flex items-center justify-between gap-4">
-            <p className="font-mono text-[0.66rem] text-chestnut leading-tight">
-              <span className="num text-paprika text-base">{linkedForStore}</span> linked item{linkedForStore === 1 ? '' : 's'}
-              <span className="block text-[0.6rem] text-chestnut-soft">free text stays in your list</span>
-            </p>
-            <button
-              type="button"
-              onClick={() => sendDeeplink.mutate()}
-              disabled={linkedForStore === 0 || sendDeeplink.isPending}
-              className={btnPrimary + ' shrink-0 disabled:opacity-50'}
-              title={linkedForStore === 0 ? 'Link some products first' : undefined}
-            >
-              {sendDeeplink.isPending ? 'Opening…' : `Send to ${storeName} →`}
-            </button>
-          </div>
+      {/* ── Bottom dock: undo snackbar + checkout, sticky above the page bottom ── */}
+      {(undo || items.length > 0) && (
+        <div className="sticky bottom-0 z-20 -mx-5 sm:-mx-6 lg:-mx-8 mt-4 px-5 sm:px-6 lg:px-8 pt-5 pb-4 bg-gradient-to-t from-cream via-cream to-transparent space-y-2.5">
+          <AnimatePresence>
+            {undo && (
+              <motion.div
+                key="undo"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 10 }}
+                transition={{ duration: 0.2, ease }}
+                className="flex items-center justify-between gap-3 rounded-2xl bg-ink text-cream px-4 py-2.5 shadow-lg"
+              >
+                <span className="min-w-0 font-mono text-[0.66rem] tracking-[0.04em] text-cream/85 truncate">
+                  Removed <span className="text-cream">“{undo.displayName}”</span>
+                </span>
+                <button
+                  type="button"
+                  onClick={handleUndo}
+                  className="shrink-0 inline-flex items-center gap-1.5 rounded-lg bg-cream/15 hover:bg-cream/25 px-3 py-1.5 font-mono text-[0.64rem] uppercase tracking-[0.16em] text-cream transition-colors"
+                >
+                  <span aria-hidden>↩</span> Undo
+                </button>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {items.length > 0 && (
+            <div className="rounded-2xl border border-cream-shadow bg-cream-deep shadow-[0_-6px_24px_-12px_rgba(20,30,18,0.3)] p-3.5 sm:p-4 flex items-center justify-between gap-4">
+              <p className="font-mono text-[0.66rem] text-chestnut leading-tight">
+                <span className="num text-paprika text-base">{linkedForStore}</span> linked item{linkedForStore === 1 ? '' : 's'}
+                <span className="block text-[0.6rem] text-chestnut-soft">free text stays in your list</span>
+              </p>
+              <button
+                type="button"
+                onClick={() => sendDeeplink.mutate()}
+                disabled={linkedForStore === 0 || sendDeeplink.isPending}
+                className={btnPrimary + ' shrink-0 disabled:opacity-50'}
+                title={linkedForStore === 0 ? 'Link some products first' : undefined}
+              >
+                {sendDeeplink.isPending ? 'Opening…' : `Send to ${storeName} →`}
+              </button>
+            </div>
+          )}
         </div>
       )}
 
