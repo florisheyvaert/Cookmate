@@ -3,7 +3,6 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { AnimatePresence, motion } from 'motion/react'
 import { cartApi, type CartDish, type CartLine } from '@/api/shoppingCart'
 import { shoppingApi, type GroceryProductCandidateDto } from '@/api/shopping'
-import { PageHeader } from '@/components/PageHeader'
 import { PlanSuggestionDialog } from '@/components/PlanSuggestionDialog'
 import { Listbox, type ListboxOption } from '@/components/Listbox'
 import { CartSortToggle } from '@/components/CartSortToggle'
@@ -113,14 +112,38 @@ export default function ShoppingCart() {
   }
 
   const linkedForStore = items.filter((i) => i.isLinked && i.storeCode === storeCode).length
+  const totalItems = items.reduce((n, i) => n + i.quantity, 0)
 
   return (
-    <div className="px-5 sm:px-6 md:px-12 lg:px-20 pt-14 md:pt-16 pb-28 max-w-3xl">
-      <PageHeader
-        eyebrow="Cookbook · Shopping cart"
-        title="Shopping cart"
-        subtitle="One running basket. Add products or free text, pull in a week's plan, then see what you can cook from it."
-      />
+    // App-shell: centred column, at least a viewport tall (minus the sticky header), so the
+    // checkout can sit at the bottom without the page hugging the left edge.
+    <div className="mx-auto flex min-h-[calc(100dvh-3.75rem)] w-full max-w-3xl flex-col px-5 sm:px-6 lg:px-8 pt-10 md:pt-12">
+      {/* ── Masthead ────────────────────────────────────────────────────────── */}
+      <header className="mb-6">
+        <p className="eyebrow mb-2.5">Cookbook · Shopping cart</p>
+        <div className="flex items-end justify-between gap-4">
+          <h1
+            className="text-ink"
+            style={{ fontSize: 'clamp(2rem, 5vw, 3.1rem)', lineHeight: 1, fontWeight: 800, letterSpacing: '-0.035em' }}
+          >
+            Your{' '}
+            <span className="italic" style={{ fontFamily: 'var(--font-body)', color: 'var(--color-paprika)' }}>
+              basket
+            </span>
+          </h1>
+          {items.length > 0 && (
+            <span className="shrink-0 text-right leading-none">
+              <span className="block num text-2xl text-paprika">{totalItems}</span>
+              <span className="mt-1 block font-mono text-[0.54rem] uppercase tracking-[0.16em] text-chestnut-soft">
+                item{totalItems === 1 ? '' : 's'}
+              </span>
+            </span>
+          )}
+        </div>
+        <p className="mt-3 text-ink-soft leading-relaxed" style={{ fontFamily: 'var(--font-body)' }}>
+          One running basket — add anything, pull in a week's plan, then see what you can cook.
+        </p>
+      </header>
 
       {/* ── Add bar ─────────────────────────────────────────────────────────── */}
       <form onSubmit={addFreeText} className="flex flex-col sm:flex-row sm:items-end gap-3 mb-5">
@@ -160,13 +183,15 @@ export default function ShoppingCart() {
         )}
       </div>
 
-      {/* ── Cart list ───────────────────────────────────────────────────────── */}
+      {/* ── Cart body (grows to fill; the checkout sticks to its bottom) ─────── */}
+      <div className={items.length === 0 ? 'flex-1 grid place-items-center' : 'flex-1'}>
       {cartQ.isPending ? (
         <p className="font-mono text-[0.7rem] text-chestnut-soft">Loading…</p>
       ) : items.length === 0 ? (
-        <div className="border border-dashed border-cream-shadow rounded-2xl px-8 py-12 text-center">
+        <div className="max-w-sm mx-auto border border-dashed border-cream-shadow rounded-2xl px-8 py-12 text-center">
+          <p className="text-3xl mb-3" aria-hidden>🧺</p>
           <p className="text-ink-soft text-lg leading-relaxed" style={{ fontFamily: 'var(--font-body)' }}>
-            Your cart is empty. Add a product, type something free-hand, or pull in a week from your plan.
+            Your basket is empty. Add a product, type something free-hand, or pull in a week from your plan.
           </p>
         </div>
       ) : (
@@ -226,6 +251,28 @@ export default function ShoppingCart() {
           </AnimatePresence>
         </div>
       )}
+      </div>
+
+      {/* ── Checkout — sticks to the bottom while scrolling, never over the colophon ── */}
+      {items.length > 0 && (
+        <div className="sticky bottom-0 z-20 -mx-5 sm:-mx-6 lg:-mx-8 mt-4 px-5 sm:px-6 lg:px-8 pt-5 pb-4 bg-gradient-to-t from-cream via-cream to-transparent">
+          <div className="rounded-2xl border border-cream-shadow bg-cream-deep shadow-[0_-6px_24px_-12px_rgba(20,30,18,0.3)] p-3.5 sm:p-4 flex items-center justify-between gap-4">
+            <p className="font-mono text-[0.66rem] text-chestnut leading-tight">
+              <span className="num text-paprika text-base">{linkedForStore}</span> linked item{linkedForStore === 1 ? '' : 's'}
+              <span className="block text-[0.6rem] text-chestnut-soft">free text stays in your list</span>
+            </p>
+            <button
+              type="button"
+              onClick={() => sendDeeplink.mutate()}
+              disabled={linkedForStore === 0 || sendDeeplink.isPending}
+              className={btnPrimary + ' shrink-0 disabled:opacity-50'}
+              title={linkedForStore === 0 ? 'Link some products first' : undefined}
+            >
+              {sendDeeplink.isPending ? 'Opening…' : `Send to ${storeName} →`}
+            </button>
+          </div>
+        </div>
+      )}
 
       {search != null && (
         <ProductSearchDialog
@@ -246,27 +293,6 @@ export default function ShoppingCart() {
         onClose={() => setPeriodOpen(false)}
         onConfirm={(from, to) => addPeriod.mutate({ from, to })}
       />
-
-      {/* ── Checkout footer — fixed to the bottom of the page ────────────────── */}
-      {items.length > 0 && (
-        <div className="fixed inset-x-0 bottom-0 z-30 px-5 sm:px-6 md:px-12 lg:px-20 pb-4 pointer-events-none">
-          <div className="max-w-3xl pointer-events-auto rounded-2xl border border-cream-shadow bg-cream/95 backdrop-blur shadow-[0_-8px_30px_-12px_rgba(20,30,18,0.25)] p-3.5 sm:p-4 flex items-center justify-between gap-4">
-            <p className="font-mono text-[0.66rem] text-chestnut leading-tight">
-              <span className="num text-paprika text-base">{linkedForStore}</span> linked item{linkedForStore === 1 ? '' : 's'}
-              <span className="block text-[0.6rem] text-chestnut-soft">free text stays in your list</span>
-            </p>
-            <button
-              type="button"
-              onClick={() => sendDeeplink.mutate()}
-              disabled={linkedForStore === 0 || sendDeeplink.isPending}
-              className={btnPrimary + ' shrink-0 disabled:opacity-50'}
-              title={linkedForStore === 0 ? 'Link some products first' : undefined}
-            >
-              {sendDeeplink.isPending ? 'Opening…' : `Send to ${storeName} →`}
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   )
 }

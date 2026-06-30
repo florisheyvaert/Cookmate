@@ -237,7 +237,7 @@ function Highlight({ text, terms }: { text: string; terms: string[] }) {
     <>
       {parts.map((part, i) =>
         part && isHit.test(part) ? (
-          <mark key={i} className="rounded-[0.2em] bg-paprika/20 text-paprika-deep px-0.5">
+          <mark key={i} className="rounded-[0.2em] bg-yellow-300 text-ink px-0.5">
             {part}
           </mark>
         ) : (
