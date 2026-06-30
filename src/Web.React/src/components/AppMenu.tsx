@@ -23,7 +23,7 @@ const chapters = [
   { to: '/recipes', label: 'Recipes', numeral: 'I' },
   { to: '/suggestions', label: 'Ideas', numeral: 'II' },
   { to: '/promos', label: 'Promos', numeral: 'III' },
-  { to: '/shop', label: 'Shop', numeral: 'IV' },
+  { to: '/shopping-cart', label: 'Cart', numeral: 'IV' },
   { to: '/settings', label: 'Settings', numeral: 'V' },
   // Meal planning now lives on the home page; Pantry is hidden until it works.
   // Theme + member management live inside Settings.

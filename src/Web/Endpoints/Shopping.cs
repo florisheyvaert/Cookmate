@@ -9,8 +9,6 @@ using Cookmate.Application.Shopping.Common;
 using Cookmate.Application.Shopping.Queries.BuildDeeplinkFromItems;
 using Cookmate.Application.Shopping.Queries.ListIgnoredIngredients;
 using Cookmate.Application.Shopping.Queries.BuildRecipeShoppingDeeplink;
-using Cookmate.Application.Shopping.Queries.BuildShoppingListDeeplink;
-using Cookmate.Application.Shopping.Queries.GetWeeklyCart;
 using Cookmate.Application.Shopping.Queries.ListGroceryStores;
 using Cookmate.Application.Shopping.Queries.SearchGroceryProducts;
 using Microsoft.AspNetCore.Http.HttpResults;
@@ -32,10 +30,8 @@ public class Shopping : IEndpointGroup
         groupBuilder.MapDelete(UnlinkIngredient, "links/{linkId:int}");
 
         groupBuilder.MapGet(BuildRecipeDeeplink, "recipes/{recipeId:int}/{storeCode}");
-        groupBuilder.MapPost(BuildListDeeplink, "list/{storeCode}");
 
-        // Weekly cart (from the meal plan) + name→product preferences.
-        groupBuilder.MapGet(GetWeeklyCart, "cart/{storeCode}");
+        // Name→product preferences feed the cart's "add a week" import.
         groupBuilder.MapPost(SetPreference, "preferences");
         groupBuilder.MapDelete(ClearPreference, "preferences");
         groupBuilder.MapPost(BuildDeeplink, "deeplink");
@@ -43,14 +39,6 @@ public class Shopping : IEndpointGroup
         groupBuilder.MapGet(ListIgnored, "ignored");
         groupBuilder.MapPost(AddIgnored, "ignored");
         groupBuilder.MapDelete(RemoveIgnored, "ignored");
-    }
-
-    [EndpointSummary("Build the weekly shopping cart from the meal plan")]
-    [EndpointDescription("Aggregates the ingredients of every meal planned in [from, to] (recipes scaled by servings + planned suggestions), sums needed amounts before computing pack counts, and splits into to-buy / probably-in-stock / unmatched.")]
-    public static async Task<Ok<WeeklyCartDto>> GetWeeklyCart(ISender sender, string storeCode, DateOnly from, DateOnly to)
-    {
-        var cart = await sender.Send(new GetWeeklyCartQuery { StoreCode = storeCode, From = from, To = to });
-        return TypedResults.Ok(cart);
     }
 
     [EndpointSummary("Remember the product for an ingredient name")]
@@ -149,30 +137,4 @@ public class Shopping : IEndpointGroup
         return TypedResults.Ok(result);
     }
 
-    [EndpointSummary("Build a consolidated deeplink across multiple recipes")]
-    public static async Task<Ok<ShoppingDeeplinkResultDto>> BuildListDeeplink(
-        ISender sender, string storeCode, [FromBody] BuildShoppingListBody body)
-    {
-        var result = await sender.Send(new BuildShoppingListDeeplinkQuery
-        {
-            StoreCode = storeCode,
-            Selections = body.Selections.Select(s => new RecipeSelection
-            {
-                RecipeId = s.RecipeId,
-                Servings = s.Servings,
-            }).ToArray(),
-        });
-        return TypedResults.Ok(result);
-    }
-}
-
-public record BuildShoppingListBody
-{
-    public IReadOnlyList<BuildShoppingListSelection> Selections { get; init; } = [];
-}
-
-public record BuildShoppingListSelection
-{
-    public int RecipeId { get; init; }
-    public int? Servings { get; init; }
 }
