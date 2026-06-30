@@ -264,7 +264,7 @@ function WeekTabs({
   onPick: (validFrom: string | null) => void
 }) {
   return (
-    <nav aria-label="Bonus week" className="flex flex-wrap gap-2.5 mb-10 sm:mb-12">
+    <nav aria-label="Bonus week" className="flex gap-2.5 mb-10 sm:mb-12 max-w-md">
       {periods.map((p) => {
         const isActive = p.validFrom === active
         return (
@@ -274,7 +274,7 @@ function WeekTabs({
             onClick={() => onPick(p.validFrom)}
             aria-pressed={isActive}
             className={[
-              'flex flex-col items-start rounded-xl border px-4 py-2.5 text-left transition-colors',
+              'flex flex-1 basis-0 min-w-0 flex-col items-start rounded-xl border px-4 py-2.5 text-left transition-colors',
               isActive
                 ? 'border-paprika bg-paprika text-cream shadow-sm'
                 : 'border-cream-shadow bg-cream text-ink hover:border-paprika/55',
