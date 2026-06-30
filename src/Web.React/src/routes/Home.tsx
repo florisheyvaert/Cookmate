@@ -10,10 +10,12 @@ import { DayPlannerDialog } from '@/components/DayPlannerDialog'
 import { useSwipe } from '@/lib/useSwipe'
 import { useMediaQuery } from '@/lib/useMediaQuery'
 import { suggestionsApi } from '@/api/suggestions'
+import { promotionsApi } from '@/api/promotions'
 import { formatDuration } from '@/lib/format'
 import type { RecipeSummaryDto } from '@/api/types'
 
 const ease = [0.22, 1, 0.36, 1] as const
+const euro = new Intl.NumberFormat('nl-NL', { style: 'currency', currency: 'EUR' })
 
 // Shared button styles — Bricolage, sentence-case, soft corners. Hierarchy by
 // weight (solid green = primary, solid ink = strongest, outline = secondary).
@@ -97,6 +99,8 @@ function SignedInHome() {
       {featured && <FeaturedCard recipe={featured} />}
 
       <SuggestedThisWeek />
+
+      <HomePromos />
 
       {recent.length > 0 && <FromTheShelf recipes={recent} />}
 
@@ -202,10 +206,13 @@ function Planner() {
         </div>
         <div className="flex items-center gap-2.5 sm:gap-3 flex-wrap">
           <Link to="/suggestions" className={`${btnGreen} whitespace-nowrap`}>
-            🥗 This week&rsquo;s ideas →
+            🥗 Meal ideas →
           </Link>
-          <Link to="/shop" className={`${btnGoldGhost} whitespace-nowrap`}>
-            🛒 Shop the week →
+          <Link to="/shopping-cart" className={`${btnGoldGhost} whitespace-nowrap`}>
+            🛒 Shopping cart →
+          </Link>
+          <Link to="/promos" className={`${btnGoldGhost} whitespace-nowrap`}>
+            🏷️ Promos →
           </Link>
           <Link to="/calendar" className={`${btnGoldGhost} whitespace-nowrap`}>
             🗓️ Calendar →
@@ -503,6 +510,70 @@ function SuggestedThisWeek() {
   )
 }
 
+// ── Featured promos (this week's bonus) ─────────────────────────────────────
+
+function HomePromos() {
+  const promosQ = useQuery({
+    queryKey: ['promotions', 'ah', 'home'],
+    queryFn: () => promotionsApi.list('ah'),
+    staleTime: 5 * 60_000,
+  })
+  const promos = (promosQ.data ?? []).slice(0, 6)
+  // Stay out of the way until the bonus is loaded.
+  if (!promosQ.isSuccess || promos.length === 0) return null
+
+  return (
+    <section className="mb-20 md:mb-28">
+      <SectionHeader title="In the bonus" caption="Shop promos" to="/promos" />
+
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+        {promos.map((p, i) => (
+          <motion.div
+            key={p.sku}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 + i * 0.04, duration: 0.4, ease }}
+          >
+            <Link
+              to="/promos"
+              className="group flex h-full flex-col rounded-xl border border-cream-shadow bg-cream-deep overflow-hidden no-underline hover:border-paprika/50 transition-colors"
+            >
+              <span className="aspect-square bg-cream-shadow/20 grid place-items-center overflow-hidden">
+                {p.imageUrl ? (
+                  <img
+                    src={p.imageUrl}
+                    alt=""
+                    loading="lazy"
+                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.04]"
+                  />
+                ) : (
+                  <span aria-hidden className="text-2xl leading-none opacity-30">🛒</span>
+                )}
+              </span>
+              <span className="p-2.5 flex flex-1 flex-col gap-1">
+                <span
+                  className="text-ink text-[0.82rem] leading-tight line-clamp-2 group-hover:text-paprika transition-colors"
+                  style={{ fontWeight: 600 }}
+                >
+                  {p.name}
+                </span>
+                <span className="mt-auto flex items-center flex-wrap gap-x-1.5 gap-y-1 pt-1">
+                  {p.discountLabel && (
+                    <span className="rounded bg-butter text-ink px-1.5 py-0.5 font-display font-bold text-[0.66rem] leading-none">
+                      {p.discountLabel}
+                    </span>
+                  )}
+                  {p.promoPrice != null && <span className="num text-paprika text-sm">{euro.format(p.promoPrice)}</span>}
+                </span>
+              </span>
+            </Link>
+          </motion.div>
+        ))}
+      </div>
+    </section>
+  )
+}
+
 function FromTheShelf({ recipes }: { recipes: RecipeSummaryDto[] }) {
   return (
     <section className="mb-20 md:mb-28">
@@ -557,7 +628,7 @@ const closerTiles = [
   { to: '/recipes/new', icon: '🌱', title: 'Add a recipe', caption: 'Paste a link or write your own' },
   { to: '/calendar', icon: '🗓️', title: 'Open the calendar', caption: 'Plan any day, browse the month' },
   { to: '/suggestions', icon: '🥗', title: 'Browse ideas', caption: 'Fresh picks from your sources' },
-  { to: '/shop', icon: '🛒', title: 'Build a shop', caption: 'A week of meals, one basket' },
+  { to: '/shopping-cart', icon: '🛒', title: 'Shopping cart', caption: 'Your one running basket' },
 ]
 
 const closerTileClass =

@@ -33,7 +33,6 @@ export default function ShoppingCart() {
   const qc = useQueryClient()
   const confirm = useConfirm()
   const [storeCode, setStoreCode] = useState('ah')
-  const [draft, setDraft] = useState('')
   const [search, setSearch] = useState<{ mode: 'add' } | { mode: 'link'; line: CartLine } | null>(null)
   const [periodOpen, setPeriodOpen] = useState(false)
   const [showDishes, setShowDishes] = useState(false)
@@ -100,11 +99,12 @@ export default function ShoppingCart() {
     },
   })
 
-  function addFreeText(e: React.FormEvent) {
-    e.preventDefault()
-    const name = draft.trim()
+  // Free-text add, driven by the "Add '<query>'" row inside the search dialog.
+  function addText(text: string) {
+    const name = text.trim()
     if (!name) return
-    addItem.mutate({ displayName: name }, { onSuccess: () => setDraft('') })
+    addItem.mutate({ displayName: name })
+    setSearch(null)
   }
 
   function onPick(p: GroceryProductCandidateDto) {
@@ -162,112 +162,95 @@ export default function ShoppingCart() {
         </p>
       </header>
 
-      {/* ── Add bar ─────────────────────────────────────────────────────────── */}
-      <form onSubmit={addFreeText} className="flex flex-col sm:flex-row sm:items-end gap-3 mb-5">
-        <label className="block flex-1">
-          <span className="eyebrow block mb-1.5">Add to cart</span>
-          <input
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            placeholder="Type anything — e.g. aluminiumfolie"
-            className="w-full bg-transparent border-0 border-b-2 border-cream-shadow focus:border-paprika focus:outline-none py-2 text-sm text-ink transition-colors"
-          />
-        </label>
-        <div className="flex gap-2 shrink-0">
-          <button type="submit" disabled={!draft.trim() || addItem.isPending} className={btnPrimary}>
-            Add text
-          </button>
-          <button type="button" onClick={() => setSearch({ mode: 'add' })} className={btnGhostSm}>
-            🔍 Search
-          </button>
-        </div>
-      </form>
-
-      {/* ── Toolbar ─────────────────────────────────────────────────────────── */}
-      <div className="flex flex-wrap items-center gap-2.5 mb-7">
-        <button type="button" onClick={() => setPeriodOpen(true)} className={btnGhostSm}>
+      {/* ── Actions ──────────────────────────────────────────────────────────── */}
+      <button type="button" onClick={() => setSearch({ mode: 'add' })} className={btnPrimary + ' w-full justify-center py-3'}>
+        + Add product
+      </button>
+      <div className="mt-2.5 grid grid-cols-2 gap-2.5">
+        <button type="button" onClick={() => setPeriodOpen(true)} className={btnGhostSm + ' justify-center'}>
           + Add my meal plan
         </button>
-        {items.length > 1 && <CartSortToggle mode={sortMode} onChange={setSortMode} />}
-        {items.length > 0 && (
-          <button
-            type="button"
-            onClick={onClear}
-            className="ml-auto font-mono text-[0.62rem] uppercase tracking-[0.16em] text-chestnut hover:text-red-600 transition-colors"
-          >
-            Empty cart
-          </button>
-        )}
+        <button
+          type="button"
+          onClick={() => setShowDishes((v) => !v)}
+          aria-expanded={showDishes}
+          className={btnGhostSm + ' justify-center'}
+        >
+          🍳 {showDishes ? 'Hide dishes' : 'What can I make?'}
+        </button>
       </div>
 
+      {/* What can I make — reveals right under the actions */}
+      <AnimatePresence initial={false}>
+        {showDishes && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.25, ease }}
+            className="overflow-hidden"
+          >
+            <WhatCanIMake />
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* ── Cart body (grows to fill; the checkout sticks to its bottom) ─────── */}
-      <div className={items.length === 0 ? 'flex-1 grid place-items-center' : 'flex-1'}>
+      <div className={items.length === 0 ? 'mt-7 flex-1 grid place-items-center' : 'mt-7 flex-1'}>
       {cartQ.isPending ? (
         <p className="font-mono text-[0.7rem] text-chestnut-soft">Loading…</p>
       ) : items.length === 0 ? (
         <div className="max-w-sm mx-auto border border-dashed border-cream-shadow rounded-2xl px-8 py-12 text-center">
           <p className="text-3xl mb-3" aria-hidden>🧺</p>
           <p className="text-ink-soft text-lg leading-relaxed" style={{ fontFamily: 'var(--font-body)' }}>
-            Your basket is empty. Add a product, type something free-hand, or pull in a week from your plan.
+            Your basket is empty. Add a product, pull in a week from your plan, or just type something with “Add product”.
           </p>
         </div>
       ) : (
-        <div className="space-y-6">
-          {(sortMode === 'category' ? groupByCategory(items) : [{ category: '', items: sortAZ(items) }]).map((group) => (
-            <section key={group.category || 'all'}>
-              {sortMode === 'category' && items.length > 1 && (
-                <div className="flex items-baseline gap-2.5 mb-2.5">
-                  <h2 className="eyebrow text-ink">{group.category}</h2>
-                  <span className="num text-chestnut-soft text-xs">{group.items.length}</span>
-                  <span className="flex-1 h-px bg-cream-shadow" />
-                </div>
-              )}
-              <ul className="space-y-2.5">
-                <AnimatePresence initial={false}>
-                  {group.items.map((line) => (
-                    <CartRow
-                      key={line.id}
-                      line={line}
-                      isMobile={isMobile}
-                      busy={setQty.isPending}
-                      onInc={() => setQty.mutate({ id: line.id, quantity: line.quantity + 1 })}
-                      onDec={() => setQty.mutate({ id: line.id, quantity: line.quantity - 1 })}
-                      onRemove={() => removeItem.mutate(line.id)}
-                      onLink={() => setSearch({ mode: 'link', line })}
-                    />
-                  ))}
-                </AnimatePresence>
-              </ul>
-            </section>
-          ))}
-        </div>
-      )}
-
-      {/* ── What can I make ─────────────────────────────────────────────────── */}
-      {items.length > 0 && (
-        <div className="mt-10">
-          <button
-            type="button"
-            onClick={() => setShowDishes((v) => !v)}
-            className={btnGhostSm}
-            aria-expanded={showDishes}
-          >
-            🍳 {showDishes ? 'Hide dishes' : 'What can I make?'}
-          </button>
-          <AnimatePresence initial={false}>
-            {showDishes && (
-              <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
-                exit={{ opacity: 0, height: 0 }}
-                transition={{ duration: 0.25, ease }}
-                className="overflow-hidden"
-              >
-                <WhatCanIMake />
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
+        <>
+          <div className="flex items-center gap-3 mb-4">
+            <h2 className="eyebrow text-ink">
+              In your cart <span className="text-chestnut-soft">· {totalItems}</span>
+            </h2>
+            {items.length > 1 && <CartSortToggle mode={sortMode} onChange={setSortMode} size="sm" />}
+            <button
+              type="button"
+              onClick={onClear}
+              className="ml-auto font-mono text-[0.62rem] uppercase tracking-[0.16em] text-chestnut hover:text-red-600 transition-colors"
+            >
+              Empty cart
+            </button>
+          </div>
+          <div className="space-y-6">
+            {(sortMode === 'category' ? groupByCategory(items) : [{ category: '', items: sortAZ(items) }]).map((group) => (
+              <section key={group.category || 'all'}>
+                {sortMode === 'category' && items.length > 1 && (
+                  <div className="flex items-baseline gap-2.5 mb-2.5">
+                    <h3 className="eyebrow text-ink">{group.category}</h3>
+                    <span className="num text-chestnut-soft text-xs">{group.items.length}</span>
+                    <span className="flex-1 h-px bg-cream-shadow" />
+                  </div>
+                )}
+                <ul className="space-y-2.5">
+                  <AnimatePresence initial={false}>
+                    {group.items.map((line) => (
+                      <CartRow
+                        key={line.id}
+                        line={line}
+                        isMobile={isMobile}
+                        busy={setQty.isPending}
+                        onInc={() => setQty.mutate({ id: line.id, quantity: line.quantity + 1 })}
+                        onDec={() => setQty.mutate({ id: line.id, quantity: line.quantity - 1 })}
+                        onRemove={() => removeItem.mutate(line.id)}
+                        onLink={() => setSearch({ mode: 'link', line })}
+                      />
+                    ))}
+                  </AnimatePresence>
+                </ul>
+              </section>
+            ))}
+          </div>
+        </>
       )}
       </div>
 
@@ -296,7 +279,8 @@ export default function ShoppingCart() {
         <ProductSearchDialog
           storeCode={storeCode}
           heading={search.mode === 'link' ? `Link "${search.line.displayName}"` : 'Add a product'}
-          initialQuery={search.mode === 'link' ? search.line.displayName : draft}
+          initialQuery={search.mode === 'link' ? search.line.displayName : ''}
+          onAddText={search.mode === 'add' ? addText : undefined}
           onPick={onPick}
           onClose={() => setSearch(null)}
         />
@@ -528,17 +512,21 @@ function ProductSearchDialog({
   storeCode,
   heading,
   initialQuery,
+  onAddText,
   onPick,
   onClose,
 }: {
   storeCode: string
   heading: string
-  /** Seeds the search box (e.g. the text you typed in "Add to cart"). Mounted fresh per open. */
+  /** Seeds the search box. Mounted fresh per open. */
   initialQuery: string
+  /** When set (add mode), the first row lets you add whatever you typed as free text. */
+  onAddText?: (text: string) => void
   onPick: (p: GroceryProductCandidateDto) => void
   onClose: () => void
 }) {
   const [q, setQ] = useState(initialQuery)
+  const trimmed = q.trim()
   const searchQ = useQuery({
     queryKey: ['product-search', storeCode, q],
     queryFn: () => shoppingApi.searchProducts(storeCode, q),
@@ -569,13 +557,32 @@ function ProductSearchDialog({
             />
           </div>
         </header>
-        <div className="overflow-y-auto px-4 sm:px-6 py-5">
-          {q.trim().length < 2 ? (
-            <p className="px-2 py-10 text-center font-mono text-[0.66rem] text-chestnut-soft">Type at least 2 letters.</p>
+        <div className="overflow-y-auto px-4 sm:px-6 py-5 space-y-4">
+          {/* Free-text add — always the first option, so you can add anything you type. */}
+          {onAddText && trimmed.length > 0 && (
+            <button
+              type="button"
+              onClick={() => onAddText(trimmed)}
+              className="w-full flex items-center gap-3 rounded-2xl border border-paprika/40 bg-paprika/8 px-4 py-3 text-left hover:bg-paprika/15 transition-colors"
+            >
+              <span className="shrink-0 w-9 h-9 rounded-full bg-paprika text-cream grid place-items-center text-lg leading-none">+</span>
+              <span className="min-w-0 flex-1">
+                <span className="block font-display text-ink leading-tight" style={{ fontWeight: 600 }}>
+                  Add “<span className="text-paprika-deep">{trimmed}</span>” to your cart
+                </span>
+                <span className="block font-mono text-[0.54rem] uppercase tracking-[0.12em] text-chestnut-soft mt-0.5">as free text</span>
+              </span>
+            </button>
+          )}
+
+          {trimmed.length < 2 ? (
+            <p className="px-2 py-8 text-center font-mono text-[0.66rem] text-chestnut-soft">
+              {onAddText ? 'Type a product name — or add whatever you type as free text.' : 'Type at least 2 letters.'}
+            </p>
           ) : searchQ.isPending ? (
-            <p className="px-2 py-10 text-center font-mono text-[0.66rem] text-chestnut-soft">Searching…</p>
+            <p className="px-2 py-8 text-center font-mono text-[0.66rem] text-chestnut-soft">Searching products…</p>
           ) : results.length === 0 ? (
-            <p className="px-2 py-10 text-center font-mono text-[0.66rem] text-chestnut-soft">No products found.</p>
+            <p className="px-2 py-8 text-center font-mono text-[0.66rem] text-chestnut-soft">No matching products.</p>
           ) : (
             <ul className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
               {results.map((p) => (
