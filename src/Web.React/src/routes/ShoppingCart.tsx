@@ -482,38 +482,62 @@ function ProductSearchDialog({
         animate={{ y: 0, opacity: 1 }}
         transition={{ type: 'spring', stiffness: 340, damping: 32 }}
         onClick={(e) => e.stopPropagation()}
-        className="w-full sm:max-w-lg max-h-[85vh] flex flex-col bg-cream rounded-t-3xl sm:rounded-2xl border border-cream-shadow overflow-hidden shadow-2xl shadow-ink/25"
+        className="w-full sm:max-w-2xl max-h-[88vh] flex flex-col bg-cream rounded-t-3xl sm:rounded-2xl border border-cream-shadow overflow-hidden shadow-2xl shadow-ink/25"
       >
-        <header className="shrink-0 px-5 py-4 border-b border-cream-shadow">
-          <p className="eyebrow text-paprika mb-2">{heading}</p>
-          <input
-            autoFocus
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            placeholder="Search products…"
-            className="w-full bg-transparent border-0 border-b-2 border-cream-shadow focus:border-paprika focus:outline-none py-2 text-ink transition-colors"
-          />
+        <header className="shrink-0 px-5 sm:px-6 py-4 sm:py-5 border-b border-cream-shadow">
+          <p className="eyebrow text-paprika mb-2.5">{heading}</p>
+          <div className="flex items-center gap-2.5 border-b-2 border-cream-shadow focus-within:border-paprika transition-colors">
+            <span aria-hidden className="text-chestnut-soft text-lg leading-none">🔍</span>
+            <input
+              autoFocus
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder="Search products…"
+              className="w-full bg-transparent border-0 focus:outline-none py-2 text-ink text-lg"
+            />
+          </div>
         </header>
-        <div className="overflow-y-auto px-3 py-3">
+        <div className="overflow-y-auto px-4 sm:px-6 py-5">
           {q.trim().length < 2 ? (
-            <p className="px-2 py-6 text-center font-mono text-[0.66rem] text-chestnut-soft">Type at least 2 letters.</p>
+            <p className="px-2 py-10 text-center font-mono text-[0.66rem] text-chestnut-soft">Type at least 2 letters.</p>
           ) : searchQ.isPending ? (
-            <p className="px-2 py-6 text-center font-mono text-[0.66rem] text-chestnut-soft">Searching…</p>
+            <p className="px-2 py-10 text-center font-mono text-[0.66rem] text-chestnut-soft">Searching…</p>
           ) : results.length === 0 ? (
-            <p className="px-2 py-6 text-center font-mono text-[0.66rem] text-chestnut-soft">No products found.</p>
+            <p className="px-2 py-10 text-center font-mono text-[0.66rem] text-chestnut-soft">No products found.</p>
           ) : (
-            <ul className="divide-y divide-cream-shadow">
+            <ul className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
               {results.map((p) => (
                 <li key={p.sku}>
-                  <button type="button" onClick={() => onPick(p)} className="w-full flex items-center gap-3 py-2.5 px-2 text-left hover:bg-cream-deep rounded-lg transition-colors">
-                    <span className="shrink-0 w-12 h-12 rounded-lg overflow-hidden border border-cream-shadow bg-cream-deep grid place-items-center">
-                      {p.imageUrl ? <img src={p.imageUrl} alt="" loading="lazy" className="w-full h-full object-cover" /> : <span aria-hidden className="opacity-40">🛒</span>}
+                  <button
+                    type="button"
+                    onClick={() => onPick(p)}
+                    className="group w-full h-full flex flex-col text-left rounded-2xl border border-cream-shadow bg-cream overflow-hidden hover:border-paprika/60 transition-colors"
+                  >
+                    <span className="relative aspect-square bg-cream-deep grid place-items-center overflow-hidden">
+                      {p.imageUrl ? (
+                        <img src={p.imageUrl} alt="" loading="lazy" className="w-full h-full object-cover" />
+                      ) : (
+                        <span aria-hidden className="text-3xl opacity-30">🛒</span>
+                      )}
+                      <span
+                        aria-hidden
+                        className="absolute bottom-2 right-2 w-8 h-8 rounded-full bg-paprika text-cream grid place-items-center text-lg leading-none shadow-md opacity-0 translate-y-1 group-hover:opacity-100 group-hover:translate-y-0 transition-all"
+                      >
+                        +
+                      </span>
                     </span>
-                    <span className="min-w-0 flex-1">
-                      <span className="block font-display text-ink leading-tight line-clamp-2" style={{ fontWeight: 600, fontSize: '0.92rem' }}>{p.name}</span>
-                      {p.packSizeUnit && <span className="block font-mono text-[0.56rem] uppercase tracking-[0.1em] text-chestnut-soft mt-0.5">{p.packSizeAmount > 0 ? `${p.packSizeAmount} ` : ''}{p.packSizeUnit}</span>}
+                    <span className="flex-1 flex flex-col gap-1 p-3">
+                      <span className="font-display text-ink leading-tight line-clamp-2" style={{ fontWeight: 600, fontSize: '0.9rem' }}>
+                        {p.name}
+                      </span>
+                      {p.packSizeUnit && (
+                        <span className="font-mono text-[0.56rem] uppercase tracking-[0.1em] text-chestnut-soft">
+                          {p.packSizeAmount > 0 ? `${p.packSizeAmount} ` : ''}
+                          {p.packSizeUnit}
+                        </span>
+                      )}
+                      {p.unitPrice != null && <span className="num text-paprika text-base mt-auto pt-1">{euro.format(p.unitPrice)}</span>}
                     </span>
-                    {p.unitPrice != null && <span className="num text-paprika text-sm shrink-0">{euro.format(p.unitPrice)}</span>}
                   </button>
                 </li>
               ))}
