@@ -4,12 +4,17 @@ export type PromotionDto = {
   sku: string
   name: string
   brandOrSubtitle: string | null
+  category: string | null
   imageUrl: string | null
   packSize: string | null
   originalPrice: number | null
   promoPrice: number | null
   discountLabel: string | null
   currency: string | null
+  /** Link to the product/deal on ah.be (member products only). */
+  canonicalUrl: string | null
+  /** Number of member products in this group (0 for a standalone promo or a member row). */
+  productCount: number
   /** ISO date yyyy-MM-dd, or null. */
   validFrom: string | null
   validTo: string | null
@@ -57,6 +62,13 @@ export const promotionsApi = {
   list: (storeCode: string, validFrom?: string | null) => {
     const qs = validFrom ? `?validFrom=${encodeURIComponent(validFrom)}` : ''
     return api<PromotionDto[]>(`/api/Promotions/${encodeURIComponent(storeCode)}${qs}`)
+  },
+
+  /** The member products inside a bonus group (the drill-down view). */
+  groupProducts: (storeCode: string, groupSku: string, validFrom?: string | null) => {
+    const qs = new URLSearchParams({ groupSku })
+    if (validFrom) qs.set('validFrom', validFrom)
+    return api<PromotionDto[]>(`/api/Promotions/${encodeURIComponent(storeCode)}?${qs.toString()}`)
   },
 
   dishes: (storeCode: string, skus: string[], validFrom?: string | null, limit = 24) => {

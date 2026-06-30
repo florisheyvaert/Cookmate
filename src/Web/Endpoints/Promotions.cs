@@ -39,11 +39,11 @@ public class Promotions : IEndpointGroup
     }
 
     [EndpointSummary("Promotions for a store's bonus week")]
-    [EndpointDescription("The promotions for one bonus week. Omit validFrom for the current week.")]
+    [EndpointDescription("The promotions for one bonus week (group tiles + standalone). Omit validFrom for the current week. Pass groupSku to drill into a group's member products.")]
     public static async Task<Ok<IReadOnlyList<PromotionDto>>> ListPromotions(
-        ISender sender, string storeCode, [FromQuery] DateOnly? validFrom)
+        ISender sender, string storeCode, [FromQuery] DateOnly? validFrom, [FromQuery] string? groupSku)
     {
-        var promos = await sender.Send(new GetPromotionsQuery { StoreCode = storeCode, ValidFrom = validFrom });
+        var promos = await sender.Send(new GetPromotionsQuery { StoreCode = storeCode, ValidFrom = validFrom, GroupSku = groupSku });
         return TypedResults.Ok(promos);
     }
 

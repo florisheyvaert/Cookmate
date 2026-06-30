@@ -378,6 +378,10 @@ namespace Cookmate.Infrastructure.Data.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)");
 
+                    b.Property<string>("Category")
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)");
+
                     b.Property<DateTimeOffset>("Created")
                         .HasColumnType("timestamp with time zone");
 
@@ -392,8 +396,15 @@ namespace Cookmate.Infrastructure.Data.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)");
 
+                    b.Property<int>("DisplayOrder")
+                        .HasColumnType("integer");
+
                     b.Property<DateTimeOffset>("FetchedAtUtc")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("GroupSku")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
 
                     b.Property<string>("ImageUrl")
                         .HasMaxLength(500)
@@ -439,6 +450,8 @@ namespace Cookmate.Infrastructure.Data.Migrations
                         .HasColumnType("date");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("StoreCode", "GroupSku");
 
                     b.HasIndex("StoreCode", "ValidFrom");
 

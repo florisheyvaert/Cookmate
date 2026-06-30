@@ -43,17 +43,24 @@ public class GetPromoDishesQueryHandler : IRequestHandler<GetPromoDishesQuery, I
             .ToListAsync(cancellationToken);
         if (allPromos.Count == 0) return [];
 
-        // Scope to one bonus week: the selected/current week, unless explicit SKUs are given.
-        IEnumerable<Domain.Entities.Promotion> scoped = allPromos;
+        // Match against leaf products: a group's member products carry clean names + real SKUs.
+        // A promo is a leaf when nothing points at it as a parent group.
+        var parentSkus = allPromos.Where(p => p.GroupSku != null).Select(p => p.GroupSku!).ToHashSet();
+        bool IsLeaf(Domain.Entities.Promotion p) => !parentSkus.Contains(p.Sku);
+
+        IEnumerable<Domain.Entities.Promotion> scoped;
         if (request.Skus.Count > 0)
         {
+            // Selected SKUs are group tiles (or standalone) — expand groups to their members.
             var selected = request.Skus.ToHashSet();
-            scoped = scoped.Where(p => selected.Contains(p.Sku));
+            scoped = allPromos.Where(p =>
+                (p.GroupSku != null && selected.Contains(p.GroupSku)) ||
+                (selected.Contains(p.Sku) && IsLeaf(p)));
         }
         else
         {
             var week = request.ValidFrom ?? PromoWeeks.Current(allPromos.Select(p => (p.ValidFrom, p.ValidTo)));
-            scoped = scoped.Where(p => p.ValidFrom == week);
+            scoped = allPromos.Where(p => p.ValidFrom == week && IsLeaf(p));
         }
 
         // A SKU can span two weeks — one promo row per SKU is enough for matching.

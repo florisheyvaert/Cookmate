@@ -22,6 +22,7 @@ import Redeem from '@/routes/Redeem'
 import Shop from '@/routes/Shop'
 import ShopCart from '@/routes/ShopCart'
 import Promos from '@/routes/Promos'
+import PromoMeals from '@/routes/PromoMeals'
 import Calendar from '@/routes/Calendar'
 import Settings from '@/routes/Settings'
 import MealSuggestions from '@/routes/MealSuggestions'
@@ -69,6 +70,14 @@ export default function App() {
                   element={
                     <RequireAuth>
                       <Promos />
+                    </RequireAuth>
+                  }
+                />
+                <Route
+                  path="promos/meals"
+                  element={
+                    <RequireAuth>
+                      <PromoMeals />
                     </RequireAuth>
                   }
                 />

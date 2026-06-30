@@ -21,6 +21,18 @@ public class Promotion : BaseAuditableEntity
 
     public string? BrandOrSubtitle { get; private set; }
 
+    /// <summary>Store category ("Groente, aardappelen", …) for grouping, mirroring the website.</summary>
+    public string? Category { get; private set; }
+
+    /// <summary>
+    /// For a product that belongs to a multi-product bonus "group" (e.g. "Hak 380-550 gram"),
+    /// the <see cref="Sku"/> of that group. Null for a top-level group tile or standalone promo.
+    /// </summary>
+    public string? GroupSku { get; private set; }
+
+    /// <summary>Position within the store's bonus folder, so listing matches the site's order.</summary>
+    public int DisplayOrder { get; private set; }
+
     public string? ImageUrl { get; private set; }
 
     public string? PackSize { get; private set; }
@@ -66,6 +78,9 @@ public class Promotion : BaseAuditableEntity
     public void Update(
         string name,
         string? brandOrSubtitle,
+        string? category,
+        string? groupSku,
+        int displayOrder,
         string? imageUrl,
         string? packSize,
         string? canonicalUrl,
@@ -78,6 +93,9 @@ public class Promotion : BaseAuditableEntity
     {
         Name = string.IsNullOrWhiteSpace(name) ? Sku : name.Trim();
         BrandOrSubtitle = string.IsNullOrWhiteSpace(brandOrSubtitle) ? null : brandOrSubtitle.Trim();
+        Category = string.IsNullOrWhiteSpace(category) ? null : category.Trim();
+        GroupSku = string.IsNullOrWhiteSpace(groupSku) ? null : groupSku.Trim();
+        DisplayOrder = displayOrder;
         ImageUrl = string.IsNullOrWhiteSpace(imageUrl) ? null : imageUrl.Trim();
         PackSize = string.IsNullOrWhiteSpace(packSize) ? null : packSize.Trim();
         CanonicalUrl = string.IsNullOrWhiteSpace(canonicalUrl) ? null : canonicalUrl.Trim();

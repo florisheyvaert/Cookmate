@@ -51,9 +51,13 @@ public class RefreshPromotionsCommandHandler : IRequestHandler<RefreshPromotions
 
         var freshKeys = new HashSet<(string, DateOnly?)>();
 
+        // The source returns promos in the store's own folder order (category by category);
+        // keep that as a stable DisplayOrder so the listing matches the website.
+        var order = 0;
         foreach (var promo in fresh)
         {
             if (string.IsNullOrWhiteSpace(promo.Sku)) continue;
+            var displayOrder = order++;
             freshKeys.Add((promo.Sku, promo.ValidFrom));
 
             // Only single products are cart-linkable (a CanonicalUrl means a real webshop
@@ -79,9 +83,9 @@ public class RefreshPromotionsCommandHandler : IRequestHandler<RefreshPromotions
                 promotionByKey[(promo.Sku, promo.ValidFrom)] = promotion;
             }
             promotion.Update(
-                promo.Name, promo.BrandOrSubtitle, promo.ImageUrl, FormatPackSize(promo.PackSize),
-                promo.CanonicalUrl, promo.DiscountLabel, promo.OriginalPrice, promo.PromoPrice,
-                promo.Currency, promo.ValidFrom, promo.ValidTo);
+                promo.Name, promo.BrandOrSubtitle, promo.Category, promo.GroupSku, displayOrder, promo.ImageUrl,
+                FormatPackSize(promo.PackSize), promo.CanonicalUrl, promo.DiscountLabel,
+                promo.OriginalPrice, promo.PromoPrice, promo.Currency, promo.ValidFrom, promo.ValidTo);
         }
 
         // Drop promos that are no longer on offer (the snapshot is authoritative).

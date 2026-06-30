@@ -39,4 +39,6 @@ public record StorePromotion(
     string? ImageUrl,
     string? CanonicalUrl,
     DateOnly? ValidFrom,
-    DateOnly? ValidTo);
+    DateOnly? ValidTo,
+    string? Category = null,
+    string? GroupSku = null);
