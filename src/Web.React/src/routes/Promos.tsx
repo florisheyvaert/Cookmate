@@ -359,6 +359,12 @@ function PromoCard({
           ) : (
             <span aria-hidden className="text-3xl opacity-40">🛒</span>
           )}
+          {/* Deal label — overlaid on the photo, top-left; solid gold so it stays readable. */}
+          {promo.discountLabel && (
+            <span className="absolute top-1.5 left-1.5 rounded-md bg-butter px-2 py-1 font-display text-[0.72rem] sm:text-[0.8rem] font-bold leading-none text-[#3b2a05] shadow-md">
+              {promo.discountLabel}
+            </span>
+          )}
         </span>
 
         <span className="flex-1 min-w-0 flex flex-col gap-1.5 px-3 py-2.5 sm:py-3">
@@ -369,14 +375,7 @@ function PromoCard({
             <span className="-mt-0.5 font-mono text-[0.54rem] uppercase tracking-[0.1em] text-chestnut-soft">{promo.packSize}</span>
           )}
 
-          {/* Deal label — on its own line so it has room; dark text on gold reads clearly. */}
-          {promo.discountLabel && (
-            <span className="self-start rounded-md bg-butter px-2 py-1 font-display text-[0.82rem] font-bold leading-none text-[#3b2a05] shadow-sm">
-              {promo.discountLabel}
-            </span>
-          )}
-
-          {/* Price — its own line, never crowded by the deal badge. */}
+          {/* Price (the deal badge now lives on the photo). */}
           {promo.promoPrice != null ? (
             <span className="flex items-baseline gap-1.5">
               <span className="num text-paprika text-base">{euro.format(promo.promoPrice)}</span>
