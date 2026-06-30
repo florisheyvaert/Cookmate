@@ -423,33 +423,38 @@ function DrillRow({
 }) {
   const imgRef = useRef<HTMLSpanElement>(null)
   return (
-    <li className="flex items-center gap-4 py-3">
-      <span ref={imgRef} className="shrink-0 w-16 h-16 rounded-lg overflow-hidden border border-cream-shadow bg-cream-deep grid place-items-center">
-        {product.imageUrl ? (
-          <img src={product.imageUrl} alt="" loading="lazy" className="w-full h-full object-cover" />
-        ) : (
-          <span aria-hidden className="opacity-40">🛒</span>
-        )}
-      </span>
-      <div className="min-w-0 flex-1">
-        <p className="font-display text-ink leading-tight line-clamp-2" style={{ fontWeight: 600 }}>
-          {product.name}
-        </p>
-        {product.packSize && (
-          <p className="font-mono text-[0.56rem] uppercase tracking-[0.1em] text-chestnut-soft mt-0.5">{product.packSize}</p>
-        )}
-        {product.promoPrice != null && <p className="num text-paprika text-base mt-0.5">{euro.format(product.promoPrice)}</p>}
-      </div>
+    <li>
+      {/* The whole row adds to the cart; the pill on the right is just the affordance. */}
       <button
         type="button"
         onClick={() => onAdd(product, imgRef.current?.getBoundingClientRect() ?? null)}
-        aria-label={inCart ? 'In cart' : 'Add to cart'}
-        className={[
-          'shrink-0 inline-flex items-center gap-1.5 rounded-xl px-3.5 py-2 font-display font-semibold text-[0.8rem] transition-colors',
-          inCart ? 'bg-paprika/15 text-paprika-deep' : 'bg-paprika text-cream hover:bg-paprika-deep',
-        ].join(' ')}
+        aria-label={inCart ? `Add ${product.name} again` : `Add ${product.name} to cart`}
+        className="group w-full flex items-center gap-4 py-3 px-2 -mx-2 rounded-xl text-left hover:bg-cream-deep/60 transition-colors"
       >
-        {inCart ? '✓ In cart' : '+ Add'}
+        <span ref={imgRef} className="shrink-0 w-16 h-16 rounded-lg overflow-hidden border border-cream-shadow bg-cream-deep grid place-items-center">
+          {product.imageUrl ? (
+            <img src={product.imageUrl} alt="" loading="lazy" className="w-full h-full object-cover" />
+          ) : (
+            <span aria-hidden className="opacity-40">🛒</span>
+          )}
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block font-display text-ink leading-tight line-clamp-2" style={{ fontWeight: 600 }}>
+            {product.name}
+          </span>
+          {product.packSize && (
+            <span className="block font-mono text-[0.56rem] uppercase tracking-[0.1em] text-chestnut-soft mt-0.5">{product.packSize}</span>
+          )}
+          {product.promoPrice != null && <span className="block num text-paprika text-base mt-0.5">{euro.format(product.promoPrice)}</span>}
+        </span>
+        <span
+          className={[
+            'shrink-0 inline-flex items-center gap-1.5 rounded-xl px-3.5 py-2 font-display font-semibold text-[0.8rem] transition-colors',
+            inCart ? 'bg-paprika/15 text-paprika-deep' : 'bg-paprika text-cream group-hover:bg-paprika-deep',
+          ].join(' ')}
+        >
+          {inCart ? '✓ In cart' : '+ Add'}
+        </span>
       </button>
     </li>
   )
