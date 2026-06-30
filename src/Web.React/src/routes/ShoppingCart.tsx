@@ -1,7 +1,7 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { AnimatePresence, motion } from 'motion/react'
-import { cartApi, type CartDish, type CartLine } from '@/api/shoppingCart'
+import { AnimatePresence, motion, useMotionValue, useTransform } from 'motion/react'
+import { cartApi, type Cart, type CartDish, type CartLine } from '@/api/shoppingCart'
 import { shoppingApi, type GroceryProductCandidateDto } from '@/api/shopping'
 import { PlanSuggestionDialog } from '@/components/PlanSuggestionDialog'
 import { Listbox, type ListboxOption } from '@/components/Listbox'
@@ -56,7 +56,23 @@ export default function ShoppingCart() {
     mutationFn: ({ id, quantity }: { id: number; quantity: number }) => cartApi.setQuantity(id, quantity),
     onSuccess: invalidate,
   })
-  const removeItem = useMutation({ mutationFn: (id: number) => cartApi.remove(id), onSuccess: invalidate })
+  // Optimistic remove so a swipe-to-delete feels instant; rolled back if the server rejects.
+  const removeItem = useMutation({
+    mutationFn: (id: number) => cartApi.remove(id),
+    onMutate: async (id: number) => {
+      await qc.cancelQueries({ queryKey: CART_KEY })
+      const prev = qc.getQueryData<Cart>(CART_KEY)
+      if (prev) qc.setQueryData<Cart>(CART_KEY, { ...prev, items: prev.items.filter((i) => i.id !== id) })
+      return { prev }
+    },
+    onError: (_e, _id, ctx) => {
+      if (ctx?.prev) qc.setQueryData(CART_KEY, ctx.prev)
+    },
+    onSettled: () => {
+      invalidate()
+      qc.invalidateQueries({ queryKey: ['cart-dishes'] })
+    },
+  })
   const linkItem = useMutation({
     mutationFn: ({ id, p }: { id: number; p: GroceryProductCandidateDto }) =>
       cartApi.link(id, { storeCode, sku: p.sku, productName: p.name, imageUrl: p.imageUrl }),
@@ -113,6 +129,7 @@ export default function ShoppingCart() {
 
   const linkedForStore = items.filter((i) => i.isLinked && i.storeCode === storeCode).length
   const totalItems = items.reduce((n, i) => n + i.quantity, 0)
+  const isMobile = useIsMobile()
 
   return (
     // App-shell: centred column, at least a viewport tall (minus the sticky header), so the
@@ -211,7 +228,8 @@ export default function ShoppingCart() {
                     <CartRow
                       key={line.id}
                       line={line}
-                      busy={setQty.isPending || removeItem.isPending}
+                      isMobile={isMobile}
+                      busy={setQty.isPending}
                       onInc={() => setQty.mutate({ id: line.id, quantity: line.quantity + 1 })}
                       onDec={() => setQty.mutate({ id: line.id, quantity: line.quantity - 1 })}
                       onRemove={() => removeItem.mutate(line.id)}
@@ -299,6 +317,7 @@ export default function ShoppingCart() {
 
 function CartRow({
   line,
+  isMobile,
   busy,
   onInc,
   onDec,
@@ -306,12 +325,18 @@ function CartRow({
   onLink,
 }: {
   line: CartLine
+  isMobile: boolean
   busy: boolean
   onInc: () => void
   onDec: () => void
   onRemove: () => void
   onLink: () => void
 }) {
+  const x = useMotionValue(0)
+  // The red "delete" tray fades in as you slide either way; full red past the threshold.
+  const trayOpacity = useTransform(x, [-96, -34, 0, 34, 96], [1, 0.5, 0, 0.5, 1])
+  const SWIPE = 88
+
   return (
     <motion.li
       layout
@@ -319,50 +344,97 @@ function CartRow({
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, x: -8 }}
       transition={{ duration: 0.22, ease }}
-      className="flex items-center gap-3 rounded-2xl border border-cream-shadow bg-cream-deep px-3.5 py-3"
+      className="relative overflow-hidden rounded-2xl"
     >
-      <span className="shrink-0 w-12 h-12 rounded-xl overflow-hidden border border-cream-shadow bg-cream grid place-items-center">
-        {line.imageUrl ? (
-          <img src={line.imageUrl} alt="" loading="lazy" className="w-full h-full object-cover" />
-        ) : (
-          <span aria-hidden className="text-lg opacity-40">{line.isLinked ? '🛒' : '✎'}</span>
-        )}
-      </span>
+      {/* Mobile only: swipe the row aside to reveal this, far enough = delete. */}
+      {isMobile && (
+        <motion.div
+          aria-hidden
+          style={{ opacity: trayOpacity }}
+          className="absolute inset-0 flex items-center justify-between px-5 bg-red-500 text-cream"
+        >
+          <TrashGlyph />
+          <TrashGlyph />
+        </motion.div>
+      )}
 
-      <div className="min-w-0 flex-1">
-        <p className="font-display text-ink leading-tight line-clamp-2" style={{ fontWeight: 600, fontSize: '0.98rem' }}>
-          {line.displayName}
-        </p>
-        <div className="flex items-center gap-2 mt-0.5">
-          {SOURCE_LABEL[line.source] && (
-            <span className="font-mono text-[0.54rem] uppercase tracking-[0.12em] text-chestnut-soft">{SOURCE_LABEL[line.source]}</span>
-          )}
-          {!line.isLinked && (
-            <button type="button" onClick={onLink} className="font-mono text-[0.56rem] uppercase tracking-[0.12em] text-chestnut hover:text-paprika transition-colors">
-              + link product
-            </button>
-          )}
-        </div>
-      </div>
-
-      {/* Quantity stepper */}
-      <div className="shrink-0 flex items-center gap-1.5">
-        <button type="button" onClick={onDec} disabled={busy} aria-label="Less" className={stepBtn}>−</button>
-        <span className="num text-sm text-ink w-5 text-center tabular-nums">{line.quantity}</span>
-        <button type="button" onClick={onInc} disabled={busy} aria-label="More" className={stepBtn}>+</button>
-      </div>
-
-      <button
-        type="button"
-        onClick={onRemove}
-        disabled={busy}
-        aria-label="Remove"
-        className="shrink-0 w-8 h-8 grid place-items-center rounded-lg text-chestnut-soft hover:text-red-600 hover:bg-red-500/10 transition-colors"
+      <motion.div
+        drag={isMobile ? 'x' : false}
+        style={{ x }}
+        dragConstraints={{ left: 0, right: 0 }}
+        dragElastic={0.9}
+        dragMomentum={false}
+        onDragEnd={(_e, info) => {
+          if (Math.abs(info.offset.x) > SWIPE) onRemove()
+        }}
+        className="relative flex items-center gap-3 rounded-2xl border border-cream-shadow bg-cream-deep px-3.5 py-3"
       >
-        <span aria-hidden className="text-base leading-none">×</span>
-      </button>
+        <span className="shrink-0 w-12 h-12 rounded-xl overflow-hidden border border-cream-shadow bg-cream grid place-items-center">
+          {line.imageUrl ? (
+            <img src={line.imageUrl} alt="" loading="lazy" className="w-full h-full object-cover" />
+          ) : (
+            <span aria-hidden className="text-lg opacity-40">{line.isLinked ? '🛒' : '✎'}</span>
+          )}
+        </span>
+
+        <div className="min-w-0 flex-1">
+          <p className="font-display text-ink leading-tight line-clamp-2" style={{ fontWeight: 600, fontSize: '0.98rem' }}>
+            {line.displayName}
+          </p>
+          <div className="flex items-center gap-2 mt-0.5">
+            {SOURCE_LABEL[line.source] && (
+              <span className="font-mono text-[0.54rem] uppercase tracking-[0.12em] text-chestnut-soft">{SOURCE_LABEL[line.source]}</span>
+            )}
+            {!line.isLinked && (
+              <button type="button" onClick={onLink} className="font-mono text-[0.56rem] uppercase tracking-[0.12em] text-chestnut hover:text-paprika transition-colors">
+                + link product
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Quantity stepper */}
+        <div className="shrink-0 flex items-center gap-1.5">
+          <button type="button" onClick={onDec} disabled={busy} aria-label="Less" className={stepBtn}>−</button>
+          <span className="num text-sm text-ink w-5 text-center tabular-nums">{line.quantity}</span>
+          <button type="button" onClick={onInc} disabled={busy} aria-label="More" className={stepBtn}>+</button>
+        </div>
+
+        {/* Desktop keeps an explicit remove; on mobile you swipe instead. */}
+        <button
+          type="button"
+          onClick={onRemove}
+          aria-label="Remove"
+          className="hidden sm:grid shrink-0 w-8 h-8 place-items-center rounded-lg text-chestnut-soft hover:text-red-600 hover:bg-red-500/10 transition-colors"
+        >
+          <span aria-hidden className="text-base leading-none">×</span>
+        </button>
+      </motion.div>
     </motion.li>
   )
+}
+
+function TrashGlyph() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6" />
+      <path d="M10 11v6M14 11v6" />
+    </svg>
+  )
+}
+
+// Below Tailwind's `sm` breakpoint — drives the swipe-to-delete vs the explicit × button.
+function useIsMobile() {
+  const [isMobile, setIsMobile] = useState(
+    () => typeof window !== 'undefined' && window.matchMedia('(max-width: 639px)').matches,
+  )
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 639px)')
+    const onChange = () => setIsMobile(mq.matches)
+    mq.addEventListener('change', onChange)
+    return () => mq.removeEventListener('change', onChange)
+  }, [])
+  return isMobile
 }
 
 const stepBtn =
