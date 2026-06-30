@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { AnimatePresence, motion, useMotionValue, useTransform } from 'motion/react'
 import { cartApi, type Cart, type CartDish, type CartLine } from '@/api/shoppingCart'
 import { shoppingApi, type GroceryProductCandidateDto } from '@/api/shopping'
 import { PlanSuggestionDialog } from '@/components/PlanSuggestionDialog'
 import { Listbox, type ListboxOption } from '@/components/Listbox'
 import { CartSortToggle } from '@/components/CartSortToggle'
+import { Carousel } from '@/components/Carousel'
 import { useCartSort, groupByCategory, sortAZ } from '@/lib/cartSort'
 import { useConfirm } from '@/components/confirm/ConfirmDialog'
 import { btnPrimary, btnGhostSm } from '@/lib/ui'
@@ -494,9 +495,17 @@ const stepBtn =
   'w-7 h-7 grid place-items-center rounded-lg border border-cream-shadow text-ink hover:border-paprika hover:text-paprika disabled:opacity-40 transition-colors text-base leading-none'
 
 function WhatCanIMake() {
-  const dishesQ = useQuery({ queryKey: ['cart-dishes'], queryFn: () => cartApi.dishes(), staleTime: 30_000 })
+  const [limit, setLimit] = useState(12)
+  const dishesQ = useQuery({
+    queryKey: ['cart-dishes', limit],
+    queryFn: () => cartApi.dishes(limit),
+    staleTime: 30_000,
+    placeholderData: keepPreviousData,
+  })
   const [planning, setPlanning] = useState<CartDish | null>(null)
   const dishes = dishesQ.data ?? []
+  // The query returns up to `limit`; if it's full there are probably more to fetch.
+  const hasMore = dishes.length >= limit && limit < 96
 
   return (
     <div className="mt-4">
@@ -507,11 +516,13 @@ function WhatCanIMake() {
           Nothing matches yet — add a few real ingredients (eggs, milk, chicken…) and dishes that use them show up here.
         </p>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+        <Carousel ariaLabel="Dishes you can make" hasMore={hasMore} onLoadMore={() => setLimit((l) => Math.min(l + 12, 96))}>
           {dishes.map((d) => (
-            <DishCard key={d.suggestionId} dish={d} onPlan={() => setPlanning(d)} />
+            <div key={d.suggestionId} className="shrink-0 snap-start basis-[78%] sm:basis-[46%] lg:basis-[31%]">
+              <DishCard dish={d} onPlan={() => setPlanning(d)} />
+            </div>
           ))}
-        </div>
+        </Carousel>
       )}
 
       <PlanSuggestionDialog
