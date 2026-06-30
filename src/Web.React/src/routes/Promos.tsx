@@ -65,13 +65,14 @@ export default function Promos() {
     queryFn: () => promotionsApi.list(STORE, activeWeek),
     staleTime: 5 * 60_000,
   })
-  const promos = promosQ.data ?? []
+  const promos = useMemo(() => promosQ.data ?? [], [promosQ.data])
 
   function pickWeek(validFrom: string | null) {
     setParams(
       (prev) => {
         const p = new URLSearchParams(prev)
-        validFrom ? p.set('week', validFrom) : p.delete('week')
+        if (validFrom) p.set('week', validFrom)
+        else p.delete('week')
         return p
       },
       { replace: true },
@@ -94,9 +95,14 @@ export default function Promos() {
     addToCart.mutate({ sku: promo.sku, name: promo.name, imageUrl: promo.imageUrl, category: promo.category })
   }
 
-  // Scroll-to-load: reveal the already-fetched week in batches.
+  // Scroll-to-load: reveal the already-fetched week in batches. When the week changes, reset the
+  // reveal count during render (the React-recommended way) rather than in an effect.
   const [visible, setVisible] = useState(PAGE)
-  useEffect(() => setVisible(PAGE), [activeWeek])
+  const [shownWeek, setShownWeek] = useState(activeWeek)
+  if (shownWeek !== activeWeek) {
+    setShownWeek(activeWeek)
+    setVisible(PAGE)
+  }
   const sentinel = useRef<HTMLDivElement | null>(null)
   useEffect(() => {
     const el = sentinel.current
