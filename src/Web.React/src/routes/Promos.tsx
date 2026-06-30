@@ -187,13 +187,12 @@ export default function Promos() {
                   <span className="num text-chestnut-soft text-xs">{categoryTotals.get(g.category) ?? g.items.length}</span>
                   <span className="flex-1 h-px bg-cream-shadow" />
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
                   {g.items.map((p) => (
                     <PromoCard
                       key={p.sku}
                       promo={p}
                       added={added.has(p.sku)}
-                      adding={addToCart.isPending}
                       onAdd={(origin) => addPromo(p, origin)}
                       onDrill={() => setDrillGroup(p)}
                     />
@@ -328,13 +327,11 @@ function EmptyPromos({ isAdmin, onRefresh, refreshing }: { isAdmin: boolean; onR
 function PromoCard({
   promo,
   added,
-  adding,
   onAdd,
   onDrill,
 }: {
   promo: PromotionDto
   added: boolean
-  adding: boolean
   onAdd: (origin: DOMRect | null) => void
   onDrill: () => void
 }) {
@@ -348,8 +345,9 @@ function PromoCard({
         added ? 'border-paprika ring-2 ring-inset ring-paprika/40' : 'border-cream-shadow hover:border-paprika/55',
       ].join(' ')}
     >
+      {/* The whole card is the action: a single product adds; a group opens its products. */}
       <button type="button" onClick={isGroup ? onDrill : add} className="text-left flex flex-row sm:flex-col flex-1 min-w-0">
-        <span ref={imgRef} className="relative shrink-0 w-28 sm:w-full aspect-square bg-cream-deep grid place-items-center overflow-hidden">
+        <span ref={imgRef} className="relative shrink-0 w-24 sm:w-full aspect-square bg-cream-deep grid place-items-center overflow-hidden">
           {promo.imageUrl ? (
             <img src={promo.imageUrl} alt="" loading="lazy" className="w-full h-full object-cover" />
           ) : (
@@ -357,25 +355,24 @@ function PromoCard({
           )}
         </span>
 
-        <span className="flex-1 min-w-0 flex flex-col gap-1 px-3.5 py-3 sm:px-4 sm:py-3.5">
-          <span
-            className="font-display text-ink text-[0.95rem] sm:text-base leading-tight line-clamp-2"
-            style={{ fontWeight: 600 }}
-          >
+        <span className="flex-1 min-w-0 flex flex-col gap-1.5 px-3 py-2.5 sm:py-3">
+          <span className="font-display text-ink text-[0.9rem] leading-tight line-clamp-2" style={{ fontWeight: 600 }}>
             {promo.name}
           </span>
           {promo.packSize && (
-            <span className="font-mono text-[0.58rem] uppercase tracking-[0.1em] text-chestnut-soft">{promo.packSize}</span>
+            <span className="-mt-0.5 font-mono text-[0.54rem] uppercase tracking-[0.1em] text-chestnut-soft">{promo.packSize}</span>
           )}
-          <span className="mt-auto flex items-center flex-wrap gap-x-2 gap-y-1.5 pt-1.5">
+
+          {/* Deal label — gold, bigger, normal-case so "2e gratis" actually reads; off the photo. */}
+          <span className="flex items-center flex-wrap gap-x-2 gap-y-1">
             {promo.discountLabel && (
-              <span className="px-2 py-1 rounded-md bg-paprika text-cream font-mono text-[0.58rem] uppercase tracking-[0.08em] leading-none">
+              <span className="rounded-md bg-butter text-ink px-2 py-1 font-display font-bold text-[0.8rem] leading-none shadow-sm">
                 {promo.discountLabel}
               </span>
             )}
             {promo.promoPrice != null ? (
               <span className="flex items-baseline gap-1.5">
-                <span className="num text-paprika text-lg">{euro.format(promo.promoPrice)}</span>
+                <span className="num text-paprika text-base">{euro.format(promo.promoPrice)}</span>
                 {promo.originalPrice != null && promo.originalPrice > promo.promoPrice && (
                   <span className="num text-chestnut-soft text-xs line-through">{euro.format(promo.originalPrice)}</span>
                 )}
@@ -384,29 +381,32 @@ function PromoCard({
               <span className="num text-ink text-sm">{euro.format(promo.originalPrice)}</span>
             ) : null}
           </span>
-          {isGroup && (
-            <span className="font-mono text-[0.56rem] uppercase tracking-[0.14em] text-chestnut group-hover:text-paprika transition-colors">
-              {promo.productCount} producten ›
-            </span>
-          )}
+
+          {/* Affordance (the card itself is the button): filled "Add" = one product,
+              outlined "N producten" = a group you open. */}
+          <span className="mt-auto pt-1.5">
+            {isGroup ? (
+              <span className="inline-flex items-center gap-1.5 rounded-lg border border-paprika/45 px-2.5 py-1.5 font-mono text-[0.6rem] uppercase tracking-[0.1em] text-paprika-deep transition-colors group-hover:border-paprika group-hover:bg-paprika group-hover:text-cream">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                  <rect x="3" y="3" width="13" height="13" rx="2" />
+                  <path d="M8 21h11a2 2 0 0 0 2-2V8" />
+                </svg>
+                {promo.productCount} producten
+                <span aria-hidden>→</span>
+              </span>
+            ) : (
+              <span
+                className={[
+                  'inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 font-display font-semibold text-[0.82rem] transition-colors',
+                  added ? 'bg-paprika/15 text-paprika-deep' : 'bg-paprika text-cream group-hover:bg-paprika-deep',
+                ].join(' ')}
+              >
+                {added ? '✓ In cart' : '+ Add'}
+              </span>
+            )}
+          </span>
         </span>
       </button>
-
-      {/* Add to cart — single products only; groups add their members from the drill-down. */}
-      {!isGroup && (
-        <button
-          type="button"
-          onClick={add}
-          disabled={adding}
-          aria-label={added ? 'In cart' : 'Add to cart'}
-          className={[
-            'absolute top-2 right-2 w-8 h-8 rounded-full grid place-items-center text-[0.9rem] leading-none transition-colors shadow-sm disabled:opacity-60',
-            added ? 'bg-paprika text-cream' : 'bg-cream/90 text-chestnut hover:text-paprika',
-          ].join(' ')}
-        >
-          <span aria-hidden>{added ? '✓' : '+'}</span>
-        </button>
-      )}
     </div>
   )
 }
