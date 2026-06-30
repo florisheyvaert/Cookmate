@@ -6,8 +6,10 @@ import { shoppingApi, type GroceryProductCandidateDto } from '@/api/shopping'
 import { PageHeader } from '@/components/PageHeader'
 import { PlanSuggestionDialog } from '@/components/PlanSuggestionDialog'
 import { Listbox, type ListboxOption } from '@/components/Listbox'
+import { CartSortToggle } from '@/components/CartSortToggle'
+import { useCartSort, groupByCategory, sortAZ } from '@/lib/cartSort'
 import { useConfirm } from '@/components/confirm/ConfirmDialog'
-import { btnPrimary, btnGhostSm, btnPrimarySm } from '@/lib/ui'
+import { btnPrimary, btnGhostSm } from '@/lib/ui'
 
 const ease = [0.22, 1, 0.36, 1] as const
 const CART_KEY = ['shopping-cart']
@@ -36,6 +38,7 @@ export default function ShoppingCart() {
   const [search, setSearch] = useState<{ mode: 'add' } | { mode: 'link'; line: CartLine } | null>(null)
   const [periodOpen, setPeriodOpen] = useState(false)
   const [showDishes, setShowDishes] = useState(false)
+  const [sortMode, setSortMode] = useCartSort()
 
   const storesQ = useQuery({ queryKey: ['shop-stores'], queryFn: () => shoppingApi.listStores() })
   const cartQ = useQuery({ queryKey: CART_KEY, queryFn: () => cartApi.get() })
@@ -135,28 +138,17 @@ export default function ShoppingCart() {
             Add text
           </button>
           <button type="button" onClick={() => setSearch({ mode: 'add' })} className={btnGhostSm}>
-            🔍 Search {storeName}
+            🔍 Search
           </button>
         </div>
       </form>
 
       {/* ── Toolbar ─────────────────────────────────────────────────────────── */}
       <div className="flex flex-wrap items-center gap-2.5 mb-7">
-        <div className="w-40">
-          <Listbox ariaLabel="Store" value={storeCode} onChange={setStoreCode} options={storeOptions} />
-        </div>
         <button type="button" onClick={() => setPeriodOpen(true)} className={btnGhostSm}>
-          + Add a week
+          + Add my meal plan
         </button>
-        <button
-          type="button"
-          onClick={() => sendDeeplink.mutate()}
-          disabled={linkedForStore === 0 || sendDeeplink.isPending}
-          className={btnPrimarySm + ' disabled:opacity-50'}
-          title={linkedForStore === 0 ? 'Link some products first' : undefined}
-        >
-          {sendDeeplink.isPending ? 'Opening…' : `Send to ${storeName} →`}
-        </button>
+        {items.length > 1 && <CartSortToggle mode={sortMode} onChange={setSortMode} />}
         {items.length > 0 && (
           <button
             type="button"
@@ -178,21 +170,34 @@ export default function ShoppingCart() {
           </p>
         </div>
       ) : (
-        <ul className="space-y-2.5">
-          <AnimatePresence initial={false}>
-            {items.map((line) => (
-              <CartRow
-                key={line.id}
-                line={line}
-                busy={setQty.isPending || removeItem.isPending}
-                onInc={() => setQty.mutate({ id: line.id, quantity: line.quantity + 1 })}
-                onDec={() => setQty.mutate({ id: line.id, quantity: line.quantity - 1 })}
-                onRemove={() => removeItem.mutate(line.id)}
-                onLink={() => setSearch({ mode: 'link', line })}
-              />
-            ))}
-          </AnimatePresence>
-        </ul>
+        <div className="space-y-6">
+          {(sortMode === 'category' ? groupByCategory(items) : [{ category: '', items: sortAZ(items) }]).map((group) => (
+            <section key={group.category || 'all'}>
+              {sortMode === 'category' && items.length > 1 && (
+                <div className="flex items-baseline gap-2.5 mb-2.5">
+                  <h2 className="eyebrow text-ink">{group.category}</h2>
+                  <span className="num text-chestnut-soft text-xs">{group.items.length}</span>
+                  <span className="flex-1 h-px bg-cream-shadow" />
+                </div>
+              )}
+              <ul className="space-y-2.5">
+                <AnimatePresence initial={false}>
+                  {group.items.map((line) => (
+                    <CartRow
+                      key={line.id}
+                      line={line}
+                      busy={setQty.isPending || removeItem.isPending}
+                      onInc={() => setQty.mutate({ id: line.id, quantity: line.quantity + 1 })}
+                      onDec={() => setQty.mutate({ id: line.id, quantity: line.quantity - 1 })}
+                      onRemove={() => removeItem.mutate(line.id)}
+                      onLink={() => setSearch({ mode: 'link', line })}
+                    />
+                  ))}
+                </AnimatePresence>
+              </ul>
+            </section>
+          ))}
+        </div>
       )}
 
       {/* ── What can I make ─────────────────────────────────────────────────── */}
@@ -222,21 +227,46 @@ export default function ShoppingCart() {
         </div>
       )}
 
-      <ProductSearchDialog
-        open={search != null}
-        storeCode={storeCode}
-        storeName={storeName}
-        heading={search?.mode === 'link' ? `Link "${search.line.displayName}"` : `Add from ${storeName}`}
-        onPick={onPick}
-        onClose={() => setSearch(null)}
-      />
+      {search != null && (
+        <ProductSearchDialog
+          storeCode={storeCode}
+          heading={search.mode === 'link' ? `Link "${search.line.displayName}"` : 'Add a product'}
+          initialQuery={search.mode === 'link' ? search.line.displayName : draft}
+          onPick={onPick}
+          onClose={() => setSearch(null)}
+        />
+      )}
 
       <PeriodDialog
         open={periodOpen}
         pending={addPeriod.isPending}
+        storeCode={storeCode}
+        storeOptions={storeOptions}
+        onStoreChange={setStoreCode}
         onClose={() => setPeriodOpen(false)}
         onConfirm={(from, to) => addPeriod.mutate({ from, to })}
       />
+
+      {/* ── Checkout footer — fixed to the bottom of the page ────────────────── */}
+      {items.length > 0 && (
+        <div className="fixed inset-x-0 bottom-0 z-30 px-5 sm:px-6 md:px-12 lg:px-20 pb-4 pointer-events-none">
+          <div className="max-w-3xl pointer-events-auto rounded-2xl border border-cream-shadow bg-cream/95 backdrop-blur shadow-[0_-8px_30px_-12px_rgba(20,30,18,0.25)] p-3.5 sm:p-4 flex items-center justify-between gap-4">
+            <p className="font-mono text-[0.66rem] text-chestnut leading-tight">
+              <span className="num text-paprika text-base">{linkedForStore}</span> linked item{linkedForStore === 1 ? '' : 's'}
+              <span className="block text-[0.6rem] text-chestnut-soft">free text stays in your list</span>
+            </p>
+            <button
+              type="button"
+              onClick={() => sendDeeplink.mutate()}
+              disabled={linkedForStore === 0 || sendDeeplink.isPending}
+              className={btnPrimary + ' shrink-0 disabled:opacity-50'}
+              title={linkedForStore === 0 ? 'Link some products first' : undefined}
+            >
+              {sendDeeplink.isPending ? 'Opening…' : `Send to ${storeName} →`}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -397,30 +427,27 @@ function DishCard({ dish, onPlan }: { dish: CartDish; onPlan: () => void }) {
 // ── Product search dialog ─────────────────────────────────────────────────────
 
 function ProductSearchDialog({
-  open,
   storeCode,
-  storeName,
   heading,
+  initialQuery,
   onPick,
   onClose,
 }: {
-  open: boolean
   storeCode: string
-  storeName: string
   heading: string
+  /** Seeds the search box (e.g. the text you typed in "Add to cart"). Mounted fresh per open. */
+  initialQuery: string
   onPick: (p: GroceryProductCandidateDto) => void
   onClose: () => void
 }) {
-  const [q, setQ] = useState('')
+  const [q, setQ] = useState(initialQuery)
   const searchQ = useQuery({
     queryKey: ['product-search', storeCode, q],
     queryFn: () => shoppingApi.searchProducts(storeCode, q),
-    enabled: open && q.trim().length >= 2,
+    enabled: q.trim().length >= 2,
     staleTime: 60_000,
   })
   const results = searchQ.data ?? []
-
-  if (!open) return null
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-ink/40 backdrop-blur-sm" onClick={onClose} role="dialog" aria-modal="true">
@@ -437,7 +464,7 @@ function ProductSearchDialog({
             autoFocus
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            placeholder={`Search ${storeName}…`}
+            placeholder="Search products…"
             className="w-full bg-transparent border-0 border-b-2 border-cream-shadow focus:border-paprika focus:outline-none py-2 text-ink transition-colors"
           />
         </header>
@@ -480,11 +507,17 @@ function ProductSearchDialog({
 function PeriodDialog({
   open,
   pending,
+  storeCode,
+  storeOptions,
+  onStoreChange,
   onClose,
   onConfirm,
 }: {
   open: boolean
   pending: boolean
+  storeCode: string
+  storeOptions: ListboxOption[]
+  onStoreChange: (code: string) => void
   onClose: () => void
   onConfirm: (from: string, to: string) => void
 }) {
@@ -505,7 +538,7 @@ function PeriodDialog({
         className="w-full sm:max-w-md bg-cream rounded-t-3xl sm:rounded-2xl border border-cream-shadow overflow-hidden shadow-2xl shadow-ink/25"
       >
         <div className="px-6 pt-6 pb-5">
-          <p className="eyebrow text-paprika mb-1.5">Add a week</p>
+          <p className="eyebrow text-paprika mb-1.5">Add my meal plan</p>
           <p className="text-ink-soft text-sm leading-relaxed mb-5">
             Adds everything your meal plan needs over this range to the cart — linked products where known, free text otherwise.
           </p>
@@ -518,6 +551,10 @@ function PeriodDialog({
               <span className="eyebrow block mb-1.5">To</span>
               <input type="date" value={to} min={from} onChange={(e) => setTo(e.target.value)} className={dateInput} />
             </label>
+          </div>
+          <div className="mt-4">
+            <span className="eyebrow block mb-1.5">Store</span>
+            <Listbox ariaLabel="Store" value={storeCode} onChange={onStoreChange} options={storeOptions} />
           </div>
         </div>
         <div className="border-t border-cream-shadow px-6 py-4 flex items-center justify-end gap-4">

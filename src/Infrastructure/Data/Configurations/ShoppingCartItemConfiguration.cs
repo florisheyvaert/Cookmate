@@ -14,6 +14,7 @@ public class ShoppingCartItemConfiguration : IEntityTypeConfiguration<ShoppingCa
         builder.Property(i => i.NormalizedName).IsRequired().HasMaxLength(300);
         builder.Property(i => i.StoreCode).HasMaxLength(64);
         builder.Property(i => i.Sku).HasMaxLength(128);
+        builder.Property(i => i.Category).HasMaxLength(120);
         builder.Property(i => i.Quantity).IsRequired();
         builder.Property(i => i.Source).IsRequired();
 

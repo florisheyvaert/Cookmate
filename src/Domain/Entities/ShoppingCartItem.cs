@@ -26,6 +26,13 @@ public class ShoppingCartItem : BaseAuditableEntity
     /// <summary>Cached product image so the cart renders without a per-item lookup.</summary>
     public string? ImageUrl { get; private set; }
 
+    /// <summary>
+    /// Store aisle/category (e.g. "Zuivel"), carried over from the promotion the line was added
+    /// from. Null for free text and meal-plan lines — those fall under "Other" when sorting.
+    /// Display-only: it drives the cart's category sort, nothing else.
+    /// </summary>
+    public string? Category { get; private set; }
+
     public int Quantity { get; private set; } = 1;
 
     public CartItemSource Source { get; private set; }
@@ -43,16 +50,22 @@ public class ShoppingCartItem : BaseAuditableEntity
     }
 
     /// <summary>A free-text line — something not in the catalogue.</summary>
-    public static ShoppingCartItem FreeText(string displayName, int quantity = 1, CartItemSource source = CartItemSource.Manual)
-        => new(displayName, quantity, source);
+    public static ShoppingCartItem FreeText(
+        string displayName, int quantity = 1, CartItemSource source = CartItemSource.Manual, string? category = null)
+    {
+        var item = new ShoppingCartItem(displayName, quantity, source);
+        item.SetCategory(category);
+        return item;
+    }
 
     /// <summary>A line linked to a store product.</summary>
     public static ShoppingCartItem Product(
         string storeCode, string sku, string displayName,
-        string? imageUrl = null, int quantity = 1, CartItemSource source = CartItemSource.Manual)
+        string? imageUrl = null, int quantity = 1, CartItemSource source = CartItemSource.Manual, string? category = null)
     {
         var item = new ShoppingCartItem(displayName, quantity, source);
         item.LinkProduct(storeCode, sku, displayName, imageUrl);
+        item.SetCategory(category);
         return item;
     }
 
@@ -86,6 +99,10 @@ public class ShoppingCartItem : BaseAuditableEntity
         Sku = null;
         ImageUrl = null;
     }
+
+    /// <summary>Sets the display category, trimming blanks to null.</summary>
+    public void SetCategory(string? category)
+        => Category = string.IsNullOrWhiteSpace(category) ? null : category.Trim();
 
     public void SetQuantity(int quantity) => Quantity = quantity < 1 ? 1 : quantity;
 

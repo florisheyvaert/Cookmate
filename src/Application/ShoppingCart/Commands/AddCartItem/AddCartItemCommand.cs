@@ -22,6 +22,9 @@ public record AddCartItemCommand : IRequest<int>
 
     public string? ImageUrl { get; init; }
 
+    /// <summary>Store aisle/category for the cart's category sort (e.g. from a promotion). Optional.</summary>
+    public string? Category { get; init; }
+
     public int Quantity { get; init; } = 1;
 
     public CartItemSource Source { get; init; } = CartItemSource.Manual;
@@ -42,8 +45,8 @@ public class AddCartItemCommandHandler : IRequestHandler<AddCartItemCommand, int
         var linked = !string.IsNullOrWhiteSpace(request.StoreCode) && !string.IsNullOrWhiteSpace(request.Sku);
 
         var incoming = linked
-            ? ShoppingCartItem.Product(request.StoreCode!, request.Sku!, request.DisplayName, request.ImageUrl, quantity, request.Source)
-            : ShoppingCartItem.FreeText(request.DisplayName, quantity, request.Source);
+            ? ShoppingCartItem.Product(request.StoreCode!, request.Sku!, request.DisplayName, request.ImageUrl, quantity, request.Source, request.Category)
+            : ShoppingCartItem.FreeText(request.DisplayName, quantity, request.Source, request.Category);
 
         var tracked = await _context.ShoppingCartItems.ToListAsync(cancellationToken);
         var result = CartUpserter.Upsert(_context, tracked, incoming);

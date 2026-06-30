@@ -19,6 +19,11 @@ internal static class CartUpserter
         if (existing is not null)
         {
             existing.Add(incoming.Quantity);
+            // Backfill a category from the new add (e.g. a promo) if the line never had one.
+            if (existing.Category is null && incoming.Category is not null)
+            {
+                existing.SetCategory(incoming.Category);
+            }
             return existing;
         }
 
