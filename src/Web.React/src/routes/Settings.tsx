@@ -128,7 +128,7 @@ export default function Settings() {
           <div className="mt-6 space-y-4">
             {visible.map((s) => (
               // While searching, matching sections open so their content is visible.
-              <SectionCard key={s.id} section={s} open={searching || openIds.has(s.id)} onToggle={() => toggle(s.id)} />
+              <SectionCard key={s.id} section={s} terms={terms} open={searching || openIds.has(s.id)} onToggle={() => toggle(s.id)} />
             ))}
           </div>
         )}
@@ -169,7 +169,7 @@ function SearchField({
   )
 }
 
-function SectionCard({ section, open, onToggle }: { section: Section; open: boolean; onToggle: () => void }) {
+function SectionCard({ section, terms, open, onToggle }: { section: Section; terms: string[]; open: boolean; onToggle: () => void }) {
   // Let inner dropdowns (schedule day/time pickers) escape the card once the open
   // animation has settled; clip during the height transition.
   const [animating, setAnimating] = useState(false)
@@ -187,7 +187,7 @@ function SectionCard({ section, open, onToggle }: { section: Section; open: bool
       >
         <span className="w-1 h-5 rounded-full bg-paprika shrink-0" aria-hidden />
         <h2 className="text-ink text-base sm:text-lg min-w-0 truncate" style={{ fontWeight: 700, letterSpacing: '-0.015em' }}>
-          {section.title}
+          <Highlight text={section.title} terms={terms} />
         </h2>
         <span className="text-base sm:text-lg leading-none shrink-0" aria-hidden>{section.emoji}</span>
         <span className="ml-auto flex items-center gap-2.5 sm:gap-3 shrink-0">
@@ -212,13 +212,39 @@ function SectionCard({ section, open, onToggle }: { section: Section; open: bool
             className={animating ? 'overflow-hidden' : 'overflow-visible'}
           >
             <div className="px-4 sm:px-7 pb-5 sm:pb-7 pt-1">
-              <p className="text-ink-soft leading-relaxed mb-5">{section.description}</p>
+              <p className="text-ink-soft leading-relaxed mb-5">
+                <Highlight text={section.description} terms={terms} />
+              </p>
               {section.body}
             </div>
           </motion.div>
         )}
       </AnimatePresence>
     </section>
+  )
+}
+
+const escapeRegExp = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+
+// Wraps every occurrence of a search term in the text with a paprika highlight. Case-insensitive,
+// keeps the original casing on screen. Longer terms first so they win over shorter overlaps.
+function Highlight({ text, terms }: { text: string; terms: string[] }) {
+  if (terms.length === 0) return <>{text}</>
+  const pattern = terms.map(escapeRegExp).sort((a, b) => b.length - a.length).join('|')
+  const isHit = new RegExp(`^(?:${pattern})$`, 'i')
+  const parts = text.split(new RegExp(`(${pattern})`, 'gi'))
+  return (
+    <>
+      {parts.map((part, i) =>
+        part && isHit.test(part) ? (
+          <mark key={i} className="rounded-[0.2em] bg-paprika/20 text-paprika-deep px-0.5">
+            {part}
+          </mark>
+        ) : (
+          part
+        ),
+      )}
+    </>
   )
 }
 
