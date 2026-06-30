@@ -16,8 +16,11 @@ public record GetPromoDishesQuery : IRequest<IReadOnlyList<PromoDishDto>>
 {
     public string StoreCode { get; init; } = string.Empty;
 
-    /// <summary>Selected promo SKUs. Empty = match against all of the store's current promos.</summary>
+    /// <summary>Selected promo SKUs. Empty = match against all of the week's promos.</summary>
     public IReadOnlyList<string> Skus { get; init; } = [];
+
+    /// <summary>Bonus week to match against (its start date). Null = current week.</summary>
+    public DateOnly? ValidFrom { get; init; }
 
     public int Limit { get; init; } = 24;
 }
@@ -35,23 +38,47 @@ public class GetPromoDishesQueryHandler : IRequestHandler<GetPromoDishesQuery, I
     {
         var code = (request.StoreCode ?? string.Empty).Trim().ToLowerInvariant();
 
-        var promoQuery = _context.Promotions.AsNoTracking().Where(p => p.StoreCode == code);
+        var allPromos = await _context.Promotions.AsNoTracking()
+            .Where(p => p.StoreCode == code)
+            .ToListAsync(cancellationToken);
+        if (allPromos.Count == 0) return [];
+
+        // Match against leaf products: a group's member products carry clean names + real SKUs.
+        // A promo is a leaf when nothing points at it as a parent group.
+        var parentSkus = allPromos.Where(p => p.GroupSku != null).Select(p => p.GroupSku!).ToHashSet();
+        bool IsLeaf(Domain.Entities.Promotion p) => !parentSkus.Contains(p.Sku);
+
+        IEnumerable<Domain.Entities.Promotion> scoped;
         if (request.Skus.Count > 0)
         {
+            // Selected SKUs are group tiles (or standalone) — expand groups to their members.
             var selected = request.Skus.ToHashSet();
-            promoQuery = promoQuery.Where(p => selected.Contains(p.Sku));
+            scoped = allPromos.Where(p =>
+                (p.GroupSku != null && selected.Contains(p.GroupSku)) ||
+                (selected.Contains(p.Sku) && IsLeaf(p)));
+        }
+        else
+        {
+            var week = request.ValidFrom ?? PromoWeeks.Current(allPromos.Select(p => (p.ValidFrom, p.ValidTo)));
+            scoped = allPromos.Where(p => p.ValidFrom == week && IsLeaf(p));
         }
 
-        var promos = await promoQuery.ToListAsync(cancellationToken);
+        // A SKU can span two weeks — one promo row per SKU is enough for matching.
+        var promos = scoped
+            .GroupBy(p => p.Sku)
+            .Select(g => g.First())
+            .ToList();
         if (promos.Count == 0) return [];
 
+        var nameBySku = promos.ToDictionary(p => p.Sku, p => p.Name);
+
+        // Confirmed links are pinned to a GroceryProduct (cart-linkable single products only).
         var skus = promos.Select(p => p.Sku).ToHashSet();
         var products = await _context.GroceryProducts.AsNoTracking()
             .Where(p => p.StoreCode == code && skus.Contains(p.Sku))
-            .Select(p => new { p.Id, p.Sku, p.Name })
+            .Select(p => new { p.Id, p.Sku })
             .ToListAsync(cancellationToken);
 
-        var nameBySku = products.ToDictionary(p => p.Sku, p => p.Name);
         var skuByProductId = products.ToDictionary(p => p.Id, p => p.Sku);
 
         // Confirmed links: normalized ingredient name → the promo SKUs it's pinned to.
@@ -70,14 +97,17 @@ public class GetPromoDishesQueryHandler : IRequestHandler<GetPromoDishesQuery, I
             set.Add(sku);
         }
 
-        // Precompute each promo's food stems once.
+        // Precompute each promo's food stems once. Only single products (with a canonical
+        // URL) are cart-linkable; combi-group tiles can match by name but can't be confirmed.
         var promoInfos = promos
             .Select(p => new PromoInfo(
                 p.Sku,
-                nameBySku.TryGetValue(p.Sku, out var n) ? n : p.Sku,
+                p.Name,
                 p.DiscountLabel,
-                PromoIngredientMatcher.FoodStems(nameBySku.TryGetValue(p.Sku, out var nm) ? nm : string.Empty)))
+                p.CanonicalUrl != null,
+                PromoIngredientMatcher.FoodStems(p.Name)))
             .ToList();
+        var infoBySku = promoInfos.ToDictionary(p => p.Sku);
 
         // Family-scale pool — load and match in memory.
         var suggestions = await _context.MealSuggestions.AsNoTracking().ToListAsync(cancellationToken);
@@ -124,8 +154,9 @@ public class GetPromoDishesQueryHandler : IRequestHandler<GetPromoDishesQuery, I
                 {
                     Sku = kv.Key,
                     Name = nameBySku.TryGetValue(kv.Key, out var n) ? n : kv.Key,
-                    DiscountLabel = promoInfos.FirstOrDefault(p => p.Sku == kv.Key)?.DiscountLabel,
+                    DiscountLabel = infoBySku.TryGetValue(kv.Key, out var info) ? info.DiscountLabel : null,
                     Confirmed = kv.Value,
+                    Linkable = info?.Linkable ?? false,
                     IngredientName = usedIngredient.TryGetValue(kv.Key, out var ingName) ? ingName : string.Empty,
                 })
                 .OrderByDescending(p => p.Confirmed)
@@ -157,7 +188,7 @@ public class GetPromoDishesQueryHandler : IRequestHandler<GetPromoDishesQuery, I
             .ToList();
     }
 
-    private sealed record PromoInfo(string Sku, string Name, string? DiscountLabel, IReadOnlyCollection<string> Stems);
+    private sealed record PromoInfo(string Sku, string Name, string? DiscountLabel, bool Linkable, IReadOnlyCollection<string> Stems);
 }
 
 public record PromoDishDto
@@ -188,6 +219,9 @@ public record PromoUsageDto
 
     /// <summary>True when this came from a remembered link, false when best-effort matched.</summary>
     public bool Confirmed { get; init; }
+
+    /// <summary>True for single products (cart-linkable / confirmable); false for combi-group tiles.</summary>
+    public bool Linkable { get; init; }
 
     /// <summary>The dish ingredient this promo matched — used to confirm the (name → SKU) link.</summary>
     public string IngredientName { get; init; } = string.Empty;

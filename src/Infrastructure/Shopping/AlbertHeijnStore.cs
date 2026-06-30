@@ -29,14 +29,16 @@ public class AlbertHeijnStore : IGroceryStore, IStorePromotionSource
     private const string SearchEndpoint = "/mobile-services/product/search/v2";
     private const string ProductDetailEndpoint = "/mobile-services/product/detail/v4/fir/";
 
-    // The weekly "bonus" promotions are the regular product search filtered to
-    // bonus-only. AH caps total search results, so we page through a bounded number
-    // of pages — plenty for the few hundred products that are ever on bonus.
-    private const int PromoPageSize = 100;
-    private const int MaxPromoPages = 6;
+    // The weekly "bonus" is published as a curated folder, not a search filter
+    // (the search `filters=bonus=true` is a no-op — it returns the whole catalogue).
+    // We read the bonus metadata to discover the visible periods (this week + next),
+    // then fetch each period's "Alle Bonus" sections for the actual promoted products.
+    private const string BonusMetadataEndpoint = "/mobile-services/bonuspage/v3/metadata";
+    private const string MobileServicesPrefix = "/mobile-services/";
+    private const string AllBonusTab = "Alle Bonus";
 
     private static readonly Regex ProductUrlRegex = new(
-        @"^https?://(?:www\.)?ah\.nl/producten/product/wi(?<sku>\d+)\b",
+        @"^https?://(?:www\.)?ah\.be/producten/product/wi(?<sku>\d+)\b",
         RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
     private static readonly JsonSerializerOptions JsonOptions = new()
@@ -156,55 +158,51 @@ public class AlbertHeijnStore : IGroceryStore, IStorePromotionSource
 
     public async Task<IReadOnlyList<StorePromotion>> GetPromotionsAsync(CancellationToken cancellationToken)
     {
-        var token = await _tokens.GetAsync(cancellationToken);
-        if (token is null) return Array.Empty<StorePromotion>();
-
         var promotions = new List<StorePromotion>();
+        // A SKU can be on bonus in two visible weeks at once — key the dedupe on (sku, week).
         var seen = new HashSet<string>();
 
         try
         {
-            for (var page = 0; page < MaxPromoPages; page++)
+            var metadata = await GetJsonAsync<BonusMetadata>(BonusMetadataEndpoint, cancellationToken);
+            if (metadata?.Periods is null) return promotions;
+
+            // Only the live weeks — this week and next. Skip any week that has already
+            // ended (the metadata can briefly still list the just-finished one).
+            var today = DateOnly.FromDateTime(DateTime.UtcNow);
+
+            foreach (var period in metadata.Periods)
             {
-                // Empty query + the bonus filter returns the current bonus assortment.
-                var path = $"{SearchEndpoint}?query=&filters=bonus%3Dtrue&size={PromoPageSize}&page={page}";
+                // The folder week — tag every promo in it with THESE dates (a product's own
+                // bonus window can differ from the week, which would fragment the filter).
+                var weekFrom = ParseIsoDate(period.BonusStartDate);
+                var weekTo = ParseIsoDate(period.BonusEndDate);
+                if (weekTo is not null && weekTo < today) continue;
 
-                var response = await SendAsync(path, token, cancellationToken);
-                if (response.StatusCode == HttpStatusCode.Unauthorized)
+                var tab = SelectAllBonusTab(period);
+                if (tab?.UrlMetadataList is null) continue;
+
+                // "Alle Bonus" repeats the spotlight section that other tabs also list, so
+                // dedupe the section URLs before fetching.
+                var urls = tab.UrlMetadataList
+                    .Select(u => u.Url)
+                    .Where(u => !string.IsNullOrWhiteSpace(u))
+                    .Distinct(StringComparer.OrdinalIgnoreCase);
+
+                foreach (var url in urls)
                 {
-                    response.Dispose();
-                    var fresh = await _tokens.RefreshAsync(cancellationToken);
-                    if (fresh is null) break;
-                    token = fresh;
-                    response = await SendAsync(path, token, cancellationToken);
-                }
+                    var section = await GetJsonAsync<BonusSection>($"{MobileServicesPrefix}{url}", cancellationToken);
+                    if (section?.BonusGroupOrProducts is null) continue;
 
-                using (response)
-                {
-                    if (!response.IsSuccessStatusCode)
+                    foreach (var entry in section.BonusGroupOrProducts)
                     {
-                        _logger.LogInformation(
-                            "AH bonus search returned {Status} on page {Page}",
-                            (int)response.StatusCode, page);
-                        break;
+                        foreach (var promo in ToPromotions(entry, weekFrom, weekTo))
+                        {
+                            if (promo is null) continue;
+                            var key = $"{promo.Sku}|{promo.ValidFrom:yyyy-MM-dd}";
+                            if (seen.Add(key)) promotions.Add(promo);
+                        }
                     }
-
-                    await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
-                    var payload = await JsonSerializer.DeserializeAsync<SearchResponse>(
-                        stream, JsonOptions, cancellationToken);
-
-                    var products = payload?.Products;
-                    if (products is null || products.Count == 0) break;
-
-                    foreach (var product in products)
-                    {
-                        var promo = ToPromotion(product);
-                        // Dedupe across pages and skip non-bonus rows defensively.
-                        if (promo is not null && seen.Add(promo.Sku)) promotions.Add(promo);
-                    }
-
-                    // Last (partial) page reached.
-                    if (products.Count < PromoPageSize) break;
                 }
             }
         }
@@ -215,6 +213,65 @@ public class AlbertHeijnStore : IGroceryStore, IStorePromotionSource
         }
 
         return promotions;
+    }
+
+    // A bonus entry is either a single promoted product (real SKU, full price/cart
+    // support) or a combi "group" (e.g. "1 + 1 gratis", "2e gratis") which is the bulk
+    // of the folder. Groups carry no individual SKU/price — we surface them as their own
+    // tile (segment description + discount label) so the folder matches ah.be/bonus, and
+    // their description still feeds best-effort dish matching.
+    private static IEnumerable<StorePromotion?> ToPromotions(BonusEntry entry, DateOnly? weekFrom, DateOnly? weekTo)
+    {
+        if (entry.Product is not null)
+        {
+            yield return ToPromotion(entry.Product, weekFrom, weekTo);
+            yield break;
+        }
+
+        if (entry.BonusGroup is { } group)
+        {
+            if (group.Products is { Count: > 0 })
+            {
+                foreach (var p in group.Products) yield return ToPromotion(p, weekFrom, weekTo);
+            }
+            else
+            {
+                yield return ToGroupPromotion(group, weekFrom, weekTo);
+            }
+        }
+    }
+
+    // A combi group as a non-cart-linkable promo tile. SKU is synthetic ("seg-{id}")
+    // so it has stable identity across refreshes but no GroceryProduct backing it.
+    private static StorePromotion? ToGroupPromotion(BonusGroup group, DateOnly? weekFrom, DateOnly? weekTo)
+    {
+        if (group.SegmentId is null or 0) return null;
+        if (string.IsNullOrWhiteSpace(group.SegmentDescription)) return null;
+
+        return new StorePromotion(
+            Sku: $"seg-{group.SegmentId.Value}",
+            Name: group.SegmentDescription.Trim(),
+            BrandOrSubtitle: string.IsNullOrWhiteSpace(group.Category) ? null : group.Category.Trim(),
+            PackSize: new Quantity(0, string.Empty),
+            // Combi mechanics have no single before/after price — the label is authoritative.
+            OriginalPrice: null,
+            PromoPrice: null,
+            DiscountLabel: string.IsNullOrWhiteSpace(group.DiscountDescription) ? null : group.DiscountDescription.Trim(),
+            Currency: "EUR",
+            ImageUrl: SelectImage(group.Images),
+            CanonicalUrl: null,
+            ValidFrom: weekFrom,
+            ValidTo: weekTo);
+    }
+
+    // The "Alle Bonus" tab lists every section (spotlight + all categories); prefer it,
+    // falling back to whichever tab covers the most sections.
+    private static BonusTab? SelectAllBonusTab(BonusPeriod period)
+    {
+        if (period.Tabs is null || period.Tabs.Count == 0) return null;
+        return period.Tabs.FirstOrDefault(t =>
+                   string.Equals(t.Description?.Trim(), AllBonusTab, StringComparison.OrdinalIgnoreCase))
+               ?? period.Tabs.MaxBy(t => t.UrlMetadataList?.Count ?? 0);
     }
 
     public GroceryDeeplink BuildAddToListDeeplink(IReadOnlyList<DeeplinkLineItem> items)
@@ -260,6 +317,35 @@ public class AlbertHeijnStore : IGroceryStore, IStorePromotionSource
         return await http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct);
     }
 
+    // GET + deserialize with the shared anonymous bearer, refreshing once on a 401.
+    // Returns null on any non-success or auth failure — callers degrade gracefully.
+    private async Task<T?> GetJsonAsync<T>(string path, CancellationToken ct) where T : class
+    {
+        var token = await _tokens.GetAsync(ct);
+        if (token is null) return null;
+
+        var response = await SendAsync(path, token, ct);
+        if (response.StatusCode == HttpStatusCode.Unauthorized)
+        {
+            response.Dispose();
+            var fresh = await _tokens.RefreshAsync(ct);
+            if (fresh is null) return null;
+            response = await SendAsync(path, fresh, ct);
+        }
+
+        using (response)
+        {
+            if (!response.IsSuccessStatusCode)
+            {
+                _logger.LogInformation("AH GET {Path} returned {Status}", path, (int)response.StatusCode);
+                return null;
+            }
+
+            await using var stream = await response.Content.ReadAsStreamAsync(ct);
+            return await JsonSerializer.DeserializeAsync<T>(stream, JsonOptions, ct);
+        }
+    }
+
     // ─── Search response shape ─────────────────────────────────────────────
     // Mobile API returns a flat `products[]` (no `cards` wrapper like the
     // web search). Schema is best-effort; missing fields default sensibly
@@ -302,14 +388,21 @@ public class AlbertHeijnStore : IGroceryStore, IStorePromotionSource
             CanonicalUrl: canonical);
     }
 
-    private static StorePromotion? ToPromotion(Product? product)
+    private static StorePromotion? ToPromotion(Product? product, DateOnly? weekFrom, DateOnly? weekTo)
     {
         if (product is null) return null;
         if (product.WebshopId is null or 0) return null;
         if (string.IsNullOrWhiteSpace(product.Title)) return null;
 
-        var image = product.Images?.FirstOrDefault()?.Url;
-        var canonical = $"https://www.ah.nl/producten/product/wi{product.WebshopId.Value}";
+        var canonical = $"https://www.ah.be/producten/product/wi{product.WebshopId.Value}";
+
+        // The promo price lives on the discount label (a fixed "voor X" price); it's
+        // absent for multi-buy mechanisms ("2 voor 0.99", "1 + 1 gratis") — the label
+        // is the reliable display value then.
+        var label = product.DiscountLabels?.FirstOrDefault();
+        var mechanism = !string.IsNullOrWhiteSpace(product.BonusMechanism)
+            ? product.BonusMechanism.Trim()
+            : label?.DefaultDescription?.Trim();
 
         return new StorePromotion(
             Sku: product.WebshopId.Value.ToString(),
@@ -318,17 +411,25 @@ public class AlbertHeijnStore : IGroceryStore, IStorePromotionSource
                 ? product.Brand.Trim()
                 : product.Subtitle?.Trim(),
             PackSize: ParseSalesUnitSize(product.SalesUnitSize),
-            // Null for multi-buy mechanisms ("2 voor 0.99"); DiscountLabel carries those.
             OriginalPrice: product.PriceBeforeBonus,
-            PromoPrice: product.CurrentPrice,
-            DiscountLabel: string.IsNullOrWhiteSpace(product.BonusMechanism)
-                ? null
-                : product.BonusMechanism.Trim(),
+            PromoPrice: label?.Price is > 0 ? label.Price : null,
+            DiscountLabel: string.IsNullOrWhiteSpace(mechanism) ? null : mechanism,
             Currency: "EUR",
-            ImageUrl: image,
+            ImageUrl: SelectImage(product.Images),
             CanonicalUrl: canonical,
-            ValidFrom: ParseIsoDate(product.BonusStartDate),
-            ValidTo: ParseIsoDate(product.BonusEndDate));
+            ValidFrom: weekFrom,
+            ValidTo: weekTo);
+    }
+
+    // Bonus products ship several render sizes; pick one near 400px for the grid.
+    private static string? SelectImage(List<Image>? images)
+    {
+        if (images is null || images.Count == 0) return null;
+        var pick = images
+            .Where(i => !string.IsNullOrWhiteSpace(i.Url))
+            .OrderBy(i => Math.Abs((i.Width ?? 0) - 400))
+            .FirstOrDefault();
+        return pick?.Url ?? images[0].Url;
     }
 
     private static DateOnly? ParseIsoDate(string? raw) =>
@@ -392,13 +493,66 @@ public class AlbertHeijnStore : IGroceryStore, IStorePromotionSource
         public PriceV2? PriceV2 { get; init; }
         public List<Image>? Images { get; init; }
 
-        // Bonus/promotion fields — present on bonus-filtered search results.
-        public bool? IsBonus { get; init; }
-        public decimal? CurrentPrice { get; init; }
+        // Bonus/promotion fields — present on products from the bonus folder.
         public decimal? PriceBeforeBonus { get; init; }
         public string? BonusMechanism { get; init; }
+        public List<DiscountLabel>? DiscountLabels { get; init; }
+    }
+
+    private record DiscountLabel
+    {
+        public string? Code { get; init; }
+        public string? DefaultDescription { get; init; }
+        public decimal? Price { get; init; }
+    }
+
+    // ─── Bonus folder shape ────────────────────────────────────────────────
+    // metadata → periods[] → tabs[] → urlMetadataList[] (section URLs);
+    // each section → bonusGroupOrProducts[] of products and/or combi groups.
+
+    private record BonusMetadata
+    {
+        public List<BonusPeriod>? Periods { get; init; }
+    }
+
+    private record BonusPeriod
+    {
         public string? BonusStartDate { get; init; }
         public string? BonusEndDate { get; init; }
+        public List<BonusTab>? Tabs { get; init; }
+    }
+
+    private record BonusTab
+    {
+        public string? Description { get; init; }
+        public List<BonusSectionRef>? UrlMetadataList { get; init; }
+    }
+
+    private record BonusSectionRef
+    {
+        public string? Url { get; init; }
+        public string? BonusType { get; init; }
+    }
+
+    private record BonusSection
+    {
+        public List<BonusEntry>? BonusGroupOrProducts { get; init; }
+    }
+
+    private record BonusEntry
+    {
+        public Product? Product { get; init; }
+        public BonusGroup? BonusGroup { get; init; }
+    }
+
+    private record BonusGroup
+    {
+        public long? SegmentId { get; init; }
+        public string? SegmentDescription { get; init; }
+        public string? DiscountDescription { get; init; }
+        public string? Category { get; init; }
+        public List<Image>? Images { get; init; }
+        public List<Product>? Products { get; init; }
     }
 
     private record PriceV2
@@ -414,5 +568,6 @@ public class AlbertHeijnStore : IGroceryStore, IStorePromotionSource
     private record Image
     {
         public string? Url { get; init; }
+        public int? Width { get; init; }
     }
 }

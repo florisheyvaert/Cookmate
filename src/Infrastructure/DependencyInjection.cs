@@ -246,7 +246,9 @@ public static class DependencyInjection
         builder.Services.AddSingleton<AlbertHeijnTokenSource>();
         builder.Services.AddTransient<AlbertHeijnStore>();
         builder.Services.AddTransient<IGroceryStore>(sp => sp.GetRequiredService<AlbertHeijnStore>());
-        builder.Services.AddTransient<IStorePromotionSource>(sp => sp.GetRequiredService<AlbertHeijnStore>());
+        // Promotions come from the ah.be website (curated weekly bonus folder), not the mobile
+        // API — the site shows what the customer actually sees. Requires headless Chromium.
+        builder.Services.AddTransient<IStorePromotionSource, AlbertHeijnWebPromotionSource>();
         builder.Services.AddTransient<IGroceryStoreRegistry, GroceryStoreRegistry>();
     }
 }

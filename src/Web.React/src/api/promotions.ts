@@ -5,12 +5,17 @@ export type PromotionDto = {
   sku: string
   name: string
   brandOrSubtitle: string | null
+  category: string | null
   imageUrl: string | null
   packSize: string | null
   originalPrice: number | null
   promoPrice: number | null
   discountLabel: string | null
   currency: string | null
+  /** Link to the product/deal on ah.be (member products only). */
+  canonicalUrl: string | null
+  /** Number of member products in this group (0 for a standalone promo or a member row). */
+  productCount: number
   /** ISO date yyyy-MM-dd, or null. */
   validFrom: string | null
   validTo: string | null
@@ -22,8 +27,18 @@ export type PromoUsage = {
   discountLabel: string | null
   /** True = remembered link, false = best-effort match the user can confirm. */
   confirmed: boolean
+  /** True for single products (confirmable); false for combi-group tiles (name match only). */
+  linkable: boolean
   /** The dish ingredient this promo matched — used when confirming. */
   ingredientName: string
+}
+
+export type PromoPeriod = {
+  /** ISO date yyyy-MM-dd, or null. */
+  validFrom: string | null
+  validTo: string | null
+  count: number
+  isCurrent: boolean
 }
 
 export type PromoDish = {
@@ -54,12 +69,26 @@ export type PromotionIntegration = {
 }
 
 export const promotionsApi = {
-  list: (storeCode: string) =>
-    api<PromotionDto[]>(`/api/Promotions/${encodeURIComponent(storeCode)}`),
+  /** The cached bonus weeks for a store (oldest first), for the week filter. */
+  periods: (storeCode: string) =>
+    api<PromoPeriod[]>(`/api/Promotions/${encodeURIComponent(storeCode)}/periods`),
 
-  dishes: (storeCode: string, skus: string[], limit = 24) => {
+  list: (storeCode: string, validFrom?: string | null) => {
+    const qs = validFrom ? `?validFrom=${encodeURIComponent(validFrom)}` : ''
+    return api<PromotionDto[]>(`/api/Promotions/${encodeURIComponent(storeCode)}${qs}`)
+  },
+
+  /** The member products inside a bonus group (the drill-down view). */
+  groupProducts: (storeCode: string, groupSku: string, validFrom?: string | null) => {
+    const qs = new URLSearchParams({ groupSku })
+    if (validFrom) qs.set('validFrom', validFrom)
+    return api<PromotionDto[]>(`/api/Promotions/${encodeURIComponent(storeCode)}?${qs.toString()}`)
+  },
+
+  dishes: (storeCode: string, skus: string[], validFrom?: string | null, limit = 24) => {
     const qs = new URLSearchParams()
     for (const sku of skus) qs.append('skus', sku)
+    if (validFrom) qs.set('validFrom', validFrom)
     qs.set('limit', String(limit))
     return api<PromoDish[]>(`/api/Promotions/${encodeURIComponent(storeCode)}/dishes?${qs.toString()}`)
   },
