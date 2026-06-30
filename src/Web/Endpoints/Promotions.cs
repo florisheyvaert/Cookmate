@@ -34,9 +34,9 @@ public class Promotions : IEndpointGroup
         // the shared cache/config — admin-gated like the meal-harvest management.
         groupBuilder.MapGet(ListIntegrations, "integrations").RequireAuthorization(Roles.Administrator);
         groupBuilder.MapPut(UpdateSetting, "integrations/{storeCode}").RequireAuthorization(Roles.Administrator);
-        groupBuilder.MapGet(GetSchedule, "schedule").RequireAuthorization(Roles.Administrator);
-        groupBuilder.MapPut(UpdateSchedule, "schedule").RequireAuthorization(Roles.Administrator);
-        groupBuilder.MapGet(ListRuns, "runs").RequireAuthorization(Roles.Administrator);
+        groupBuilder.MapGet(GetPromotionSchedule, "schedule").RequireAuthorization(Roles.Administrator);
+        groupBuilder.MapPut(UpdatePromotionSchedule, "schedule").RequireAuthorization(Roles.Administrator);
+        groupBuilder.MapGet(ListPromotionRuns, "runs").RequireAuthorization(Roles.Administrator);
         groupBuilder.MapPost(Refresh, "refresh/{storeCode}").RequireAuthorization(Roles.Administrator);
         groupBuilder.MapPost(RefreshAll, "refresh").RequireAuthorization(Roles.Administrator);
     }
@@ -86,21 +86,21 @@ public class Promotions : IEndpointGroup
     }
 
     [EndpointSummary("Automatic promotion-refresh schedule (admin)")]
-    public static async Task<Ok<PromotionScheduleDto>> GetSchedule(ISender sender)
+    public static async Task<Ok<PromotionScheduleDto>> GetPromotionSchedule(ISender sender)
     {
         var schedule = await sender.Send(new GetPromotionScheduleQuery());
         return TypedResults.Ok(schedule);
     }
 
     [EndpointSummary("Set the automatic promotion-refresh schedule (admin)")]
-    public static async Task<NoContent> UpdateSchedule(ISender sender, [FromBody] UpdatePromotionScheduleCommand command)
+    public static async Task<NoContent> UpdatePromotionSchedule(ISender sender, [FromBody] UpdatePromotionScheduleCommand command)
     {
         await sender.Send(command);
         return TypedResults.NoContent();
     }
 
     [EndpointSummary("Recent promotion-refresh runs (admin)")]
-    public static async Task<Ok<IReadOnlyList<IntegrationRunReport>>> ListRuns(ISender sender, int? take)
+    public static async Task<Ok<IReadOnlyList<IntegrationRunReport>>> ListPromotionRuns(ISender sender, int? take)
     {
         var runs = await sender.Send(new ListPromotionRunsQuery { Take = take ?? 20 });
         return TypedResults.Ok(runs);
