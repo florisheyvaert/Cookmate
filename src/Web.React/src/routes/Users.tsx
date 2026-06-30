@@ -6,7 +6,6 @@ import { usersApi, redemptionUrl } from '@/api/users'
 import type { RedemptionLink, UserSummary } from '@/api/users'
 import { ApiError } from '@/lib/api'
 import { btnPrimary } from '@/lib/ui'
-import { PageHeader } from '@/components/PageHeader'
 import { ShareLink } from '@/components/ShareLink'
 import { useConfirm } from '@/components/confirm/ConfirmDialog'
 
@@ -14,7 +13,12 @@ const ease = [0.22, 1, 0.36, 1] as const
 
 type IssuedLink = RedemptionLink & { kind: 'invite' | 'reset' }
 
-export default function UsersPage() {
+/**
+ * Member management, embedded in the Settings → Members section. Owns no page chrome:
+ * an invite button, the freshly-issued share link, and the member list with per-row
+ * promote / reset / remove actions.
+ */
+export function MembersPanel() {
   const qc = useQueryClient()
   const { user: me } = useAuth()
   const confirm = useConfirm()
@@ -79,17 +83,13 @@ export default function UsersPage() {
   }
 
   return (
-    <div className="px-5 sm:px-6 md:px-12 lg:px-20 pt-14 md:pt-16 pb-16 grain min-h-[80vh]">
-      <PageHeader
-        eyebrow="Cookbook · Keys"
-        title="Members"
-        action={
-          <button type="button" onClick={() => setInviteOpen(true)} className={btnPrimary}>
-            <span aria-hidden>+</span>
-            Invite someone
-          </button>
-        }
-      />
+    <div>
+      <div className="flex justify-end mb-5">
+        <button type="button" onClick={() => setInviteOpen(true)} className={btnPrimary}>
+          <span aria-hidden>+</span>
+          Invite someone
+        </button>
+      </div>
 
       <AnimatePresence>
         {issuedLink && (

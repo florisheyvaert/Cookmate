@@ -1,11 +1,11 @@
 import { useMemo, useState, type ReactNode } from 'react'
-import { Link } from 'react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { AnimatePresence, motion } from 'motion/react'
 import { shoppingApi } from '@/api/shopping'
 import { PageHeader } from '@/components/PageHeader'
 import { PromotionIntegrations } from '@/components/PromotionIntegrations'
 import { RecipeSourcesPanel } from '@/routes/SuggestionSources'
+import { MembersPanel } from '@/routes/Users'
 import { useAuth } from '@/auth/AuthContext'
 import { useTheme } from '@/components/ThemeProvider'
 import type { Theme } from '@/lib/theme'
@@ -308,11 +308,7 @@ function IntegrationsSection() {
 // ── Members ─────────────────────────────────────────────────────────────────
 
 function MembersSection() {
-  return (
-    <Link to="/users" className={btnPrimary + ' no-underline'}>
-      Manage members <span aria-hidden>→</span>
-    </Link>
-  )
+  return <MembersPanel />
 }
 
 function SearchIcon() {
