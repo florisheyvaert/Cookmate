@@ -213,16 +213,13 @@ export default function ShoppingCart() {
             </span>
           )}
         </div>
-        <p className="mt-3 text-ink-soft leading-relaxed" style={{ fontFamily: 'var(--font-body)' }}>
-          One running basket — add anything, pull in a week's plan, then see what you can cook.
-        </p>
       </header>
 
       {/* ── Actions ──────────────────────────────────────────────────────────── */}
       <button type="button" onClick={() => setSearch({ mode: 'add' })} className={btnPrimary + ' w-full justify-center py-3'}>
         + Add product
       </button>
-      <div className="mt-2.5 grid grid-cols-2 gap-2.5">
+      <div className="mt-3 grid grid-cols-2 gap-3">
         <button type="button" onClick={() => setPeriodOpen(true)} className={btnGhostSm + ' justify-center'}>
           + Add my meal plan
         </button>
@@ -265,9 +262,6 @@ export default function ShoppingCart() {
       ) : (
         <>
           <div className="flex items-center gap-3 mb-4">
-            <h2 className="eyebrow text-ink">
-              In your cart <span className="text-chestnut-soft">· {totalItems}</span>
-            </h2>
             {items.length > 1 && <CartSortToggle mode={sortMode} onChange={setSortMode} size="sm" />}
             <button
               type="button"
@@ -291,7 +285,7 @@ export default function ShoppingCart() {
                     <span className="flex-1 h-px bg-cream-shadow" />
                   </div>
                 )}
-                <ul className="space-y-2.5">
+                <ul className="space-y-3">
                   <AnimatePresence initial={false}>
                     {group.items.map((line) => (
                       <CartRow
@@ -349,21 +343,27 @@ export default function ShoppingCart() {
         <div className="sticky bottom-0 z-20 -mx-5 sm:-mx-6 lg:-mx-8 px-5 sm:px-6 lg:px-8 pt-5 pb-4 bg-gradient-to-t from-cream via-cream to-transparent">
           <div
             ref={footerRef}
-            className="rounded-2xl border border-cream-shadow bg-cream-deep shadow-[0_-6px_24px_-12px_rgba(20,30,18,0.3)] p-3.5 sm:p-4 flex items-center justify-between gap-4"
+            className="rounded-2xl border border-cream-shadow bg-cream-deep shadow-[0_-6px_24px_-12px_rgba(20,30,18,0.3)] p-3.5 sm:p-4"
           >
-            <p className="font-mono text-[0.66rem] text-chestnut leading-tight">
-              <span className="num text-paprika text-base">{linkedForStore}</span> linked item{linkedForStore === 1 ? '' : 's'}
-              <span className="block text-[0.6rem] text-chestnut-soft">free text stays in your list</span>
-            </p>
-            <button
-              type="button"
-              onClick={() => sendDeeplink.mutate()}
-              disabled={linkedForStore === 0 || sendDeeplink.isPending}
-              className={btnPrimary + ' shrink-0 disabled:opacity-50'}
-              title={linkedForStore === 0 ? 'Link some products first' : undefined}
-            >
-              {sendDeeplink.isPending ? 'Opening…' : `Send to ${storeName} →`}
-            </button>
+            <div className="flex items-center justify-between gap-4">
+              <p className="font-mono text-[0.7rem] text-chestnut leading-none">
+                <span className="num text-paprika text-base">{linkedForStore}</span> item{linkedForStore === 1 ? '' : 's'}
+              </p>
+              <button
+                type="button"
+                onClick={() => sendDeeplink.mutate()}
+                disabled={linkedForStore === 0 || sendDeeplink.isPending}
+                className={btnPrimary + ' shrink-0 disabled:opacity-50'}
+                title={linkedForStore === 0 ? 'Link some products first' : undefined}
+              >
+                {sendDeeplink.isPending ? 'Opening…' : `Send to ${storeName} →`}
+              </button>
+            </div>
+            {items.length > linkedForStore && (
+              <p className="mt-3 text-center font-mono text-[0.56rem] uppercase tracking-[0.12em] text-chestnut-soft">
+                free text stays in your list
+              </p>
+            )}
           </div>
         </div>
       )}
@@ -444,7 +444,7 @@ function CartRow({
         onDragEnd={(_e, info) => {
           if (Math.abs(info.offset.x) > SWIPE) onRemove()
         }}
-        className="relative flex items-center gap-3 rounded-2xl border border-cream-shadow bg-cream-deep px-3.5 py-3"
+        className="relative flex items-center gap-3 rounded-2xl border border-cream-shadow bg-cream-deep px-3.5 py-3.5"
       >
         <span className="shrink-0 w-12 h-12 rounded-xl overflow-hidden border border-cream-shadow bg-cream grid place-items-center">
           {line.imageUrl ? (

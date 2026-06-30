@@ -174,7 +174,7 @@ function Planner() {
   const byDate = useMemo(() => groupByDate(gridQ.data ?? []), [gridQ.data])
 
   const plannedCount = gridQ.data?.length ?? 0
-  const wdShort = new Intl.DateTimeFormat(undefined, { weekday: 'short' })
+  const wdLong = new Intl.DateTimeFormat(undefined, { weekday: 'long' })
   const fmtMon = new Intl.DateTimeFormat(undefined, { month: 'short' })
 
   return (
@@ -197,17 +197,17 @@ function Planner() {
             </span>
           )}
         </div>
-        <div className="flex items-center gap-2.5 sm:gap-3 flex-wrap">
-          <Link to="/suggestions" className={`${btnGreen} whitespace-nowrap`}>
+        <div className="grid grid-cols-2 gap-2.5 w-full sm:flex sm:w-auto sm:flex-wrap sm:items-center sm:gap-3">
+          <Link to="/suggestions" className={`${btnGreen} w-full justify-center sm:w-auto whitespace-nowrap`}>
             🥗 Meal ideas →
           </Link>
-          <Link to="/shopping-cart" className={`${btnGoldGhost} whitespace-nowrap`}>
+          <Link to="/shopping-cart" className={`${btnGoldGhost} w-full justify-center sm:w-auto whitespace-nowrap`}>
             🛒 Shopping cart →
           </Link>
-          <Link to="/promos" className={`${btnGoldGhost} whitespace-nowrap`}>
+          <Link to="/promos" className={`${btnGoldGhost} w-full justify-center sm:w-auto whitespace-nowrap`}>
             🏷️ Promos →
           </Link>
-          <Link to="/calendar" className={`${btnGoldGhost} whitespace-nowrap`}>
+          <Link to="/calendar" className={`${btnGoldGhost} w-full justify-center sm:w-auto whitespace-nowrap`}>
             🗓️ Calendar →
           </Link>
         </div>
@@ -238,17 +238,17 @@ function Planner() {
               type="button"
               onClick={() => setSelectedDate(iso)}
               className={[
-                'group shrink-0 snap-start basis-[31%] sm:basis-[22%] lg:basis-[14.5%] text-left rounded-xl border overflow-hidden transition-colors',
+                'group shrink-0 snap-start basis-[42%] sm:basis-[26%] lg:basis-[14.5%] text-left rounded-xl border overflow-hidden transition-colors',
                 isToday ? 'border-paprika/60 ring-1 ring-inset ring-paprika/30' : 'border-cream-shadow hover:border-paprika/50',
                 isPast ? 'opacity-55 hover:opacity-100' : '',
               ].join(' ')}
             >
-              {/* Date band — the clear "which day is this" header */}
-              <div className={['px-3 py-2 flex items-center justify-between gap-2', band].join(' ')}>
-                <span className="font-display leading-none truncate" style={{ fontWeight: 700, fontSize: '0.95rem', letterSpacing: '-0.01em' }}>
-                  {relLabel ?? wdShort.format(d)}
+              {/* Date band — day name + date, always both visible (stacked, no truncation cut) */}
+              <div className={['px-2.5 py-2', band].join(' ')}>
+                <span className="block font-display leading-tight truncate capitalize" style={{ fontWeight: 700, fontSize: '0.92rem', letterSpacing: '-0.01em' }}>
+                  {relLabel ?? wdLong.format(d)}
                 </span>
-                <span className="num leading-none shrink-0 text-[0.86rem]">
+                <span className="block num leading-none text-[0.78rem] opacity-90 mt-0.5">
                   {d.getDate()} {fmtMon.format(d)}
                 </span>
               </div>
