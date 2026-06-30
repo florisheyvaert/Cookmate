@@ -16,6 +16,8 @@ public interface IApplicationDbContext
 
     DbSet<IgnoredIngredient> IgnoredIngredients { get; }
 
+    DbSet<ShoppingCartItem> ShoppingCartItems { get; }
+
     DbSet<MealEntry> MealEntries { get; }
 
     DbSet<SuggestionSource> SuggestionSources { get; }
