@@ -1,9 +1,7 @@
 using Cookmate.Application.Shopping.Commands.AddIgnoredIngredient;
-using Cookmate.Application.Shopping.Commands.ClearIngredientProductPreference;
 using Cookmate.Application.Shopping.Commands.LinkIngredientToProduct;
 using Cookmate.Application.Shopping.Commands.LinkIngredientToProductByUrl;
 using Cookmate.Application.Shopping.Commands.RemoveIgnoredIngredient;
-using Cookmate.Application.Shopping.Commands.SetIngredientProductPreference;
 using Cookmate.Application.Shopping.Commands.UnlinkIngredient;
 using Cookmate.Application.Shopping.Common;
 using Cookmate.Application.Shopping.Queries.BuildDeeplinkFromItems;
@@ -31,28 +29,13 @@ public class Shopping : IEndpointGroup
 
         groupBuilder.MapGet(BuildRecipeDeeplink, "recipes/{recipeId:int}/{storeCode}");
 
-        // Name→product preferences feed the cart's "add a week" import.
-        groupBuilder.MapPost(SetPreference, "preferences");
-        groupBuilder.MapDelete(ClearPreference, "preferences");
+        // Name→product preferences are written when you link a cart line; the deeplink turns
+        // a reviewed basket into a store "add to cart" URL.
         groupBuilder.MapPost(BuildDeeplink, "deeplink");
 
         groupBuilder.MapGet(ListIgnored, "ignored");
         groupBuilder.MapPost(AddIgnored, "ignored");
         groupBuilder.MapDelete(RemoveIgnored, "ignored");
-    }
-
-    [EndpointSummary("Remember the product for an ingredient name")]
-    public static async Task<NoContent> SetPreference(ISender sender, [FromBody] SetIngredientProductPreferenceCommand command)
-    {
-        await sender.Send(command);
-        return TypedResults.NoContent();
-    }
-
-    [EndpointSummary("Forget the remembered product for an ingredient name")]
-    public static async Task<NoContent> ClearPreference(ISender sender, string storeCode, string ingredientName)
-    {
-        await sender.Send(new ClearIngredientProductPreferenceCommand { StoreCode = storeCode, IngredientName = ingredientName });
-        return TypedResults.NoContent();
     }
 
     [EndpointSummary("Build a deeplink from an explicit reviewed basket")]
