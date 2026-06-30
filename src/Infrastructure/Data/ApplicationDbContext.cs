@@ -15,6 +15,8 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>, IApplica
 
     public DbSet<GroceryProduct> GroceryProducts => Set<GroceryProduct>();
 
+    public DbSet<Promotion> Promotions => Set<Promotion>();
+
     public DbSet<RecipeIngredientProductLink> RecipeIngredientProductLinks => Set<RecipeIngredientProductLink>();
 
     public DbSet<IngredientProductPreference> IngredientProductPreferences => Set<IngredientProductPreference>();
@@ -27,9 +29,13 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>, IApplica
 
     public DbSet<MealSuggestion> MealSuggestions => Set<MealSuggestion>();
 
-    public DbSet<SuggestionHarvestRun> SuggestionHarvestRuns => Set<SuggestionHarvestRun>();
+    public DbSet<IntegrationRun> IntegrationRuns => Set<IntegrationRun>();
 
     public DbSet<HarvestSchedule> HarvestSchedules => Set<HarvestSchedule>();
+
+    public DbSet<StorePromotionSetting> StorePromotionSettings => Set<StorePromotionSetting>();
+
+    public DbSet<PromotionRefreshSchedule> PromotionRefreshSchedules => Set<PromotionRefreshSchedule>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {

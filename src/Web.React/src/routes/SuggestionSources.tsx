@@ -1,5 +1,4 @@
 import { Fragment, useMemo, useState, type ReactNode } from 'react'
-import { Link } from 'react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { AnimatePresence, motion } from 'motion/react'
 import {
@@ -12,7 +11,6 @@ import {
   HARVEST_STATUS_PROCESSING,
   HARVEST_TRIGGER_LABELS,
 } from '@/api/suggestions'
-import { PageHeader } from '@/components/PageHeader'
 import { Listbox, type ListboxOption } from '@/components/Listbox'
 
 const DAY_LABELS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
@@ -55,7 +53,12 @@ function SourceMonogram({ name, faviconUrl, enabled }: { name: string; faviconUr
   )
 }
 
-export default function SuggestionSources() {
+/**
+ * Embeddable management for recipe (meal-suggestion) sources — the add affordance, the
+ * automatic-harvest schedule, and one card per source (harvest / edit / history / delete).
+ * Lives inside the Settings → Integrations section; it owns no page chrome of its own.
+ */
+export function RecipeSourcesPanel() {
   const queryClient = useQueryClient()
   const [adding, setAdding] = useState(false)
   const sourcesQ = useQuery({
@@ -77,21 +80,7 @@ export default function SuggestionSources() {
   const sources = sourcesQ.data ?? []
 
   return (
-    <div className="px-5 sm:px-6 md:px-12 lg:px-20 pt-14 md:pt-16 pb-20">
-      <PageHeader
-        eyebrow="Discover · Sources"
-        title="Sources"
-        subtitle="Sites the weekly harvester scrapes for meal ideas. Add a site by its domain — the rest is found automatically."
-        action={
-          <Link
-            to="/suggestions"
-            className="inline-flex items-center gap-1.5 rounded-xl px-5 py-2.5 border border-cream-shadow text-chestnut hover:border-paprika hover:text-paprika transition-colors font-mono text-[0.7rem] uppercase tracking-[0.16em] no-underline"
-          >
-            ← Back to ideas
-          </Link>
-        }
-      />
-
+    <div>
       {/* Automatic-harvest schedule */}
       <SchedulePanel />
 

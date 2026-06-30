@@ -8,6 +8,8 @@ public interface IApplicationDbContext
 
     DbSet<GroceryProduct> GroceryProducts { get; }
 
+    DbSet<Promotion> Promotions { get; }
+
     DbSet<RecipeIngredientProductLink> RecipeIngredientProductLinks { get; }
 
     DbSet<IngredientProductPreference> IngredientProductPreferences { get; }
@@ -20,9 +22,13 @@ public interface IApplicationDbContext
 
     DbSet<MealSuggestion> MealSuggestions { get; }
 
-    DbSet<SuggestionHarvestRun> SuggestionHarvestRuns { get; }
+    DbSet<IntegrationRun> IntegrationRuns { get; }
 
     DbSet<HarvestSchedule> HarvestSchedules { get; }
+
+    DbSet<StorePromotionSetting> StorePromotionSettings { get; }
+
+    DbSet<PromotionRefreshSchedule> PromotionRefreshSchedules { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken);
 }

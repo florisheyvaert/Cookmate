@@ -8,7 +8,7 @@ namespace Cookmate.Domain.Entities;
 /// enable/disable them. Discovery uses the configured <see cref="ListingUrls"/>
 /// (overview/category pages) to find recipe URLs, unless a per-host discoverer
 /// overrides that in code. Run telemetry is kept so the last outcome is visible
-/// at a glance; the full per-URL detail lives on <see cref="SuggestionHarvestRun"/>.
+/// at a glance; the full per-URL detail lives on <see cref="IntegrationRun"/>.
 /// </summary>
 public class SuggestionSource : BaseAuditableEntity
 {
@@ -29,7 +29,7 @@ public class SuggestionSource : BaseAuditableEntity
 
     public DateTimeOffset? LastRunAt { get; private set; }
 
-    public HarvestStatus? LastRunStatus { get; private set; }
+    public RunStatus? LastRunStatus { get; private set; }
 
     /// <summary>Number of suggestions inserted on the most recent run.</summary>
     public int? LastRunCount { get; private set; }
@@ -99,11 +99,11 @@ public class SuggestionSource : BaseAuditableEntity
     public void MarkRunStarted(DateTimeOffset at)
     {
         LastRunAt = at;
-        LastRunStatus = HarvestStatus.Processing;
+        LastRunStatus = RunStatus.Processing;
     }
 
     /// <summary>Records the outcome of a harvest run for at-a-glance telemetry.</summary>
-    public void RecordRun(DateTimeOffset at, HarvestStatus status, int insertedCount)
+    public void RecordRun(DateTimeOffset at, RunStatus status, int insertedCount)
     {
         LastRunAt = at;
         LastRunStatus = status;
@@ -113,9 +113,9 @@ public class SuggestionSource : BaseAuditableEntity
     /// <summary>Clears a stuck "processing" state left by a restart mid-harvest.</summary>
     public void MarkRunInterrupted()
     {
-        if (LastRunStatus == HarvestStatus.Processing)
+        if (LastRunStatus == RunStatus.Processing)
         {
-            LastRunStatus = LastRunCount > 0 ? HarvestStatus.PartialFailure : HarvestStatus.Failed;
+            LastRunStatus = LastRunCount > 0 ? RunStatus.PartialFailure : RunStatus.Failed;
         }
     }
 

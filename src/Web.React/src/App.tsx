@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { Route, Routes } from 'react-router'
+import { Navigate, Route, Routes } from 'react-router'
 import { useQuery } from '@tanstack/react-query'
 import { AuthProvider } from '@/auth/AuthContext'
 import { RequireAuth } from '@/auth/RequireAuth'
@@ -21,11 +21,11 @@ import Users from '@/routes/Users'
 import Redeem from '@/routes/Redeem'
 import Shop from '@/routes/Shop'
 import ShopCart from '@/routes/ShopCart'
+import Promos from '@/routes/Promos'
 import Calendar from '@/routes/Calendar'
 import Settings from '@/routes/Settings'
 import MealSuggestions from '@/routes/MealSuggestions'
 import MealSuggestionDetail from '@/routes/MealSuggestionDetail'
-import SuggestionSources from '@/routes/SuggestionSources'
 
 export default function App() {
   return (
@@ -64,6 +64,14 @@ export default function App() {
                   }
                 />
                 <Route
+                  path="promos"
+                  element={
+                    <RequireAuth>
+                      <Promos />
+                    </RequireAuth>
+                  }
+                />
+                <Route
                   path="shop/cart"
                   element={
                     <RequireAuth>
@@ -87,14 +95,8 @@ export default function App() {
                     </RequireAuth>
                   }
                 />
-                <Route
-                  path="suggestions/sources"
-                  element={
-                    <RequireAdmin>
-                      <SuggestionSources />
-                    </RequireAdmin>
-                  }
-                />
+                {/* Recipe-source management now lives in Settings → Integrations. */}
+                <Route path="suggestions/sources" element={<Navigate to="/settings" replace />} />
                 <Route
                   path="suggestions/:id"
                   element={

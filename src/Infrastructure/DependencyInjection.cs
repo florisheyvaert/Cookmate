@@ -212,6 +212,9 @@ public static class DependencyInjection
         // Weekly harvest job (manual per-source runs go through the same command).
         builder.Services.AddHostedService<MealSuggestionHarvestService>();
 
+        // Automatic promotion refresh across enabled stores (manual runs share the command).
+        builder.Services.AddHostedService<PromotionRefreshService>();
+
         builder.Services.AddHttpClient<IImageDownloader, HttpImageDownloader>(client =>
         {
             client.Timeout = TimeSpan.FromSeconds(20);
@@ -243,6 +246,7 @@ public static class DependencyInjection
         builder.Services.AddSingleton<AlbertHeijnTokenSource>();
         builder.Services.AddTransient<AlbertHeijnStore>();
         builder.Services.AddTransient<IGroceryStore>(sp => sp.GetRequiredService<AlbertHeijnStore>());
+        builder.Services.AddTransient<IStorePromotionSource>(sp => sp.GetRequiredService<AlbertHeijnStore>());
         builder.Services.AddTransient<IGroceryStoreRegistry, GroceryStoreRegistry>();
     }
 }

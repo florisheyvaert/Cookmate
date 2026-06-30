@@ -3,6 +3,7 @@ using System;
 using Cookmate.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Cookmate.Infrastructure.Data.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260627000548_AddPromotions")]
+    partial class AddPromotions
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -232,69 +235,6 @@ namespace Cookmate.Infrastructure.Data.Migrations
                     b.ToTable("IngredientProductPreferences", (string)null);
                 });
 
-            modelBuilder.Entity("Cookmate.Domain.Entities.IntegrationRun", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTimeOffset>("Created")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("CreatedBy")
-                        .HasColumnType("text");
-
-                    b.Property<int>("Discovered")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("Failed")
-                        .HasColumnType("integer");
-
-                    b.Property<DateTimeOffset?>("FinishedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<int>("Inserted")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("Kind")
-                        .HasColumnType("integer");
-
-                    b.Property<DateTimeOffset>("LastModified")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("LastModifiedBy")
-                        .HasColumnType("text");
-
-                    b.Property<int>("SkippedDuplicate")
-                        .HasColumnType("integer");
-
-                    b.Property<int?>("SourceId")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("Sources")
-                        .IsRequired()
-                        .HasColumnType("jsonb");
-
-                    b.Property<DateTimeOffset>("StartedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<int>("Status")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("Trigger")
-                        .HasColumnType("integer");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("SourceId");
-
-                    b.HasIndex("Kind", "StartedAt");
-
-                    b.ToTable("IntegrationRuns", (string)null);
-                });
-
             modelBuilder.Entity("Cookmate.Domain.Entities.MealEntry", b =>
                 {
                     b.Property<int>("Id")
@@ -490,40 +430,6 @@ namespace Cookmate.Infrastructure.Data.Migrations
                     b.ToTable("Promotions", (string)null);
                 });
 
-            modelBuilder.Entity("Cookmate.Domain.Entities.PromotionRefreshSchedule", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTimeOffset>("Created")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("CreatedBy")
-                        .HasColumnType("text");
-
-                    b.Property<int>("DayOfWeek")
-                        .HasColumnType("integer");
-
-                    b.Property<bool>("Enabled")
-                        .HasColumnType("boolean");
-
-                    b.Property<DateTimeOffset>("LastModified")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("LastModifiedBy")
-                        .HasColumnType("text");
-
-                    b.Property<TimeOnly>("TimeOfDay")
-                        .HasColumnType("time without time zone");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("PromotionRefreshSchedules", (string)null);
-                });
-
             modelBuilder.Entity("Cookmate.Domain.Entities.Recipe", b =>
                 {
                     b.Property<int>("Id")
@@ -684,7 +590,7 @@ namespace Cookmate.Infrastructure.Data.Migrations
                     b.ToTable("RecipeSteps", (string)null);
                 });
 
-            modelBuilder.Entity("Cookmate.Domain.Entities.StorePromotionSetting", b =>
+            modelBuilder.Entity("Cookmate.Domain.Entities.SuggestionHarvestRun", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -698,8 +604,17 @@ namespace Cookmate.Infrastructure.Data.Migrations
                     b.Property<string>("CreatedBy")
                         .HasColumnType("text");
 
-                    b.Property<bool>("Enabled")
-                        .HasColumnType("boolean");
+                    b.Property<int>("Discovered")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("Failed")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset?>("FinishedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("Inserted")
+                        .HasColumnType("integer");
 
                     b.Property<DateTimeOffset>("LastModified")
                         .HasColumnType("timestamp with time zone");
@@ -707,26 +622,32 @@ namespace Cookmate.Infrastructure.Data.Migrations
                     b.Property<string>("LastModifiedBy")
                         .HasColumnType("text");
 
-                    b.Property<DateTimeOffset?>("LastRunAt")
+                    b.Property<int>("SkippedDuplicate")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("SourceId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Sources")
+                        .IsRequired()
+                        .HasColumnType("jsonb");
+
+                    b.Property<DateTimeOffset>("StartedAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<int?>("LastRunCount")
+                    b.Property<int>("Status")
                         .HasColumnType("integer");
 
-                    b.Property<int?>("LastRunStatus")
+                    b.Property<int>("Trigger")
                         .HasColumnType("integer");
-
-                    b.Property<string>("StoreCode")
-                        .IsRequired()
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("StoreCode")
-                        .IsUnique();
+                    b.HasIndex("SourceId");
 
-                    b.ToTable("StorePromotionSettings", (string)null);
+                    b.HasIndex("StartedAt");
+
+                    b.ToTable("SuggestionHarvestRuns", (string)null);
                 });
 
             modelBuilder.Entity("Cookmate.Domain.Entities.SuggestionSource", b =>
