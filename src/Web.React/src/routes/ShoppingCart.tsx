@@ -309,21 +309,21 @@ export default function ShoppingCart() {
             {undo && (
               <motion.div
                 key="undo"
-                initial={{ opacity: 0, y: 10 }}
+                initial={{ opacity: 0, y: 6 }}
                 animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: 10 }}
-                transition={{ duration: 0.2, ease }}
-                className="flex items-center justify-between gap-3 rounded-2xl bg-ink text-cream px-4 py-2.5 shadow-lg"
+                exit={{ opacity: 0, y: 6 }}
+                transition={{ duration: 0.18, ease }}
+                className="flex items-center justify-between gap-3 rounded-xl border border-cream-shadow bg-cream/95 backdrop-blur px-3.5 py-2"
               >
-                <span className="min-w-0 font-mono text-[0.66rem] tracking-[0.04em] text-cream/85 truncate">
-                  Removed <span className="text-cream">“{undo.displayName}”</span>
+                <span className="min-w-0 truncate font-mono text-[0.6rem] uppercase tracking-[0.12em] text-chestnut-soft">
+                  Removed “{undo.displayName}”
                 </span>
                 <button
                   type="button"
                   onClick={handleUndo}
-                  className="shrink-0 inline-flex items-center gap-1.5 rounded-lg bg-cream/15 hover:bg-cream/25 px-3 py-1.5 font-mono text-[0.64rem] uppercase tracking-[0.16em] text-cream transition-colors"
+                  className="shrink-0 font-mono text-[0.62rem] uppercase tracking-[0.16em] text-paprika hover:text-paprika-deep transition-colors"
                 >
-                  <span aria-hidden>↩</span> Undo
+                  Undo
                 </button>
               </motion.div>
             )}
