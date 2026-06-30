@@ -146,24 +146,24 @@ function ProviderCard({ store, index, hasRecipes }: { store: PromotionIntegratio
       <div className="mt-4 divide-y divide-cream-shadow/70 border-t border-cream-shadow/70">
         {/* Promotions — editable */}
         <div className="px-5 sm:px-6 py-4">
-          <div className="flex items-center gap-3 flex-wrap">
-            <span className="eyebrow">Promotions</span>
-            {store.lastRunStatus != null && (
-              <span className={`font-mono px-2 py-0.5 rounded-full text-[0.54rem] uppercase tracking-[0.1em] ${statusPill(store.lastRunStatus)}`}>
-                {HARVEST_STATUS_LABELS[store.lastRunStatus]}
-              </span>
-            )}
-            <div className="ml-auto">
-              <Toggle
-                checked={store.enabled}
-                disabled={toggle.isPending}
-                onChange={(v) => toggle.mutate(v)}
-                label={store.enabled ? 'On' : 'Off'}
-              />
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2 flex-wrap min-w-0">
+              <span className="eyebrow">Promotions</span>
+              {store.lastRunStatus != null && (
+                <span className={`font-mono px-2 py-0.5 rounded-full text-[0.54rem] uppercase tracking-[0.1em] ${statusPill(store.lastRunStatus)}`}>
+                  {HARVEST_STATUS_LABELS[store.lastRunStatus]}
+                </span>
+              )}
             </div>
+            <Toggle
+              checked={store.enabled}
+              disabled={toggle.isPending}
+              onChange={(v) => toggle.mutate(v)}
+              label={store.enabled ? 'On' : 'Off'}
+            />
           </div>
 
-          <div className="flex items-center justify-between gap-3 mt-3">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5 sm:gap-3 mt-3">
             <p className="font-mono text-[0.64rem] text-chestnut">
               {store.lastRunAt ? (
                 <>
@@ -179,7 +179,7 @@ function ProviderCard({ store, index, hasRecipes }: { store: PromotionIntegratio
               type="button"
               onClick={() => refresh.mutate()}
               disabled={busy}
-              className="shrink-0 inline-flex items-center justify-center gap-1.5 rounded-xl px-4 py-2 bg-butter text-[#1f2417] hover:bg-butter-deep disabled:opacity-60 transition-colors font-display font-semibold text-[0.8rem]"
+              className="w-full sm:w-auto shrink-0 inline-flex items-center justify-center gap-1.5 rounded-xl px-4 py-2.5 sm:py-2 bg-butter text-[#1f2417] hover:bg-butter-deep disabled:opacity-60 transition-colors font-display font-semibold text-[0.8rem]"
             >
               <span aria-hidden className={busy ? 'animate-spin' : ''}>↻</span>
               {busy ? 'Refreshing…' : 'Refresh now'}
