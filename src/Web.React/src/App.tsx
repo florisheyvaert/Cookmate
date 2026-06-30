@@ -3,7 +3,6 @@ import { Navigate, Route, Routes } from 'react-router'
 import { useQuery } from '@tanstack/react-query'
 import { AuthProvider } from '@/auth/AuthContext'
 import { RequireAuth } from '@/auth/RequireAuth'
-import { RequireAdmin } from '@/auth/RequireAdmin'
 import { ConfirmProvider } from '@/components/confirm/ConfirmDialog'
 import { ScrollToTop } from '@/components/ScrollToTop'
 import { ThemeProvider } from '@/components/ThemeProvider'
@@ -17,7 +16,6 @@ import RecipeEdit from '@/routes/RecipeEdit'
 import CookMode from '@/routes/CookMode'
 import Login from '@/routes/Login'
 import Setup from '@/routes/Setup'
-import Users from '@/routes/Users'
 import Redeem from '@/routes/Redeem'
 import Shop from '@/routes/Shop'
 import ShopCart from '@/routes/ShopCart'
@@ -48,14 +46,8 @@ export default function App() {
                     </RequireAuth>
                   }
                 />
-                <Route
-                  path="users"
-                  element={
-                    <RequireAdmin>
-                      <Users />
-                    </RequireAdmin>
-                  }
-                />
+                {/* Member management now lives in Settings → Members. */}
+                <Route path="users" element={<Navigate to="/settings" replace />} />
                 <Route
                   path="shop"
                   element={
