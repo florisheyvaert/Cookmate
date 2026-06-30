@@ -266,7 +266,7 @@ function SourceCard({ source, index }: { source: SuggestionSourceDto; index: num
         </div>
 
         {/* Secondary actions */}
-        <div className="flex flex-wrap items-center gap-x-5 gap-y-2.5 mt-4 pt-4 border-t border-cream-shadow/70">
+        <div className="flex flex-wrap items-center gap-x-4 sm:gap-x-5 gap-y-1 mt-4 pt-4 border-t border-cream-shadow/70">
           <ActionBtn
             icon={<PowerIcon />}
             label={source.enabled ? 'Disable' : 'Enable'}
@@ -478,7 +478,7 @@ function ActionBtn({
       onClick={onClick}
       disabled={disabled}
       className={[
-        'inline-flex items-center gap-1.5 font-mono text-[0.64rem] uppercase tracking-[0.14em] transition-colors disabled:opacity-50',
+        'inline-flex items-center gap-1.5 py-1.5 font-mono text-[0.64rem] uppercase tracking-[0.14em] transition-colors disabled:opacity-50',
         danger ? 'text-red-600 hover:text-red-700' : 'text-chestnut hover:text-paprika',
       ].join(' ')}
     >

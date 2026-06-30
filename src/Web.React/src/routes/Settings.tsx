@@ -1,4 +1,5 @@
-import { useMemo, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useSearchParams } from 'react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { AnimatePresence, motion } from 'motion/react'
 import { shoppingApi } from '@/api/shopping'
@@ -20,7 +21,7 @@ type Section = {
   id: string
   title: string
   emoji: string
-  /** One-line summary shown under the title — and searched. */
+  /** One-line summary shown when the section is open — and always searched. */
   description: string
   /** Extra terms so search finds a section by what it does, not just its title. */
   keywords: string[]
@@ -30,7 +31,9 @@ type Section = {
 
 export default function Settings() {
   const { isAdmin } = useAuth()
+  const [searchParams] = useSearchParams()
   const [query, setQuery] = useState('')
+  const [openIds, setOpenIds] = useState<Set<string>>(() => new Set())
 
   // The full registry — each entry carries its own searchable text.
   const sections = useMemo<Section[]>(() => {
@@ -73,13 +76,37 @@ export default function Settings() {
     return all.filter((s) => !s.adminOnly || isAdmin)
   }, [isAdmin])
 
+  // Deep link: ?section=<id> opens just that section, collapses the rest, and scrolls
+  // it into view. Used e.g. from Ideas → "Manage sources" (?section=integrations).
+  const sectionParam = searchParams.get('section')
+  useEffect(() => {
+    if (!sectionParam) return
+    if (!sections.some((s) => s.id === sectionParam)) return
+    setOpenIds(new Set([sectionParam]))
+    // After the route's scroll-to-top and this render settle, bring the section into view.
+    const t = setTimeout(() => {
+      document.getElementById(sectionParam)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }, 140)
+    return () => clearTimeout(t)
+  }, [sectionParam, sections])
+
   const q = query.trim().toLowerCase()
   const terms = q.split(/\s+/).filter(Boolean)
+  const searching = terms.length > 0
   const visible = sections.filter((s) => {
-    if (terms.length === 0) return true
+    if (!searching) return true
     const haystack = `${s.title} ${s.description} ${s.keywords.join(' ')}`.toLowerCase()
     return terms.every((t) => haystack.includes(t))
   })
+
+  function toggle(id: string) {
+    setOpenIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
 
   return (
     <div className="px-5 sm:px-6 md:px-12 lg:px-20 pt-14 md:pt-16 pb-24">
@@ -98,12 +125,11 @@ export default function Settings() {
             <button type="button" onClick={() => setQuery('')} className="text-paprika hover:underline">clear the search</button>.
           </p>
         ) : (
-          <div className="mt-6 space-y-5">
-            <AnimatePresence initial={false} mode="popLayout">
-              {visible.map((s, i) => (
-                <SectionCard key={s.id} section={s} index={i} highlighted={terms.length > 0} />
-              ))}
-            </AnimatePresence>
+          <div className="mt-6 space-y-4">
+            {visible.map((s) => (
+              // While searching, matching sections open so their content is visible.
+              <SectionCard key={s.id} section={s} open={searching || openIds.has(s.id)} onToggle={() => toggle(s.id)} />
+            ))}
           </div>
         )}
       </div>
@@ -133,40 +159,66 @@ function SearchField({
         onChange={(e) => onChange(e.target.value)}
         placeholder="Search settings…"
         aria-label="Search settings"
-        className="w-full rounded-xl border border-cream-shadow bg-cream-deep pl-11 pr-28 py-3.5 text-ink placeholder:text-chestnut-soft focus:border-paprika focus:outline-none transition-colors"
+        className="w-full rounded-xl border border-cream-shadow bg-cream-deep pl-11 pr-24 py-3.5 text-ink placeholder:text-chestnut-soft focus:border-paprika focus:outline-none transition-colors"
         style={{ fontFamily: 'var(--font-body)' }}
       />
-      <span className="absolute right-4 top-1/2 -translate-y-1/2 font-mono text-[0.6rem] uppercase tracking-[0.14em] text-chestnut-soft tabular-nums">
-        {value.trim() ? `${resultCount} of ${total}` : `${total} settings`}
+      <span className="absolute right-4 top-1/2 -translate-y-1/2 font-mono text-[0.58rem] sm:text-[0.6rem] uppercase tracking-[0.12em] text-chestnut-soft tabular-nums">
+        {value.trim() ? `${resultCount}/${total}` : `${total} settings`}
       </span>
     </div>
   )
 }
 
-function SectionCard({ section, index, highlighted }: { section: Section; index: number; highlighted: boolean }) {
+function SectionCard({ section, open, onToggle }: { section: Section; open: boolean; onToggle: () => void }) {
+  // Let inner dropdowns (schedule day/time pickers) escape the card once the open
+  // animation has settled; clip during the height transition.
+  const [animating, setAnimating] = useState(false)
+
   return (
-    <motion.section
-      layout
+    <section
       id={section.id}
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -6 }}
-      transition={{ duration: highlighted ? 0.2 : 0.4, ease, delay: highlighted ? 0 : index * 0.04 }}
-      className="scroll-mt-24 rounded-2xl border border-cream-shadow bg-cream-deep p-5 sm:p-7"
+      className={`scroll-mt-24 rounded-2xl border border-cream-shadow bg-cream-deep ${open && !animating ? 'overflow-visible' : 'overflow-hidden'}`}
     >
-      <div className="flex items-center gap-2.5 mb-2">
-        <span className="w-1 h-5 rounded-full bg-paprika" aria-hidden />
-        <h2 className="text-ink text-lg" style={{ fontWeight: 700, letterSpacing: '-0.015em' }}>{section.title}</h2>
-        <span className="text-lg leading-none" aria-hidden>{section.emoji}</span>
-        {section.adminOnly && (
-          <span className="ml-auto font-mono text-[0.56rem] uppercase tracking-[0.14em] text-chestnut-soft border border-cream-shadow rounded-full px-2 py-0.5">
-            Admin
-          </span>
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-expanded={open}
+        className="w-full flex items-center gap-2.5 px-4 sm:px-7 py-4 sm:py-5 text-left hover:bg-cream/30 transition-colors"
+      >
+        <span className="w-1 h-5 rounded-full bg-paprika shrink-0" aria-hidden />
+        <h2 className="text-ink text-base sm:text-lg min-w-0 truncate" style={{ fontWeight: 700, letterSpacing: '-0.015em' }}>
+          {section.title}
+        </h2>
+        <span className="text-base sm:text-lg leading-none shrink-0" aria-hidden>{section.emoji}</span>
+        <span className="ml-auto flex items-center gap-2.5 sm:gap-3 shrink-0">
+          {section.adminOnly && (
+            <span className="hidden sm:inline font-mono text-[0.56rem] uppercase tracking-[0.14em] text-chestnut-soft border border-cream-shadow rounded-full px-2 py-0.5">
+              Admin
+            </span>
+          )}
+          <span className="text-chestnut-soft"><Chevron open={open} /></span>
+        </span>
+      </button>
+
+      <AnimatePresence initial={false}>
+        {open && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.26, ease }}
+            onAnimationStart={() => setAnimating(true)}
+            onAnimationComplete={() => setAnimating(false)}
+            className={animating ? 'overflow-hidden' : 'overflow-visible'}
+          >
+            <div className="px-4 sm:px-7 pb-5 sm:pb-7 pt-1">
+              <p className="text-ink-soft leading-relaxed mb-5">{section.description}</p>
+              {section.body}
+            </div>
+          </motion.div>
         )}
-      </div>
-      <p className="text-ink-soft leading-relaxed mb-5">{section.description}</p>
-      {section.body}
-    </motion.section>
+      </AnimatePresence>
+    </section>
   )
 }
 
@@ -181,7 +233,11 @@ const THEME_OPTIONS: { value: Theme; label: string; glyph: string }[] = [
 function AppearanceSection() {
   const { theme, setTheme } = useTheme()
   return (
-    <div role="radiogroup" aria-label="Theme" className="inline-flex flex-wrap gap-1 rounded-xl border border-cream-shadow bg-cream p-1">
+    <div
+      role="radiogroup"
+      aria-label="Theme"
+      className="grid grid-cols-3 gap-1 w-full sm:inline-flex sm:w-auto rounded-xl border border-cream-shadow bg-cream p-1"
+    >
       {THEME_OPTIONS.map((o) => {
         const active = theme === o.value
         return (
@@ -192,7 +248,7 @@ function AppearanceSection() {
             aria-checked={active}
             onClick={() => setTheme(o.value)}
             className={[
-              'inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm transition-colors',
+              'inline-flex items-center justify-center gap-2 rounded-lg px-3 sm:px-4 py-2.5 sm:py-2 text-sm transition-colors',
               active ? 'bg-paprika text-cream' : 'text-chestnut hover:text-paprika',
             ].join(' ')}
             style={{ fontFamily: 'var(--font-display)', fontWeight: 600 }}
@@ -228,7 +284,8 @@ function NeverBuySection() {
 
   return (
     <>
-      <form onSubmit={submit} className="flex items-end gap-3 mb-6">
+      {/* Stack on mobile so the input isn't squeezed next to the button. */}
+      <form onSubmit={submit} className="flex flex-col sm:flex-row sm:items-end gap-3 mb-6">
         <label className="block flex-1">
           <span className="eyebrow block mb-1.5">Add an ingredient</span>
           <input
@@ -239,7 +296,7 @@ function NeverBuySection() {
             className="w-full bg-transparent border-0 border-b-2 border-cream-shadow focus:border-paprika focus:outline-none py-2 text-sm text-ink transition-colors"
           />
         </label>
-        <button type="submit" disabled={!draft.trim() || add.isPending} className={btnPrimary + ' shrink-0'}>
+        <button type="submit" disabled={!draft.trim() || add.isPending} className={btnPrimary + ' w-full sm:w-auto shrink-0'}>
           {add.isPending ? 'Adding…' : 'Add'}
         </button>
       </form>
@@ -316,6 +373,14 @@ function SearchIcon() {
     <svg width={16} height={16} viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" aria-hidden>
       <circle cx="7" cy="7" r="4.5" />
       <path d="M10.5 10.5 L14 14" />
+    </svg>
+  )
+}
+
+function Chevron({ open }: { open: boolean }) {
+  return (
+    <svg width={12} height={12} viewBox="0 0 10 10" aria-hidden className={`transition-transform ${open ? 'rotate-180' : ''}`}>
+      <path d="M1 3 L5 7 L9 3" stroke="currentColor" strokeWidth="1.4" fill="none" strokeLinecap="round" />
     </svg>
   )
 }
