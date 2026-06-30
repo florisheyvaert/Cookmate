@@ -66,8 +66,9 @@ export default function Setup() {
     try {
       await setupApi.complete(email, password)
       // Full-page reload signals the password manager to offer saving, and
-      // re-initialises the app with the fresh auth cookie.
-      window.location.href = '/recipes'
+      // re-initialises the app with the fresh auth cookie. Land on the home
+      // planner, consistent with signing in.
+      window.location.href = '/'
     } catch (err) {
       setError(extractError(err))
       setIsSubmitting(false)
