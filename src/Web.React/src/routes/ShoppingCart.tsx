@@ -161,6 +161,19 @@ export default function ShoppingCart() {
   const totalItems = items.reduce((n, i) => n + i.quantity, 0)
   const isMobile = useIsMobile()
 
+  // Free text you typed (manual, unlinked) floats to the very top; everything else sorts
+  // by the chosen mode below it.
+  const freeTextLines = sortAZ(items.filter((i) => !i.isLinked && i.source === 0))
+  const otherLines = items.filter((i) => i.isLinked || i.source !== 0)
+  const cartGroups = [
+    ...(freeTextLines.length > 0 ? [{ category: 'Free text', items: freeTextLines }] : []),
+    ...(sortMode === 'category'
+      ? groupByCategory(otherLines)
+      : otherLines.length > 0
+        ? [{ category: '', items: sortAZ(otherLines) }]
+        : []),
+  ]
+
   return (
     // App-shell: centred column, at least a viewport tall (minus the sticky header), so the
     // checkout can sit at the bottom without the page hugging the left edge.
@@ -252,9 +265,9 @@ export default function ShoppingCart() {
             </button>
           </div>
           <div className="space-y-6">
-            {(sortMode === 'category' ? groupByCategory(items) : [{ category: '', items: sortAZ(items) }]).map((group) => (
+            {cartGroups.map((group) => (
               <section key={group.category || 'all'}>
-                {sortMode === 'category' && items.length > 1 && (
+                {group.category !== '' && items.length > 1 && (sortMode === 'category' || cartGroups.length > 1) && (
                   <div className="flex items-baseline gap-2.5 mb-2.5">
                     <h3 className="eyebrow text-ink">{group.category}</h3>
                     <span className="num text-chestnut-soft text-xs">{group.items.length}</span>
