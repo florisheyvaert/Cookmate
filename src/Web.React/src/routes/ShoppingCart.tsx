@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { AnimatePresence, motion, useMotionValue, useTransform } from 'motion/react'
 import { cartApi, type Cart, type CartDish, type CartLine } from '@/api/shoppingCart'
@@ -158,6 +158,18 @@ export default function ShoppingCart() {
     return () => clearTimeout(t)
   }, [undo])
 
+  // Measure the checkout footer so the undo toast can float a clear gap above it.
+  const footerRef = useRef<HTMLDivElement>(null)
+  const [footerH, setFooterH] = useState(64)
+  const hasCheckout = items.length > 0
+  useEffect(() => {
+    const el = footerRef.current
+    if (!el) return
+    const ro = new ResizeObserver(() => setFooterH(el.offsetHeight))
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [hasCheckout])
+
   const linkedForStore = items.filter((i) => i.isLinked && i.storeCode === storeCode).length
   const totalItems = items.reduce((n, i) => n + i.quantity, 0)
   const isMobile = useIsMobile()
@@ -302,50 +314,57 @@ export default function ShoppingCart() {
       )}
       </div>
 
-      {/* ── Bottom dock: undo snackbar + checkout, sticky above the page bottom ── */}
-      {(undo || items.length > 0) && (
-        <div className="sticky bottom-0 z-20 -mx-5 sm:-mx-6 lg:-mx-8 mt-4 px-5 sm:px-6 lg:px-8 pt-5 pb-4 bg-gradient-to-t from-cream via-cream to-transparent space-y-2.5">
-          <AnimatePresence>
-            {undo && (
-              <motion.div
-                key="undo"
-                initial={{ opacity: 0, y: 6 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: 6 }}
-                transition={{ duration: 0.18, ease }}
-                className="flex items-center justify-between gap-3 rounded-xl border border-cream-shadow bg-cream/95 backdrop-blur px-3.5 py-2"
-              >
-                <span className="min-w-0 truncate font-mono text-[0.6rem] uppercase tracking-[0.12em] text-chestnut-soft">
-                  Removed “{undo.displayName}”
-                </span>
-                <button
-                  type="button"
-                  onClick={handleUndo}
-                  className="shrink-0 font-mono text-[0.62rem] uppercase tracking-[0.16em] text-paprika hover:text-paprika-deep transition-colors"
-                >
-                  Undo
-                </button>
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          {items.length > 0 && (
-            <div className="rounded-2xl border border-cream-shadow bg-cream-deep shadow-[0_-6px_24px_-12px_rgba(20,30,18,0.3)] p-3.5 sm:p-4 flex items-center justify-between gap-4">
-              <p className="font-mono text-[0.66rem] text-chestnut leading-tight">
-                <span className="num text-paprika text-base">{linkedForStore}</span> linked item{linkedForStore === 1 ? '' : 's'}
-                <span className="block text-[0.6rem] text-chestnut-soft">free text stays in your list</span>
-              </p>
+      {/* ── Undo toast — floats a clear gap ABOVE the checkout footer, never over it ── */}
+      <div
+        className="pointer-events-none sticky z-30 -mx-5 sm:-mx-6 lg:-mx-8 px-5 sm:px-6 lg:px-8"
+        style={{ bottom: hasCheckout ? footerH + 24 : 14 }}
+      >
+        <AnimatePresence>
+          {undo && (
+            <motion.div
+              key="undo"
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 6 }}
+              transition={{ duration: 0.18, ease }}
+              className="pointer-events-auto flex items-center justify-between gap-3 rounded-xl border border-cream-shadow bg-cream px-3.5 py-2 shadow-[0_4px_16px_-8px_rgba(20,30,18,0.3)]"
+            >
+              <span className="min-w-0 truncate font-mono text-[0.6rem] uppercase tracking-[0.12em] text-chestnut-soft">
+                Removed “{undo.displayName}”
+              </span>
               <button
                 type="button"
-                onClick={() => sendDeeplink.mutate()}
-                disabled={linkedForStore === 0 || sendDeeplink.isPending}
-                className={btnPrimary + ' shrink-0 disabled:opacity-50'}
-                title={linkedForStore === 0 ? 'Link some products first' : undefined}
+                onClick={handleUndo}
+                className="shrink-0 font-mono text-[0.62rem] uppercase tracking-[0.16em] text-paprika hover:text-paprika-deep transition-colors"
               >
-                {sendDeeplink.isPending ? 'Opening…' : `Send to ${storeName} →`}
+                Undo
               </button>
-            </div>
+            </motion.div>
           )}
+        </AnimatePresence>
+      </div>
+
+      {/* ── Checkout — sticks to the bottom while scrolling, never over the colophon ── */}
+      {items.length > 0 && (
+        <div className="sticky bottom-0 z-20 -mx-5 sm:-mx-6 lg:-mx-8 px-5 sm:px-6 lg:px-8 pt-5 pb-4 bg-gradient-to-t from-cream via-cream to-transparent">
+          <div
+            ref={footerRef}
+            className="rounded-2xl border border-cream-shadow bg-cream-deep shadow-[0_-6px_24px_-12px_rgba(20,30,18,0.3)] p-3.5 sm:p-4 flex items-center justify-between gap-4"
+          >
+            <p className="font-mono text-[0.66rem] text-chestnut leading-tight">
+              <span className="num text-paprika text-base">{linkedForStore}</span> linked item{linkedForStore === 1 ? '' : 's'}
+              <span className="block text-[0.6rem] text-chestnut-soft">free text stays in your list</span>
+            </p>
+            <button
+              type="button"
+              onClick={() => sendDeeplink.mutate()}
+              disabled={linkedForStore === 0 || sendDeeplink.isPending}
+              className={btnPrimary + ' shrink-0 disabled:opacity-50'}
+              title={linkedForStore === 0 ? 'Link some products first' : undefined}
+            >
+              {sendDeeplink.isPending ? 'Opening…' : `Send to ${storeName} →`}
+            </button>
+          </div>
         </div>
       )}
 
