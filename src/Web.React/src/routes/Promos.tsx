@@ -369,24 +369,24 @@ function PromoCard({
             <span className="-mt-0.5 font-mono text-[0.54rem] uppercase tracking-[0.1em] text-chestnut-soft">{promo.packSize}</span>
           )}
 
-          {/* Deal label — gold, bigger, normal-case so "2e gratis" actually reads; off the photo. */}
-          <span className="flex items-center flex-wrap gap-x-2 gap-y-1">
-            {promo.discountLabel && (
-              <span className="rounded-md bg-butter text-ink px-2 py-1 font-display font-bold text-[0.8rem] leading-none shadow-sm">
-                {promo.discountLabel}
-              </span>
-            )}
-            {promo.promoPrice != null ? (
-              <span className="flex items-baseline gap-1.5">
-                <span className="num text-paprika text-base">{euro.format(promo.promoPrice)}</span>
-                {promo.originalPrice != null && promo.originalPrice > promo.promoPrice && (
-                  <span className="num text-chestnut-soft text-xs line-through">{euro.format(promo.originalPrice)}</span>
-                )}
-              </span>
-            ) : promo.originalPrice != null ? (
-              <span className="num text-ink text-sm">{euro.format(promo.originalPrice)}</span>
-            ) : null}
-          </span>
+          {/* Deal label — on its own line so it has room; dark text on gold reads clearly. */}
+          {promo.discountLabel && (
+            <span className="self-start rounded-md bg-butter px-2 py-1 font-display text-[0.82rem] font-bold leading-none text-[#3b2a05] shadow-sm">
+              {promo.discountLabel}
+            </span>
+          )}
+
+          {/* Price — its own line, never crowded by the deal badge. */}
+          {promo.promoPrice != null ? (
+            <span className="flex items-baseline gap-1.5">
+              <span className="num text-paprika text-base">{euro.format(promo.promoPrice)}</span>
+              {promo.originalPrice != null && promo.originalPrice > promo.promoPrice && (
+                <span className="num text-chestnut-soft text-xs line-through">{euro.format(promo.originalPrice)}</span>
+              )}
+            </span>
+          ) : promo.originalPrice != null ? (
+            <span className="num text-ink text-sm">{euro.format(promo.originalPrice)}</span>
+          ) : null}
 
           {/* Affordance (the card itself is the button): filled "Add" = one product,
               outlined "N producten" = a group you open. */}
