@@ -1,4 +1,5 @@
 import { api } from '@/lib/api'
+import type { HarvestReport, HarvestSchedule } from '@/api/suggestions'
 
 export type PromotionDto = {
   sku: string
@@ -39,6 +40,19 @@ export type PromoDish = {
   usedPromos: PromoUsage[]
 }
 
+/** A store Cookmate can pull promotions from, with its toggle + last-refresh telemetry. */
+export type PromotionIntegration = {
+  storeCode: string
+  displayName: string
+  enabled: boolean
+  lastRunAt: string | null
+  /** 0 Succeeded · 1 Partial · 2 Failed · 3 Processing (shared with harvest). */
+  lastRunStatus: number | null
+  lastRunCount: number | null
+  /** How many promotions are currently cached for this store. */
+  promotionCount: number
+}
+
 export const promotionsApi = {
   list: (storeCode: string) =>
     api<PromotionDto[]>(`/api/Promotions/${encodeURIComponent(storeCode)}`),
@@ -50,9 +64,9 @@ export const promotionsApi = {
     return api<PromoDish[]>(`/api/Promotions/${encodeURIComponent(storeCode)}/dishes?${qs.toString()}`)
   },
 
-  /** Admin-only: pull the store's current bonus assortment into the cache. Returns the count. */
+  /** Admin-only: pull one store's current bonus assortment into the cache, recording a run. */
   refresh: (storeCode: string) =>
-    api<number>(`/api/Promotions/refresh/${encodeURIComponent(storeCode)}`, { method: 'POST', json: {} }),
+    api<HarvestReport>(`/api/Promotions/refresh/${encodeURIComponent(storeCode)}`, { method: 'POST', json: {} }),
 
   /** Confirm that an ingredient name maps to a promo product (remembered for the cart). */
   confirmMatch: (storeCode: string, ingredientName: string, sku: string) =>
@@ -60,4 +74,27 @@ export const promotionsApi = {
       method: 'POST',
       json: { storeCode, ingredientName, sku, defaultPackQuantity: 1 },
     }),
+
+  // ── Integrations management (admin) ──────────────────────────────────────────
+  integrations: {
+    list: () => api<PromotionIntegration[]>('/api/Promotions/integrations'),
+
+    /** Switch a store's promotions capability on or off. */
+    setEnabled: (storeCode: string, enabled: boolean) =>
+      api<void>(`/api/Promotions/integrations/${encodeURIComponent(storeCode)}`, {
+        method: 'PUT',
+        json: { enabled },
+      }),
+
+    /** Run the refresh for every enabled store now. */
+    refreshAll: () => api<HarvestReport>('/api/Promotions/refresh', { method: 'POST', json: {} }),
+
+    runs: (take = 20) => api<HarvestReport[]>(`/api/Promotions/runs?take=${take}`),
+  },
+
+  schedule: {
+    get: () => api<HarvestSchedule>('/api/Promotions/schedule'),
+    update: (input: HarvestSchedule) =>
+      api<void>('/api/Promotions/schedule', { method: 'PUT', json: input }),
+  },
 }

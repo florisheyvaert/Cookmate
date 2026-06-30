@@ -3,26 +3,29 @@ using Cookmate.Domain.Enums;
 namespace Cookmate.Domain.Entities;
 
 /// <summary>
-/// A persisted diagnostics record of one harvest run. Captures the full per-source
-/// and per-URL outcome (including failures with their error messages) so a run can
-/// be inspected long after it finished — the key debugging surface for scraping,
-/// which is inherently brittle. Both the weekly job and manual "Harvest now" runs
-/// write one of these.
+/// A persisted diagnostics record of one integration run — a meal-suggestion harvest or
+/// a store-promotion refresh (see <see cref="Kind"/>). Captures the full per-source outcome
+/// (including failures with their error messages) so a run can be inspected long after it
+/// finished — the key debugging surface for these inherently brittle external pulls. Both
+/// the scheduled jobs and manual "Run now" runs write one of these.
 /// </summary>
-public class SuggestionHarvestRun : BaseAuditableEntity
+public class IntegrationRun : BaseAuditableEntity
 {
     private readonly List<HarvestSourceLog> _sources = new();
+
+    /// <summary>What this run pulled — recipes or promotions. Lets one history serve both.</summary>
+    public IntegrationJobKind Kind { get; private set; }
 
     /// <summary>The single source a manual run targeted, or null for an "all enabled sources" run.</summary>
     public int? SourceId { get; private set; }
 
-    public HarvestTrigger Trigger { get; private set; }
+    public RunTrigger Trigger { get; private set; }
 
     public DateTimeOffset StartedAt { get; private set; }
 
     public DateTimeOffset? FinishedAt { get; private set; }
 
-    public HarvestStatus Status { get; private set; }
+    public RunStatus Status { get; private set; }
 
     public int Discovered { get; private set; }
 
@@ -35,19 +38,24 @@ public class SuggestionHarvestRun : BaseAuditableEntity
     /// <summary>Full per-source / per-URL detail, persisted as a JSON document.</summary>
     public IReadOnlyList<HarvestSourceLog> Sources => _sources.AsReadOnly();
 
-    private SuggestionHarvestRun() { }
+    private IntegrationRun() { }
 
-    public SuggestionHarvestRun(HarvestTrigger trigger, DateTimeOffset startedAt, int? sourceId = null)
+    public IntegrationRun(
+        RunTrigger trigger,
+        DateTimeOffset startedAt,
+        int? sourceId = null,
+        IntegrationJobKind kind = IntegrationJobKind.Recipes)
     {
         Trigger = trigger;
         StartedAt = startedAt;
         SourceId = sourceId;
-        Status = HarvestStatus.Processing;
+        Kind = kind;
+        Status = RunStatus.Processing;
     }
 
     /// <summary>
     /// Rolls up the counts from the sources handled so far while the run is still in
-    /// flight, leaving the status at <see cref="HarvestStatus.Processing"/>. Persisting
+    /// flight, leaving the status at <see cref="RunStatus.Processing"/>. Persisting
     /// after each source lets the history show In/Fail/Skip climb live.
     /// </summary>
     public void UpdateProgress(IEnumerable<HarvestSourceLog> sources)
@@ -79,8 +87,8 @@ public class SuggestionHarvestRun : BaseAuditableEntity
 
         var anySuccess = Inserted > 0 || SkippedDuplicate > 0;
         Status = Failed == 0
-            ? HarvestStatus.Succeeded
-            : anySuccess ? HarvestStatus.PartialFailure : HarvestStatus.Failed;
+            ? RunStatus.Succeeded
+            : anySuccess ? RunStatus.PartialFailure : RunStatus.Failed;
     }
 
     /// <summary>
@@ -90,7 +98,7 @@ public class SuggestionHarvestRun : BaseAuditableEntity
     public void MarkInterrupted(DateTimeOffset finishedAt)
     {
         FinishedAt = finishedAt;
-        Status = Inserted > 0 || SkippedDuplicate > 0 ? HarvestStatus.PartialFailure : HarvestStatus.Failed;
+        Status = Inserted > 0 || SkippedDuplicate > 0 ? RunStatus.PartialFailure : RunStatus.Failed;
     }
 }
 

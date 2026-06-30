@@ -5,7 +5,7 @@ using Shouldly;
 
 namespace Cookmate.Domain.UnitTests.Entities;
 
-public class SuggestionHarvestRunTests
+public class IntegrationRunTests
 {
     private static readonly DateTimeOffset Start = new(2026, 6, 20, 3, 0, 0, TimeSpan.Zero);
     private static readonly DateTimeOffset End = Start.AddMinutes(2);
@@ -13,7 +13,7 @@ public class SuggestionHarvestRunTests
     [Test]
     public void Complete_RollsUpCounts()
     {
-        var run = new SuggestionHarvestRun(HarvestTrigger.Manual, Start);
+        var run = new IntegrationRun(RunTrigger.Manual, Start);
 
         run.Complete(new[]
         {
@@ -31,38 +31,38 @@ public class SuggestionHarvestRunTests
     [Test]
     public void Complete_AllSucceeded_IsSucceeded()
     {
-        var run = new SuggestionHarvestRun(HarvestTrigger.Scheduled, Start);
+        var run = new IntegrationRun(RunTrigger.Scheduled, Start);
 
         run.Complete(new[] { new HarvestSourceLog { Discovered = 2, Inserted = 2 } }, End);
 
-        run.Status.ShouldBe(HarvestStatus.Succeeded);
+        run.Status.ShouldBe(RunStatus.Succeeded);
     }
 
     [Test]
     public void Complete_SomeInsertedSomeFailed_IsPartialFailure()
     {
-        var run = new SuggestionHarvestRun(HarvestTrigger.Scheduled, Start);
+        var run = new IntegrationRun(RunTrigger.Scheduled, Start);
 
         run.Complete(new[] { new HarvestSourceLog { Inserted = 1, Failed = 2 } }, End);
 
-        run.Status.ShouldBe(HarvestStatus.PartialFailure);
+        run.Status.ShouldBe(RunStatus.PartialFailure);
     }
 
     [Test]
     public void Complete_NothingSucceeded_IsFailed()
     {
-        var run = new SuggestionHarvestRun(HarvestTrigger.Scheduled, Start);
+        var run = new IntegrationRun(RunTrigger.Scheduled, Start);
 
         run.Complete(new[] { new HarvestSourceLog { Error = "discovery boom" } }, End);
 
         run.Failed.ShouldBe(1);
-        run.Status.ShouldBe(HarvestStatus.Failed);
+        run.Status.ShouldBe(RunStatus.Failed);
     }
 
     [Test]
     public void Complete_CountsSourceLevelErrorsAsFailures()
     {
-        var run = new SuggestionHarvestRun(HarvestTrigger.Manual, Start);
+        var run = new IntegrationRun(RunTrigger.Manual, Start);
 
         run.Complete(new[]
         {
@@ -71,6 +71,6 @@ public class SuggestionHarvestRunTests
         }, End);
 
         run.Failed.ShouldBe(1);
-        run.Status.ShouldBe(HarvestStatus.PartialFailure);
+        run.Status.ShouldBe(RunStatus.PartialFailure);
     }
 }

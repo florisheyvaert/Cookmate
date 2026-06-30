@@ -4,18 +4,21 @@ using Cookmate.Domain.Enums;
 namespace Cookmate.Application.MealSuggestions.Common;
 
 /// <summary>
-/// The result of a harvest run, returned to the caller (shown immediately after a
-/// manual run) and mirroring what is persisted on <see cref="SuggestionHarvestRun"/>.
-/// Reuses the domain <see cref="HarvestSourceLog"/>/<see cref="HarvestItemLog"/>
-/// records so there is a single shape for the per-URL detail.
+/// The result of an integration run (harvest or promo refresh), returned to the caller
+/// (shown immediately after a manual run) and mirroring what is persisted on
+/// <see cref="IntegrationRun"/>. Reuses the domain <see cref="HarvestSourceLog"/>/
+/// <see cref="HarvestItemLog"/> records so there is a single shape for the per-source detail.
+/// Shared by both capabilities; it lives here for historical reasons.
 /// </summary>
-public record HarvestReport
+public record IntegrationRunReport
 {
     public int RunId { get; init; }
 
-    public HarvestTrigger Trigger { get; init; }
+    public IntegrationJobKind Kind { get; init; }
 
-    public HarvestStatus Status { get; init; }
+    public RunTrigger Trigger { get; init; }
+
+    public RunStatus Status { get; init; }
 
     public DateTimeOffset StartedAt { get; init; }
 
@@ -31,9 +34,10 @@ public record HarvestReport
 
     public IReadOnlyList<HarvestSourceLog> Sources { get; init; } = [];
 
-    public static HarvestReport From(SuggestionHarvestRun run) => new()
+    public static IntegrationRunReport From(IntegrationRun run) => new()
     {
         RunId = run.Id,
+        Kind = run.Kind,
         Trigger = run.Trigger,
         Status = run.Status,
         StartedAt = run.StartedAt,

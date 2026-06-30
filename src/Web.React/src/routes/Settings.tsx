@@ -3,6 +3,9 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { motion } from 'motion/react'
 import { shoppingApi } from '@/api/shopping'
 import { PageHeader } from '@/components/PageHeader'
+import { PromotionIntegrations } from '@/components/PromotionIntegrations'
+import { RecipeSourcesPanel } from '@/routes/SuggestionSources'
+import { useAuth } from '@/auth/AuthContext'
 import { btnPrimary } from '@/lib/ui'
 
 const ease = [0.22, 1, 0.36, 1] as const
@@ -13,6 +16,7 @@ const BUILT_IN = ['water', 'heet water', 'warm water', 'koud water', 'lauw water
 
 export default function Settings() {
   const queryClient = useQueryClient()
+  const { isAdmin } = useAuth()
   const [draft, setDraft] = useState('')
 
   const ignoredQ = useQuery({ queryKey: ['ignored-ingredients'], queryFn: () => shoppingApi.listIgnored() })
@@ -38,10 +42,46 @@ export default function Settings() {
         subtitle="Preferences that shape your shopping carts."
       />
 
+      {isAdmin && (
+        <motion.section
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.45, ease }}
+          className="max-w-3xl mb-14"
+        >
+          <div className="flex items-center gap-2.5 mb-2">
+            <span className="w-1 h-5 rounded-full bg-paprika" aria-hidden />
+            <h2 className="text-ink text-lg" style={{ fontWeight: 700, letterSpacing: '-0.015em' }}>Integrations</h2>
+            <span className="text-lg leading-none" aria-hidden>🔌</span>
+          </div>
+          <p className="text-ink-soft leading-relaxed mb-7">
+            Everywhere Cookmate pulls from — recipe sites for meal ideas, and stores for weekly promotions.
+            Albert Heijn does both.
+          </p>
+
+          {/* Recipe sites — user-added sites, harvested into your ideas */}
+          <div id="recipe-sites" className="scroll-mt-24">
+            <div className="flex items-baseline gap-2.5 mb-1.5">
+              <span className="eyebrow text-paprika">Recipe sites · meal ideas</span>
+              <span aria-hidden>📖</span>
+            </div>
+            <p className="text-ink-soft text-sm leading-relaxed mb-4">
+              Add any site by its domain — recipe pages are found automatically and harvested into your ideas.
+            </p>
+            <RecipeSourcesPanel />
+          </div>
+
+          {/* Stores — code-defined promotion sources */}
+          <div className="mt-10 pt-8 border-t border-cream-shadow">
+            <PromotionIntegrations />
+          </div>
+        </motion.section>
+      )}
+
       <motion.section
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.45, ease }}
+        transition={{ duration: 0.45, ease, delay: isAdmin ? 0.05 : 0 }}
         className="max-w-xl rounded-2xl border border-cream-shadow bg-cream-deep p-5 sm:p-7"
       >
         <div className="flex items-center gap-2.5 mb-2">

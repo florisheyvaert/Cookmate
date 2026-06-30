@@ -55,7 +55,7 @@ public record SuggestionSourceDto
 
     public DateTimeOffset? LastRunAt { get; init; }
 
-    public HarvestStatus? LastRunStatus { get; init; }
+    public RunStatus? LastRunStatus { get; init; }
 
     public int? LastRunCount { get; init; }
 

@@ -144,7 +144,7 @@ export default function MealSuggestions() {
         subtitle="Your scraped catalog of dishes. This week's main-course picks are below — or browse everything."
         action={
           <Link
-            to="/suggestions/sources"
+            to="/settings"
             className="inline-flex items-center gap-1.5 rounded-xl px-5 py-2.5 border border-cream-shadow text-chestnut hover:border-paprika hover:text-paprika transition-colors font-mono text-[0.7rem] uppercase tracking-[0.16em] no-underline"
           >
             ⚙ Manage sources
@@ -489,7 +489,7 @@ function EmptyPool({ hasFilters }: { hasFilters: boolean }) {
       </p>
       {!hasFilters && (
         <Link
-          to="/suggestions/sources"
+          to="/settings"
           className="inline-flex items-center gap-1.5 rounded-xl px-5 py-2.5 bg-paprika text-cream hover:bg-paprika-deep transition-colors font-display font-semibold text-[0.9rem] no-underline mx-auto"
         >
           ⚙ Manage sources

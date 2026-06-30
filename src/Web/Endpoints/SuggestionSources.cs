@@ -90,28 +90,28 @@ public class SuggestionSources : IEndpointGroup
 
     [EndpointSummary("Harvest one source now")]
     [EndpointDescription("Runs the harvest for a single source on demand (regardless of its enabled flag) and returns the full report — successes and failures — so issues are visible immediately.")]
-    public static async Task<Ok<HarvestReport>> HarvestOne(ISender sender, int id)
+    public static async Task<Ok<IntegrationRunReport>> HarvestOne(ISender sender, int id)
     {
         var report = await sender.Send(new HarvestMealSuggestionsCommand
         {
             SourceId = id,
-            Trigger = HarvestTrigger.Manual,
+            Trigger = RunTrigger.Manual,
         });
 
         return TypedResults.Ok(report);
     }
 
     [EndpointSummary("Harvest all enabled sources now")]
-    public static async Task<Ok<HarvestReport>> HarvestAll(ISender sender)
+    public static async Task<Ok<IntegrationRunReport>> HarvestAll(ISender sender)
     {
-        var report = await sender.Send(new HarvestMealSuggestionsCommand { Trigger = HarvestTrigger.Manual });
+        var report = await sender.Send(new HarvestMealSuggestionsCommand { Trigger = RunTrigger.Manual });
 
         return TypedResults.Ok(report);
     }
 
     [EndpointSummary("Recent harvest runs")]
     [EndpointDescription("Returns recent harvest runs (including the weekly auto-runs) with their full per-URL report, for debugging.")]
-    public static async Task<Ok<IReadOnlyList<HarvestReport>>> ListRuns(ISender sender, int? take)
+    public static async Task<Ok<IReadOnlyList<IntegrationRunReport>>> ListRuns(ISender sender, int? take)
     {
         var runs = await sender.Send(new ListHarvestRunsQuery { Take = take ?? 20 });
 
@@ -119,7 +119,7 @@ public class SuggestionSources : IEndpointGroup
     }
 
     [EndpointSummary("Recent harvest runs for a source")]
-    public static async Task<Ok<IReadOnlyList<HarvestReport>>> ListRunsForSource(ISender sender, int id, int? take)
+    public static async Task<Ok<IReadOnlyList<IntegrationRunReport>>> ListRunsForSource(ISender sender, int id, int? take)
     {
         var runs = await sender.Send(new ListHarvestRunsQuery { SourceId = id, Take = take ?? 20 });
 

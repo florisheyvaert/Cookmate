@@ -15,17 +15,17 @@ namespace Cookmate.Application.MealSuggestions.Commands.HarvestMealSuggestions;
 /// source on demand (the UI "Harvest now" button) regardless of its enabled flag.
 /// Every source and every URL is handled best-effort: failures are caught and recorded
 /// rather than aborting the run, and the whole outcome is persisted as a
-/// <see cref="SuggestionHarvestRun"/> and returned as a <see cref="HarvestReport"/>.
+/// <see cref="IntegrationRun"/> and returned as a <see cref="IntegrationRunReport"/>.
 /// </summary>
-public record HarvestMealSuggestionsCommand : IRequest<HarvestReport>
+public record HarvestMealSuggestionsCommand : IRequest<IntegrationRunReport>
 {
     /// <summary>Run a single source by id; null runs all enabled sources.</summary>
     public int? SourceId { get; init; }
 
-    public HarvestTrigger Trigger { get; init; } = HarvestTrigger.Manual;
+    public RunTrigger Trigger { get; init; } = RunTrigger.Manual;
 }
 
-public class HarvestMealSuggestionsCommandHandler : IRequestHandler<HarvestMealSuggestionsCommand, HarvestReport>
+public class HarvestMealSuggestionsCommandHandler : IRequestHandler<HarvestMealSuggestionsCommand, IntegrationRunReport>
 {
     private readonly IApplicationDbContext _context;
     private readonly IRecipeUrlDiscovererRegistry _discoverers;
@@ -47,7 +47,7 @@ public class HarvestMealSuggestionsCommandHandler : IRequestHandler<HarvestMealS
         _timeProvider = timeProvider;
     }
 
-    public async Task<HarvestReport> Handle(HarvestMealSuggestionsCommand request, CancellationToken cancellationToken)
+    public async Task<IntegrationRunReport> Handle(HarvestMealSuggestionsCommand request, CancellationToken cancellationToken)
     {
         // A harvest, once started, must run to completion regardless of whether the HTTP
         // caller is still listening: refreshing the page or navigating away must not abort
@@ -63,8 +63,8 @@ public class HarvestMealSuggestionsCommandHandler : IRequestHandler<HarvestMealS
             ? await _context.SuggestionSources.Where(s => s.Id == id).ToListAsync(ct)
             : await _context.SuggestionSources.Where(s => s.Enabled).ToListAsync(ct);
 
-        var run = new SuggestionHarvestRun(request.Trigger, startedAt, request.SourceId);
-        _context.SuggestionHarvestRuns.Add(run);
+        var run = new IntegrationRun(request.Trigger, startedAt, request.SourceId);
+        _context.IntegrationRuns.Add(run);
         foreach (var source in sources)
         {
             source.MarkRunStarted(startedAt);
@@ -118,7 +118,7 @@ public class HarvestMealSuggestionsCommandHandler : IRequestHandler<HarvestMealS
             throw;
         }
 
-        return HarvestReport.From(run);
+        return IntegrationRunReport.From(run);
     }
 
     private async Task<HarvestSourceLog> HarvestSourceAsync(
@@ -278,21 +278,21 @@ public class HarvestMealSuggestionsCommandHandler : IRequestHandler<HarvestMealS
         return false;
     }
 
-    private static HarvestStatus StatusOf(HarvestSourceLog log)
+    private static RunStatus StatusOf(HarvestSourceLog log)
     {
         if (log.Error is not null && log.Inserted == 0 && log.SkippedDuplicate == 0)
         {
-            return HarvestStatus.Failed;
+            return RunStatus.Failed;
         }
 
         var anyFailure = log.Failed > 0 || log.Error is not null;
         if (!anyFailure)
         {
-            return HarvestStatus.Succeeded;
+            return RunStatus.Succeeded;
         }
 
         return log.Inserted > 0 || log.SkippedDuplicate > 0
-            ? HarvestStatus.PartialFailure
-            : HarvestStatus.Failed;
+            ? RunStatus.PartialFailure
+            : RunStatus.Failed;
     }
 }

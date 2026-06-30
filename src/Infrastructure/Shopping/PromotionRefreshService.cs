@@ -1,5 +1,5 @@
 using Cookmate.Application.Common.Interfaces;
-using Cookmate.Application.MealSuggestions.Commands.HarvestMealSuggestions;
+using Cookmate.Application.Promotions.Commands.RefreshPromotions;
 using Cookmate.Domain.Enums;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -7,28 +7,29 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
-namespace Cookmate.Infrastructure.Scraping;
+namespace Cookmate.Infrastructure.Shopping;
 
 /// <summary>
-/// Runs the automatic harvest on the schedule the user set (weekday + local time), across
-/// all enabled sources. Ticks every few minutes and reads the schedule each time, so
-/// changes take effect quickly; uses the last scheduled run as a marker, so it fires once
-/// per occurrence and catches up a missed run after downtime. In-process / single-instance,
-/// which suits this personal app. Manual per-source runs go through the same command.
+/// Runs the automatic promotion refresh on the schedule the user set (weekday + local time),
+/// across every enabled store. Same shape as the meal-suggestion harvester: ticks every few
+/// minutes, reads the schedule each time, fires once per occurrence via a last-run marker, and
+/// catches up a missed run after downtime. In-process / single-instance, which suits this
+/// personal app. Manual refreshes go through the same command.
 /// </summary>
-public class MealSuggestionHarvestService : BackgroundService
+public class PromotionRefreshService : BackgroundService
 {
     private static readonly TimeSpan TickInterval = TimeSpan.FromMinutes(5);
-    private static readonly TimeOnly DefaultTime = new(3, 0);
+    private static readonly TimeOnly DefaultTime = new(6, 0);
+    private const DayOfWeek DefaultDay = DayOfWeek.Wednesday;
 
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly TimeProvider _timeProvider;
-    private readonly ILogger<MealSuggestionHarvestService> _logger;
+    private readonly ILogger<PromotionRefreshService> _logger;
 
-    public MealSuggestionHarvestService(
+    public PromotionRefreshService(
         IServiceScopeFactory scopeFactory,
         TimeProvider timeProvider,
-        ILogger<MealSuggestionHarvestService> logger)
+        ILogger<PromotionRefreshService> logger)
     {
         _scopeFactory = scopeFactory;
         _timeProvider = timeProvider;
@@ -37,8 +38,6 @@ public class MealSuggestionHarvestService : BackgroundService
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        // A restart mid-harvest would leave runs/sources stuck on "Processing" forever.
-        // Nothing can be harvesting at boot (single-instance, in-process), so clear them.
         try
         {
             await ResetOrphanedRunsAsync(stoppingToken);
@@ -49,7 +48,7 @@ public class MealSuggestionHarvestService : BackgroundService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to reset orphaned harvest runs on startup.");
+            _logger.LogError(ex, "Failed to reset orphaned promotion-refresh runs on startup.");
         }
 
         using var timer = new PeriodicTimer(TickInterval, _timeProvider);
@@ -66,7 +65,7 @@ public class MealSuggestionHarvestService : BackgroundService
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Scheduled meal-suggestion harvest check failed.");
+                _logger.LogError(ex, "Scheduled promotion-refresh check failed.");
             }
 
             try
@@ -85,37 +84,40 @@ public class MealSuggestionHarvestService : BackgroundService
         using var scope = _scopeFactory.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
 
-        var schedule = await db.HarvestSchedules.AsNoTracking().FirstOrDefaultAsync(cancellationToken);
+        var schedule = await db.PromotionRefreshSchedules.AsNoTracking().FirstOrDefaultAsync(cancellationToken);
         var enabled = schedule?.Enabled ?? true;
         if (!enabled) return;
 
-        var day = schedule?.DayOfWeek ?? DayOfWeek.Monday;
+        // Nothing to do if no store has the promotions capability switched on.
+        var anyEnabledStore = await db.StorePromotionSettings.AsNoTracking()
+            .AnyAsync(s => s.Enabled, cancellationToken);
+        if (!anyEnabledStore) return;
+
+        var day = schedule?.DayOfWeek ?? DefaultDay;
         var time = schedule?.TimeOfDay ?? DefaultTime;
 
         var now = _timeProvider.GetLocalNow();
         var occurrence = MostRecentOccurrence(now, day, time);
 
         var lastScheduled = await db.IntegrationRuns.AsNoTracking()
-            .Where(r => r.Kind == IntegrationJobKind.Recipes && r.Trigger == RunTrigger.Scheduled)
+            .Where(r => r.Kind == IntegrationJobKind.Promotions && r.Trigger == RunTrigger.Scheduled)
             .OrderByDescending(r => r.StartedAt)
             .Select(r => (DateTimeOffset?)r.StartedAt)
             .FirstOrDefaultAsync(cancellationToken);
 
-        // Due if we've never run on schedule, or the last scheduled run predates the most
-        // recent occurrence of the configured weekday/time.
         if (lastScheduled is not null && lastScheduled >= occurrence) return;
 
         var sender = scope.ServiceProvider.GetRequiredService<ISender>();
         var report = await sender.Send(
-            new HarvestMealSuggestionsCommand { Trigger = RunTrigger.Scheduled },
+            new RefreshPromotionsCommand { Trigger = RunTrigger.Scheduled },
             cancellationToken);
 
         _logger.LogInformation(
-            "Scheduled harvest finished with status {Status}: {Inserted} inserted, {Skipped} skipped, {Failed} failed.",
-            report.Status, report.Inserted, report.SkippedDuplicate, report.Failed);
+            "Scheduled promotion refresh finished with status {Status}: {Cached} cached, {Failed} failed.",
+            report.Status, report.Inserted, report.Failed);
     }
 
-    /// <summary>Finalises any run/source left mid-harvest by a previous process so the UI never shows a stuck "processing".</summary>
+    /// <summary>Finalises any run/store left mid-refresh by a previous process so the UI never shows a stuck "processing".</summary>
     private async Task ResetOrphanedRunsAsync(CancellationToken cancellationToken)
     {
         using var scope = _scopeFactory.CreateScope();
@@ -123,21 +125,21 @@ public class MealSuggestionHarvestService : BackgroundService
         var now = _timeProvider.GetUtcNow();
 
         var stuckRuns = await db.IntegrationRuns
-            .Where(r => r.Kind == IntegrationJobKind.Recipes && r.Status == RunStatus.Processing)
+            .Where(r => r.Kind == IntegrationJobKind.Promotions && r.Status == RunStatus.Processing)
             .ToListAsync(cancellationToken);
-        var stuckSources = await db.SuggestionSources
+        var stuckStores = await db.StorePromotionSettings
             .Where(s => s.LastRunStatus == RunStatus.Processing)
             .ToListAsync(cancellationToken);
 
-        if (stuckRuns.Count == 0 && stuckSources.Count == 0) return;
+        if (stuckRuns.Count == 0 && stuckStores.Count == 0) return;
 
         foreach (var run in stuckRuns) run.MarkInterrupted(now);
-        foreach (var source in stuckSources) source.MarkRunInterrupted();
+        foreach (var store in stuckStores) store.MarkRunInterrupted();
         await db.SaveChangesAsync(cancellationToken);
 
         _logger.LogWarning(
-            "Reset {Runs} harvest run(s) and {Sources} source(s) left in Processing after a restart.",
-            stuckRuns.Count, stuckSources.Count);
+            "Reset {Runs} promotion-refresh run(s) and {Stores} store(s) left in Processing after a restart.",
+            stuckRuns.Count, stuckStores.Count);
     }
 
     /// <summary>The most recent moment matching the configured weekday + time at or before now.</summary>
