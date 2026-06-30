@@ -4,18 +4,19 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace Cookmate.Infrastructure.Data.Configurations;
 
-public class SuggestionHarvestRunConfiguration : IEntityTypeConfiguration<SuggestionHarvestRun>
+public class IntegrationRunConfiguration : IEntityTypeConfiguration<IntegrationRun>
 {
-    public void Configure(EntityTypeBuilder<SuggestionHarvestRun> builder)
+    public void Configure(EntityTypeBuilder<IntegrationRun> builder)
     {
-        builder.ToTable("SuggestionHarvestRuns");
+        builder.ToTable("IntegrationRuns");
 
+        builder.Property(r => r.Kind).IsRequired();
         builder.Property(r => r.Trigger).IsRequired();
         builder.Property(r => r.Status).IsRequired();
         builder.Property(r => r.StartedAt).IsRequired();
 
-        // Diagnostics list ordered newest-first.
-        builder.HasIndex(r => r.StartedAt);
+        // History is read per capability, newest-first.
+        builder.HasIndex(r => new { r.Kind, r.StartedAt });
         builder.HasIndex(r => r.SourceId);
 
         // Full per-source / per-URL report, persisted whole.

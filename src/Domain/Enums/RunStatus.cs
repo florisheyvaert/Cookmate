@@ -1,7 +1,7 @@
 namespace Cookmate.Domain.Enums;
 
-/// <summary>Overall outcome of a harvest run (or a single source within it).</summary>
-public enum HarvestStatus
+/// <summary>Overall outcome of an integration run (or a single source within it).</summary>
+public enum RunStatus
 {
     /// <summary>Everything that was attempted succeeded (or there was simply nothing to do).</summary>
     Succeeded = 0,

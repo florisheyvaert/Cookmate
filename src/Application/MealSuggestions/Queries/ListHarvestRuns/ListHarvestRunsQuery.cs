@@ -1,5 +1,6 @@
 using Cookmate.Application.Common.Interfaces;
 using Cookmate.Application.MealSuggestions.Common;
+using Cookmate.Domain.Enums;
 using Microsoft.EntityFrameworkCore;
 
 namespace Cookmate.Application.MealSuggestions.Queries.ListHarvestRuns;
@@ -9,14 +10,14 @@ namespace Cookmate.Application.MealSuggestions.Queries.ListHarvestRuns;
 /// Optionally filtered to a single source's manual runs. Includes the weekly
 /// auto-runs so past failures stay inspectable.
 /// </summary>
-public record ListHarvestRunsQuery : IRequest<IReadOnlyList<HarvestReport>>
+public record ListHarvestRunsQuery : IRequest<IReadOnlyList<IntegrationRunReport>>
 {
     public int? SourceId { get; init; }
 
     public int Take { get; init; } = 20;
 }
 
-public class ListHarvestRunsQueryHandler : IRequestHandler<ListHarvestRunsQuery, IReadOnlyList<HarvestReport>>
+public class ListHarvestRunsQueryHandler : IRequestHandler<ListHarvestRunsQuery, IReadOnlyList<IntegrationRunReport>>
 {
     private readonly IApplicationDbContext _context;
 
@@ -25,10 +26,11 @@ public class ListHarvestRunsQueryHandler : IRequestHandler<ListHarvestRunsQuery,
         _context = context;
     }
 
-    public async Task<IReadOnlyList<HarvestReport>> Handle(
+    public async Task<IReadOnlyList<IntegrationRunReport>> Handle(
         ListHarvestRunsQuery request, CancellationToken cancellationToken)
     {
-        var query = _context.SuggestionHarvestRuns.AsNoTracking().AsQueryable();
+        var query = _context.IntegrationRuns.AsNoTracking()
+            .Where(r => r.Kind == IntegrationJobKind.Recipes);
 
         if (request.SourceId is { } sourceId)
         {
@@ -42,6 +44,6 @@ public class ListHarvestRunsQueryHandler : IRequestHandler<ListHarvestRunsQuery,
             .Take(take)
             .ToListAsync(cancellationToken);
 
-        return runs.Select(HarvestReport.From).ToList();
+        return runs.Select(IntegrationRunReport.From).ToList();
     }
 }

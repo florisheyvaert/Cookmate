@@ -60,10 +60,10 @@ public class SuggestionSourceTests
         var source = new SuggestionSource("X", "x.com");
         var at = new DateTimeOffset(2026, 6, 20, 3, 0, 0, TimeSpan.Zero);
 
-        source.RecordRun(at, HarvestStatus.PartialFailure, 7);
+        source.RecordRun(at, RunStatus.PartialFailure, 7);
 
         source.LastRunAt.ShouldBe(at);
-        source.LastRunStatus.ShouldBe(HarvestStatus.PartialFailure);
+        source.LastRunStatus.ShouldBe(RunStatus.PartialFailure);
         source.LastRunCount.ShouldBe(7);
     }
 }

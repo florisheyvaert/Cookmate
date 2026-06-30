@@ -1,12 +1,28 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
+import { useSearchParams } from 'react-router'
+import { useQuery } from '@tanstack/react-query'
 import { motion } from 'motion/react'
 import { setupApi } from '@/api/setup'
+import { externalLoginApi } from '@/api/externalLogin'
 import { ApiError } from '@/lib/api'
 import { btnPrimary } from '@/lib/ui'
 import { Logo } from '@/components/Logo'
+import { ProviderIcon } from '@/components/ProviderIcon'
 
 const ease = [0.22, 1, 0.36, 1] as const
+
+// The OIDC callback redirects back with a ?error= code if onboarding via a
+// provider fails. During first-run the SetupGate renders this screen for every
+// path (including the /login the callback targets), so we surface it here too.
+const EXTERNAL_ERRORS: Record<string, string> = {
+  external: 'Could not complete external sign-in. Please try again.',
+  email: "Your provider didn't share an email address, so we can't create your account.",
+  unverified: 'Your email address is not verified with the provider.',
+  provision: 'Could not create your account from the provider. Try again.',
+  link: 'Could not link your external account. Try again.',
+  lockedout: 'This account is locked.',
+}
 
 /**
  * First-run onboarding. Shown automatically while the database has zero users.
@@ -15,9 +31,23 @@ const ease = [0.22, 1, 0.36, 1] as const
  * detect the submission and offer to save the credentials.
  */
 export default function Setup() {
+  const [searchParams] = useSearchParams()
+  const externalError = searchParams.get('error')
   const [showPassword, setShowPassword] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(
+    externalError ? (EXTERNAL_ERRORS[externalError] ?? 'Something went wrong signing in.') : null,
+  )
   const [isSubmitting, setIsSubmitting] = useState(false)
+
+  // Available OIDC providers (Authentik, …). The first person to sign in via a
+  // provider becomes the administrator, exactly like completing the form does.
+  // Absent/empty → just the password form below.
+  const { data: providers } = useQuery({
+    queryKey: ['external-providers'],
+    queryFn: () => externalLoginApi.listProviders(),
+    staleTime: Infinity,
+    retry: false,
+  })
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -161,6 +191,33 @@ export default function Setup() {
               Your browser may offer to save these credentials.
             </p>
           </form>
+
+          {providers && providers.length > 0 && (
+            <div className="mt-7">
+              <div className="flex items-center gap-3 mb-5">
+                <span className="h-px flex-1 bg-cream-shadow" />
+                <span className="font-mono text-[0.62rem] uppercase tracking-[0.2em] text-chestnut">
+                  or set up with
+                </span>
+                <span className="h-px flex-1 bg-cream-shadow" />
+              </div>
+              <div className="flex flex-col gap-3">
+                {providers.map((p) => (
+                  <a
+                    key={p.scheme}
+                    href={externalLoginApi.challengeUrl(p.scheme, '/recipes')}
+                    className="w-full inline-flex items-center justify-center gap-2.5 rounded-sm px-7 py-3 border border-chestnut/40 text-ink font-display font-semibold text-[0.95rem] leading-none hover:border-paprika hover:text-paprika transition-colors"
+                  >
+                    <ProviderIcon scheme={p.scheme} displayName={p.displayName} />
+                    {p.displayName}
+                  </a>
+                ))}
+              </div>
+              <p className="font-mono text-[0.62rem] text-chestnut-soft text-center mt-4 leading-relaxed">
+                The first person to sign in becomes the owner.
+              </p>
+            </div>
+          )}
         </div>
 
         {/* Editorial closing quote */}
