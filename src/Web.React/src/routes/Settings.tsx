@@ -76,19 +76,28 @@ export default function Settings() {
     return all.filter((s) => !s.adminOnly || isAdmin)
   }, [isAdmin])
 
-  // Deep link: ?section=<id> opens just that section, collapses the rest, and scrolls
-  // it into view. Used e.g. from Ideas → "Manage sources" (?section=integrations).
+  // Deep link: ?section=<id> opens just that section, collapses the rest, and scrolls it into
+  // view. Used e.g. from Ideas → "Manage sources" (?section=integrations).
   const sectionParam = searchParams.get('section')
+  const linkedSection = sectionParam && sections.some((s) => s.id === sectionParam) ? sectionParam : null
+
+  // Open the linked section the first time it appears — done during render (the React-recommended
+  // way) rather than in an effect, so it doesn't fight the user's own toggles.
+  const [appliedSection, setAppliedSection] = useState<string | null>(null)
+  if (linkedSection && linkedSection !== appliedSection) {
+    setAppliedSection(linkedSection)
+    setOpenIds(new Set([linkedSection]))
+  }
+
+  // Scrolling is a genuine side effect, so it stays in an effect.
   useEffect(() => {
-    if (!sectionParam) return
-    if (!sections.some((s) => s.id === sectionParam)) return
-    setOpenIds(new Set([sectionParam]))
+    if (!linkedSection) return
     // After the route's scroll-to-top and this render settle, bring the section into view.
     const t = setTimeout(() => {
-      document.getElementById(sectionParam)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      document.getElementById(linkedSection)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
     }, 140)
     return () => clearTimeout(t)
-  }, [sectionParam, sections])
+  }, [linkedSection])
 
   const q = query.trim().toLowerCase()
   const terms = q.split(/\s+/).filter(Boolean)
