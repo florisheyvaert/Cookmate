@@ -518,6 +518,7 @@ const stepBtn =
   'w-7 h-7 grid place-items-center rounded-lg border border-cream-shadow text-ink hover:border-paprika hover:text-paprika disabled:opacity-40 transition-colors text-base leading-none'
 
 function WhatCanIMake() {
+  const qc = useQueryClient()
   const [limit, setLimit] = useState(12)
   const dishesQ = useQuery({
     queryKey: ['cart-dishes', limit],
@@ -525,10 +526,25 @@ function WhatCanIMake() {
     staleTime: 30_000,
     placeholderData: keepPreviousData,
   })
+  // The dish whose action sheet is open (photo tapped).
+  const [selected, setSelected] = useState<CartDish | null>(null)
+  // The dish being dropped onto the meal plan (plan dialog stacks over the sheet).
   const [planning, setPlanning] = useState<CartDish | null>(null)
   const dishes = dishesQ.data ?? []
   // The query returns up to `limit`; if it's full there are probably more to fetch.
   const hasMore = dishes.length >= limit && limit < 96
+
+  // Drop every ingredient this dish is missing into the cart as free text.
+  const addMissing = useMutation({
+    mutationFn: async (dish: CartDish) => {
+      for (const name of dish.missingIngredients) await cartApi.add({ displayName: name })
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: CART_KEY })
+      qc.invalidateQueries({ queryKey: ['cart-dishes'] })
+      setSelected(null)
+    },
+  })
 
   return (
     <div className="mt-4">
@@ -542,11 +558,24 @@ function WhatCanIMake() {
         <Carousel ariaLabel="Dishes you can make" hasMore={hasMore} onLoadMore={() => setLimit((l) => Math.min(l + 12, 96))}>
           {dishes.map((d) => (
             <div key={d.suggestionId} className="shrink-0 snap-start basis-[78%] sm:basis-[46%] lg:basis-[31%]">
-              <DishCard dish={d} onPlan={() => setPlanning(d)} />
+              <DishCard dish={d} onOpen={() => setSelected(d)} />
             </div>
           ))}
         </Carousel>
       )}
+
+      <DishActionDialog
+        dish={selected}
+        adding={addMissing.isPending}
+        onClose={() => {
+          if (!addMissing.isPending) setSelected(null)
+        }}
+        onPlan={() => {
+          setPlanning(selected)
+          setSelected(null)
+        }}
+        onAddMissing={() => selected && addMissing.mutate(selected)}
+      />
 
       <PlanSuggestionDialog
         open={planning != null}
@@ -561,51 +590,174 @@ function WhatCanIMake() {
   )
 }
 
-function DishCard({ dish, onPlan }: { dish: CartDish; onPlan: () => void }) {
-  const missing = dish.missingIngredients.length
+// A dish reduced to just its photo + name, with a hairline progress bar showing
+// how much of it is already in the cart. Tapping anywhere opens the action sheet.
+function DishCard({ dish, onOpen }: { dish: CartDish; onOpen: () => void }) {
+  const total = dish.relevantIngredientCount
+  const matched = dish.matchedIngredientCount
+  const pct = total > 0 ? Math.round((matched / total) * 100) : 0
   return (
-    <article className="flex flex-col rounded-2xl border border-cream-shadow overflow-hidden bg-cream">
-      <div className="flex gap-3.5 p-3.5">
-        <span className="shrink-0 w-16 h-16 rounded-xl overflow-hidden border border-cream-shadow bg-cream-deep grid place-items-center">
-          {dish.imageUrl ? (
-            <img src={dish.imageUrl} alt="" loading="lazy" className="w-full h-full object-cover" />
-          ) : (
-            <span aria-hidden className="text-lg opacity-40">🍽️</span>
-          )}
+    <button
+      type="button"
+      onClick={onOpen}
+      className="group flex w-full flex-col overflow-hidden rounded-2xl border border-cream-shadow bg-cream text-left transition-colors hover:border-paprika/50"
+    >
+      <span className="block aspect-[4/3] w-full overflow-hidden bg-cream-deep">
+        {dish.imageUrl ? (
+          <img
+            src={dish.imageUrl}
+            alt=""
+            loading="lazy"
+            className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
+          />
+        ) : (
+          <span aria-hidden className="grid h-full w-full place-items-center text-3xl opacity-40">🍽️</span>
+        )}
+      </span>
+      <span className="flex flex-col gap-2.5 p-3.5">
+        <span className="font-display text-ink leading-tight line-clamp-2" style={{ fontWeight: 700, letterSpacing: '-0.02em', fontSize: '1rem' }}>
+          {dish.title}
         </span>
-        <div className="min-w-0 flex-1">
-          <h4 className="font-display text-ink leading-tight line-clamp-2" style={{ fontWeight: 700, letterSpacing: '-0.02em', fontSize: '1rem' }}>
-            {dish.title}
-          </h4>
-          <p className="mt-1 flex items-center gap-2 font-mono text-[0.58rem] uppercase tracking-[0.12em]">
-            <span className="text-paprika">{dish.matchedIngredientCount}/{dish.relevantIngredientCount} in cart</span>
-            <span className={missing === 0 ? 'text-paprika-deep' : 'text-chestnut-soft'}>
-              {missing === 0 ? '· ready' : `· +${missing} to buy`}
-            </span>
-          </p>
-        </div>
-      </div>
+        <span className="block">
+          <span className="block h-1 w-full overflow-hidden rounded-full bg-cream-shadow/70">
+            <span className="block h-full rounded-full bg-paprika/70 transition-[width] duration-500" style={{ width: `${pct}%` }} />
+          </span>
+          <span className="mt-1.5 block font-mono text-[0.56rem] uppercase tracking-[0.12em] text-chestnut-soft">
+            {matched}/{total} items in cart
+          </span>
+        </span>
+      </span>
+    </button>
+  )
+}
 
-      {missing > 0 && (
-        <div className="px-3.5 pb-2.5 flex flex-wrap gap-1.5">
-          {dish.missingIngredients.slice(0, 6).map((m) => (
-            <span key={m} className="px-2 py-0.5 rounded-md bg-cream-shadow/60 text-chestnut font-mono text-[0.56rem]">
-              {m}
-            </span>
-          ))}
-          {missing > 6 && <span className="font-mono text-[0.56rem] text-chestnut-soft">+{missing - 6}</span>}
-        </div>
+// Tapping a dish opens this: three ways forward — plan it, top up the cart with
+// what it's missing, or read the full recipe.
+const dishActionRow =
+  'flex w-full items-center gap-3.5 rounded-xl border border-cream-shadow px-4 py-3 text-left no-underline transition-colors hover:border-paprika/50 hover:bg-paprika/5 disabled:opacity-45 disabled:pointer-events-none'
+
+function DishActionDialog({
+  dish,
+  adding,
+  onClose,
+  onPlan,
+  onAddMissing,
+}: {
+  dish: CartDish | null
+  adding: boolean
+  onClose: () => void
+  onPlan: () => void
+  onAddMissing: () => void
+}) {
+  useEffect(() => {
+    if (!dish) return
+    const original = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') {
+        e.preventDefault()
+        onClose()
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => {
+      window.removeEventListener('keydown', onKey)
+      document.body.style.overflow = original
+    }
+  }, [dish, onClose])
+
+  const missing = dish?.missingIngredients.length ?? 0
+
+  return (
+    <AnimatePresence>
+      {dish && (
+        <motion.div
+          key="backdrop"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.18 }}
+          className="fixed inset-0 z-50 flex items-center justify-center px-6 py-12 bg-ink/45 backdrop-blur-sm"
+          onClick={onClose}
+          aria-hidden
+        />
       )}
+      {dish && (
+        <motion.div
+          key="card"
+          initial={{ opacity: 0, scale: 0.96, y: 8 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          exit={{ opacity: 0, scale: 0.96, y: 8 }}
+          transition={{ duration: 0.22, ease }}
+          className="fixed inset-0 z-50 flex items-center justify-center px-6 py-12 pointer-events-none"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="dish-action-title"
+        >
+          <div className="grain w-full max-w-md bg-cream border border-chestnut/30 shadow-[0_24px_60px_-12px_rgba(26,20,16,0.35)] pointer-events-auto rounded-sm">
+            <div className="flex items-start gap-3.5 px-6 pt-6 pb-5">
+              <span className="shrink-0 w-14 h-14 rounded-xl overflow-hidden border border-cream-shadow bg-cream-deep grid place-items-center">
+                {dish.imageUrl ? (
+                  <img src={dish.imageUrl} alt="" className="w-full h-full object-cover" />
+                ) : (
+                  <span aria-hidden className="text-lg opacity-40">🍽️</span>
+                )}
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="eyebrow mb-1">What next?</p>
+                <h2
+                  id="dish-action-title"
+                  className="font-display text-ink leading-tight line-clamp-2"
+                  style={{ fontWeight: 700, letterSpacing: '-0.02em', fontSize: '1.15rem' }}
+                >
+                  {dish.title}
+                </h2>
+              </div>
+              <button
+                type="button"
+                onClick={onClose}
+                aria-label="Close"
+                className="shrink-0 -mr-1 -mt-1 h-8 w-8 grid place-items-center rounded-lg text-chestnut hover:text-paprika transition-colors"
+              >
+                ✕
+              </button>
+            </div>
 
-      <footer className="mt-auto px-3.5 py-2.5 border-t border-cream-shadow flex items-center justify-between gap-3">
-        <a href={dish.sourceUrl} target="_blank" rel="noreferrer" className="font-mono text-[0.58rem] uppercase tracking-[0.14em] text-chestnut hover:text-paprika transition-colors">
-          Recipe ↗
-        </a>
-        <button type="button" onClick={onPlan} className="font-mono text-[0.58rem] uppercase tracking-[0.14em] text-paprika hover:text-paprika-deep transition-colors">
-          Add to plan →
-        </button>
-      </footer>
-    </article>
+            <div className="border-t border-cream-shadow px-6 py-5 flex flex-col gap-2.5">
+              <button type="button" onClick={onPlan} className={dishActionRow}>
+                <span aria-hidden className="text-xl">🗓</span>
+                <span className="min-w-0">
+                  <span className="block font-display text-ink" style={{ fontWeight: 650, fontSize: '0.95rem' }}>Plan meal</span>
+                  <span className="block font-mono text-[0.56rem] uppercase tracking-[0.1em] text-chestnut-soft">Drop it on a day in your plan</span>
+                </span>
+              </button>
+
+              <button type="button" onClick={onAddMissing} disabled={missing === 0 || adding} className={dishActionRow}>
+                <span aria-hidden className="text-xl">🛒</span>
+                <span className="min-w-0 flex-1">
+                  <span className="block font-display text-ink" style={{ fontWeight: 650, fontSize: '0.95rem' }}>Add missing ingredients to cart</span>
+                  <span className="block font-mono text-[0.56rem] uppercase tracking-[0.1em] text-chestnut-soft">
+                    {missing === 0
+                      ? 'Everything is already in your cart'
+                      : adding
+                        ? 'Adding…'
+                        : `${missing} ingredient${missing === 1 ? '' : 's'} to add`}
+                  </span>
+                </span>
+              </button>
+
+              <a href={dish.sourceUrl} target="_blank" rel="noreferrer" onClick={onClose} className={dishActionRow}>
+                <span aria-hidden className="text-xl">📖</span>
+                <span className="min-w-0">
+                  <span className="block font-display text-ink" style={{ fontWeight: 650, fontSize: '0.95rem' }}>View recipe</span>
+                  <span className="block font-mono text-[0.56rem] uppercase tracking-[0.1em] text-chestnut-soft">Open the full recipe ↗</span>
+                </span>
+              </a>
+            </div>
+          </div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   )
 }
 
