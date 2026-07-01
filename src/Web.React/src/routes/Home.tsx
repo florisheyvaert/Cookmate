@@ -8,6 +8,7 @@ import { mealPlanApi, MEAL_SLOT_ORDER, MEAL_SLOT_ICON, MEAL_SLOT_LABELS } from '
 import type { MealEntryDto } from '@/api/mealPlan'
 import { DayPlannerDialog } from '@/components/DayPlannerDialog'
 import { Carousel } from '@/components/Carousel'
+import { QuickAddProduct } from '@/components/QuickAddProduct'
 import { SourceMark } from '@/components/SourceMark'
 import { suggestionsApi } from '@/api/suggestions'
 import { promotionsApi } from '@/api/promotions'
@@ -91,6 +92,16 @@ function SignedInHome() {
   return (
     <div className="px-5 sm:px-6 md:px-12 lg:px-20 pt-12 md:pt-20 pb-28">
       <Masthead totalRecipes={recipes.length} />
+
+      {/* One-tap quick add — the reason to open the app on your phone at the store. */}
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.12, duration: 0.5, ease }}
+        className="-mt-12 md:-mt-16 mb-20 md:mb-28 max-w-md"
+      >
+        <QuickAddProduct />
+      </motion.div>
 
       <Planner />
 
