@@ -11,6 +11,8 @@ import {
   HARVEST_TRIGGER_LABELS,
 } from '@/api/suggestions'
 import { Listbox, type ListboxOption } from '@/components/Listbox'
+import { Dialog } from '@/components/Dialog'
+import { GroupHeader } from '@/components/SettingsGroup'
 
 const ease = [0.22, 1, 0.36, 1] as const
 const INTEGRATIONS_KEY = ['promotion-integrations']
@@ -20,7 +22,7 @@ const DAY_LABELS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Fri
 const DAY_OPTIONS: ListboxOption[] = [1, 2, 3, 4, 5, 6, 0].map((d) => ({ value: String(d), label: DAY_LABELS[d] }))
 
 // Brand → recipe-source host labels, so a store that is *also* a recipe source shows both
-// capabilities on one card. Matching is by the host's first label (ah.be → "ah").
+// capabilities on one row. Matching is by the host's first label (ah.be → "ah").
 const RECIPE_HOST_HINTS: Record<string, string[]> = {
   ah: ['ah'],
 }
@@ -44,20 +46,21 @@ function relativeDay(iso: string): string {
 }
 
 /**
- * The "Stores" group of the Integrations section: which stores Cookmate pulls promotions
- * from. Each store is a card whose "capability rows" read like a label: an editable
- * Promotions row, plus a read-only Recipes row when the same brand is also a recipe source
- * — so it's obvious that Albert Heijn does both while another store might only do promos.
+ * The "Promotions" group of the Integrations section: which stores Cookmate caches the
+ * weekly bonus from. A titled group with a borderless auto-refresh summary row and one
+ * flat, divided row per store (toggle + refresh), plus a run-history dialog — mirroring
+ * the Recipe sources group so the two read as one calm, consistent list.
  */
 export function PromotionIntegrations() {
+  const [historyOpen, setHistoryOpen] = useState(false)
   const integrationsQ = useQuery({
     queryKey: INTEGRATIONS_KEY,
     queryFn: () => promotionsApi.integrations.list(),
-    // Keep the card live while a refresh is running server-side.
+    // Keep the row live while a refresh is running server-side.
     refetchInterval: (q) =>
       q.state.data?.some((s) => s.lastRunStatus === HARVEST_STATUS_PROCESSING) ? 2500 : false,
   })
-  // Used only to detect which stores are also recipe sources (for the second row).
+  // Used only to detect which stores are also recipe sources (for the inline note).
   const sourcesQ = useQuery({ queryKey: ['suggestion-sources'], queryFn: () => suggestionsApi.sources.list() })
 
   const stores = integrationsQ.data ?? []
@@ -69,37 +72,44 @@ export function PromotionIntegrations() {
   }
 
   return (
-    <div>
-      <div className="flex items-baseline gap-2.5 mb-1.5">
-        <span className="eyebrow text-paprika">Stores · promotions</span>
-        <span aria-hidden>🏷️</span>
-      </div>
-      <p className="text-ink-soft text-sm leading-relaxed mb-4">
-        Switch a store on to cache its weekly bonus, and set when the refresh runs on its own.
-      </p>
+    <section>
+      <GroupHeader
+        icon="🏷️"
+        tint="butter"
+        title="Promotions"
+        description="Stores whose weekly bonus Cookmate caches — switch one on and set when it refreshes on its own."
+        action={
+          <button
+            type="button"
+            onClick={() => setHistoryOpen(true)}
+            className="inline-flex items-center gap-1.5 font-mono text-[0.62rem] uppercase tracking-[0.14em] text-chestnut hover:text-paprika transition-colors"
+          >
+            <HistoryIcon />
+            History
+          </button>
+        }
+      />
 
-      <SchedulePanel />
+      <ScheduleRow />
 
       {integrationsQ.isPending ? (
-        <p className="font-mono text-[0.66rem] text-chestnut-soft">Loading…</p>
+        <p className="mt-6 font-mono text-[0.66rem] text-chestnut-soft">Loading…</p>
       ) : stores.length === 0 ? (
-        <p className="text-ink-soft leading-relaxed">
-          No stores support promotions yet. They'll appear here as they're added.
-        </p>
+        <p className="mt-6 text-ink-soft leading-relaxed">No stores support promotions yet. They'll appear here as they're added.</p>
       ) : (
-        <div className="space-y-4">
+        <ul className="mt-2 border-t border-cream-shadow divide-y divide-cream-shadow">
           {stores.map((store, i) => (
-            <ProviderCard key={store.storeCode} store={store} index={i} hasRecipes={recipeSourceFor(store.storeCode)} />
+            <ProviderRow key={store.storeCode} store={store} index={i} hasRecipes={recipeSourceFor(store.storeCode)} />
           ))}
-        </div>
+        </ul>
       )}
 
-      <RunHistory />
-    </div>
+      <PromoHistoryDialog open={historyOpen} onClose={() => setHistoryOpen(false)} />
+    </section>
   )
 }
 
-function ProviderCard({ store, index, hasRecipes }: { store: PromotionIntegration; index: number; hasRecipes: boolean }) {
+function ProviderRow({ store, index, hasRecipes }: { store: PromotionIntegration; index: number; hasRecipes: boolean }) {
   const queryClient = useQueryClient()
 
   const invalidate = () => {
@@ -122,90 +132,77 @@ function ProviderCard({ store, index, hasRecipes }: { store: PromotionIntegratio
   const busy = refresh.isPending || processing
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 8 }}
+    <motion.li
+      initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: 0.03 * index, duration: 0.35, ease }}
-      className="rounded-2xl border border-cream-shadow bg-cream-deep overflow-hidden"
+      transition={{ delay: 0.03 * index, duration: 0.3, ease }}
+      className="py-4 sm:py-5"
     >
-      {/* Brand header */}
-      <div className="flex items-center gap-3 px-5 sm:px-6 pt-5">
+      <div className="flex items-start gap-3.5">
         <span
-          className="grid place-items-center w-11 h-11 rounded-xl shrink-0 bg-paprika/12 text-paprika-deep font-display text-base leading-none"
+          className={[
+            'grid place-items-center w-11 h-11 rounded-xl shrink-0 font-display text-base leading-none',
+            store.enabled ? 'bg-butter/20 text-butter-deep' : 'bg-cream-shadow text-chestnut',
+          ].join(' ')}
           style={{ fontWeight: 700 }}
         >
           {store.displayName.slice(0, 2).toUpperCase()}
         </span>
-        <h3 className="font-display text-ink text-xl leading-none truncate" style={{ fontWeight: 700, letterSpacing: '-0.02em' }}>
-          {store.displayName}
-        </h3>
-        <span className="ml-auto font-mono text-[0.6rem] text-chestnut-soft uppercase tracking-[0.12em]">{store.storeCode}</span>
-      </div>
 
-      {/* Capability rows */}
-      <div className="mt-4 divide-y divide-cream-shadow/70 border-t border-cream-shadow/70">
-        {/* Promotions — editable */}
-        <div className="px-5 sm:px-6 py-4">
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2 flex-wrap min-w-0">
-              <span className="eyebrow">Promotions</span>
-              {store.lastRunStatus != null && (
-                <span className={`font-mono px-2 py-0.5 rounded-full text-[0.54rem] uppercase tracking-[0.1em] ${statusPill(store.lastRunStatus)}`}>
-                  {HARVEST_STATUS_LABELS[store.lastRunStatus]}
-                </span>
-              )}
-            </div>
-            <Toggle
-              checked={store.enabled}
-              disabled={toggle.isPending}
-              onChange={(v) => toggle.mutate(v)}
-              label={store.enabled ? 'On' : 'Off'}
-            />
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <h4 className="font-display text-ink text-lg leading-none truncate" style={{ fontWeight: 700, letterSpacing: '-0.02em' }}>
+              {store.displayName}
+            </h4>
+            <span className="font-mono text-[0.58rem] text-chestnut-soft uppercase tracking-[0.12em]">{store.storeCode}</span>
+            {store.lastRunStatus != null && (
+              <span className={`font-mono px-2 py-0.5 rounded-full text-[0.54rem] uppercase tracking-[0.1em] ${statusPill(store.lastRunStatus)}`}>
+                {HARVEST_STATUS_LABELS[store.lastRunStatus]}
+              </span>
+            )}
           </div>
-
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5 sm:gap-3 mt-3">
-            <p className="font-mono text-[0.64rem] text-chestnut">
-              {store.lastRunAt ? (
-                <>
-                  {relativeDay(store.lastRunAt)} · {store.promotionCount} cached
-                </>
-              ) : store.enabled ? (
-                <span className="text-chestnut-soft">on — never refreshed</span>
-              ) : (
-                <span className="text-chestnut-soft">off — turn on to pull bonus offers</span>
-              )}
-            </p>
-            <button
-              type="button"
-              onClick={() => refresh.mutate()}
-              disabled={busy}
-              className="w-full sm:w-auto shrink-0 inline-flex items-center justify-center gap-1.5 rounded-xl px-4 py-2.5 sm:py-2 bg-butter text-[#1f2417] hover:bg-butter-deep disabled:opacity-60 transition-colors font-display font-semibold text-[0.8rem]"
-            >
-              <span aria-hidden className={busy ? 'animate-spin' : ''}>↻</span>
-              {busy ? 'Refreshing…' : 'Refresh now'}
-            </button>
-          </div>
+          <p className="font-mono text-[0.64rem] text-chestnut mt-2">
+            {store.lastRunAt ? (
+              <>
+                {relativeDay(store.lastRunAt)} · {store.promotionCount} cached
+              </>
+            ) : store.enabled ? (
+              <span className="text-chestnut-soft">on — never refreshed</span>
+            ) : (
+              <span className="text-chestnut-soft">off — turn on to pull bonus offers</span>
+            )}
+            {hasRecipes && (
+              <>
+                <span aria-hidden className="text-chestnut-soft"> · </span>
+                also a recipe source{' '}
+                <a href="#recipe-sites" className="text-chestnut hover:text-paprika transition-colors no-underline">
+                  ↑
+                </a>
+              </>
+            )}
+          </p>
         </div>
 
-        {/* Recipes — read-only pointer to the Sources screen */}
-        {hasRecipes && (
-          <div className="px-5 sm:px-6 py-4 flex items-center gap-3">
-            <span className="eyebrow">Recipes</span>
-            <span className="font-mono text-[0.6rem] text-chestnut-soft">also a recipe source</span>
-            <a
-              href="#recipe-sites"
-              className="ml-auto font-mono text-[0.62rem] uppercase tracking-[0.14em] text-chestnut hover:text-paprika transition-colors no-underline"
-            >
-              Manage above ↑
-            </a>
-          </div>
-        )}
+        <div className="shrink-0 flex flex-col items-end gap-2.5">
+          <Toggle checked={store.enabled} disabled={toggle.isPending} onChange={(v) => toggle.mutate(v)} label={store.enabled ? 'On' : 'Off'} />
+          <button
+            type="button"
+            onClick={() => refresh.mutate()}
+            disabled={busy || !store.enabled}
+            className="inline-flex items-center justify-center gap-1.5 rounded-xl px-3.5 py-2 bg-butter text-[#1f2417] hover:bg-butter-deep disabled:opacity-50 transition-colors font-display font-semibold text-[0.78rem]"
+          >
+            <span aria-hidden className={busy ? 'inline-block animate-spin' : ''}>↻</span>
+            <span className="hidden sm:inline">{busy ? 'Refreshing…' : 'Refresh'}</span>
+          </button>
+        </div>
       </div>
-    </motion.div>
+    </motion.li>
   )
 }
 
-function SchedulePanel() {
+// ── Auto-refresh schedule — a borderless summary row that expands in place ──────
+
+function ScheduleRow() {
   const queryClient = useQueryClient()
   const [open, setOpen] = useState(false)
   const [animating, setAnimating] = useState(false)
@@ -219,20 +216,18 @@ function SchedulePanel() {
   const summary = data ? (data.enabled ? `every ${DAY_LABELS[data.dayOfWeek]} at ${data.timeOfDay}` : 'off') : '…'
 
   return (
-    <div className={`mb-6 rounded-xl border border-cream-shadow bg-cream ${open && !animating ? 'overflow-visible' : 'overflow-hidden'}`}>
+    <div className={`mt-5 ${open && !animating ? 'overflow-visible' : 'overflow-hidden'}`}>
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
-        className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-cream-deep/50 transition-colors"
+        className="group w-full flex items-center gap-2.5 py-1 text-left"
       >
         <span className="text-chestnut-soft shrink-0"><ClockIcon /></span>
-        <span className="flex-1 min-w-0 flex items-baseline gap-2 flex-wrap">
-          <span className="eyebrow">Auto-refresh</span>
-          <span className={`font-mono text-[0.7rem] truncate ${data?.enabled ? 'text-chestnut' : 'text-chestnut-soft'}`}>{summary}</span>
-        </span>
-        <span className={`shrink-0 w-2 h-2 rounded-full ${data?.enabled ? 'bg-paprika' : 'bg-chestnut-soft'}`} aria-hidden />
-        <span className="shrink-0 text-chestnut-soft"><Chevron open={open} /></span>
+        <span className="eyebrow shrink-0">Auto-refresh</span>
+        <span className={`font-mono text-[0.68rem] truncate ${data?.enabled ? 'text-chestnut' : 'text-chestnut-soft'}`}>{summary}</span>
+        <span className={`shrink-0 w-1.5 h-1.5 rounded-full ${data?.enabled ? 'bg-paprika' : 'bg-chestnut-soft'}`} aria-hidden />
+        <span className="ml-auto shrink-0 text-chestnut-soft group-hover:text-paprika transition-colors"><Chevron open={open} /></span>
       </button>
 
       <AnimatePresence initial={false}>
@@ -246,7 +241,7 @@ function SchedulePanel() {
             onAnimationComplete={() => setAnimating(false)}
             className={animating ? 'overflow-hidden' : 'overflow-visible'}
           >
-            <div className="px-4 pb-5 pt-2 border-t border-cream-shadow/70">
+            <div className="pt-3 pb-1">
               <ScheduleForm
                 key={`${data.enabled}-${data.dayOfWeek}-${data.timeOfDay}`}
                 initial={data}
@@ -272,12 +267,12 @@ function ScheduleForm({ initial, saving, onSave }: { initial: HarvestSchedule; s
     <div>
       <div className="flex items-center justify-between gap-4 mb-4">
         <p className="text-ink-soft text-sm leading-snug max-w-xs">
-          {enabled ? 'Refreshes every enabled store automatically.' : 'Only refreshes when you press “Refresh now”.'}
+          {enabled ? 'Refreshes every enabled store automatically.' : 'Only refreshes when you press “Refresh”.'}
         </p>
         <Toggle label={enabled ? 'On' : 'Off'} checked={enabled} onChange={setEnabled} />
       </div>
 
-      <div className={['grid grid-cols-2 gap-x-5 gap-y-4', enabled ? '' : 'opacity-50 pointer-events-none'].join(' ')}>
+      <div className={['grid grid-cols-2 gap-x-5 gap-y-4 max-w-md', enabled ? '' : 'opacity-50 pointer-events-none'].join(' ')}>
         <label className="col-span-2 sm:col-span-1 block">
           <span className="eyebrow block mb-1.5">Day</span>
           <Listbox ariaLabel="Refresh day" value={dayOfWeek} onChange={setDayOfWeek} options={DAY_OPTIONS} />
@@ -303,8 +298,9 @@ function ScheduleForm({ initial, saving, onSave }: { initial: HarvestSchedule; s
   )
 }
 
-function RunHistory() {
-  const [open, setOpen] = useState(false)
+// ── Refresh history dialog ─────────────────────────────────────────────────────
+
+function PromoHistoryDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
   const runsQ = useQuery({
     queryKey: RUNS_KEY,
     queryFn: () => promotionsApi.integrations.runs(),
@@ -314,37 +310,15 @@ function RunHistory() {
   const runs = runsQ.data ?? []
 
   return (
-    <div className="mt-5">
-      <button
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        aria-expanded={open}
-        className="inline-flex items-center gap-1.5 font-mono text-[0.64rem] uppercase tracking-[0.14em] text-chestnut hover:text-paprika transition-colors"
-      >
-        <HistoryIcon />
-        {open ? 'Hide refresh history' : 'Refresh history'}
-      </button>
-
-      <AnimatePresence initial={false}>
-        {open && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            transition={{ duration: 0.25, ease }}
-            className="overflow-hidden"
-          >
-            <div className="mt-4">
-              {runsQ.isPending && <p className="font-mono text-[0.66rem] text-chestnut-soft">Loading…</p>}
-              {runsQ.isSuccess && runs.length === 0 && (
-                <p className="font-mono text-[0.66rem] text-chestnut-soft">No refreshes recorded yet.</p>
-              )}
-              {runs.length > 0 && <RunsTable runs={runs} />}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
+    <Dialog open={open} onClose={onClose} eyebrow="Refresh history" title="Store promotions" maxWidth="max-w-2xl">
+      {runsQ.isPending ? (
+        <p className="font-mono text-[0.66rem] text-chestnut-soft">Loading…</p>
+      ) : runs.length === 0 ? (
+        <p className="font-mono text-[0.66rem] text-chestnut-soft">No refreshes recorded yet.</p>
+      ) : (
+        <RunsTable runs={runs} />
+      )}
+    </Dialog>
   )
 }
 
@@ -363,75 +337,73 @@ function RunsTable({ runs }: { runs: HarvestReport[] }) {
   const th = 'px-3 py-2 font-normal'
 
   return (
-    <div className="rounded-xl border border-cream-shadow overflow-hidden">
-      <div className="overflow-x-auto">
-        <table className="w-full text-left border-collapse">
-          <thead>
-            <tr className="bg-cream-deep font-mono text-[0.55rem] uppercase tracking-[0.12em] text-chestnut-soft">
-              <th className={th}>When</th>
-              <th className={`${th} hidden sm:table-cell`}>Run</th>
-              <th className={th}>Status</th>
-              <th className={`${th} text-right`}>Cached</th>
-              <th className={`${th} text-right`}>Fail</th>
-              <th className="px-2 py-2" />
-            </tr>
-          </thead>
-          <tbody>
-            {runs.map((run) => {
-              const hasDetail = run.sources.length > 0
-              const isOpen = expanded.has(run.runId)
-              return (
-                <Fragment key={run.runId}>
-                  <tr
-                    onClick={hasDetail ? () => toggle(run.runId) : undefined}
-                    className={['border-t border-cream-shadow', hasDetail ? 'cursor-pointer hover:bg-cream-deep/50' : ''].join(' ')}
-                  >
-                    <td className="px-3 py-2.5 font-mono text-[0.62rem] text-ink whitespace-nowrap">
-                      {new Date(run.startedAt).toLocaleDateString()}
-                      <span className="hidden sm:inline text-chestnut-soft">
-                        {' · '}
-                        {new Date(run.startedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                      </span>
-                    </td>
-                    <td className="px-3 py-2.5 font-mono text-[0.62rem] text-chestnut hidden sm:table-cell">
-                      {HARVEST_TRIGGER_LABELS[run.trigger]}
-                    </td>
-                    <td className="px-3 py-2.5">
-                      <span className={`font-mono text-[0.54rem] uppercase tracking-[0.1em] px-2 py-0.5 rounded-full ${statusPill(run.status)}`}>
-                        {HARVEST_STATUS_LABELS[run.status]}
-                      </span>
-                    </td>
-                    <td className="px-3 py-2.5 text-right num text-[0.8rem] text-paprika">{run.inserted}</td>
-                    <td className={`px-3 py-2.5 text-right num text-[0.8rem] ${run.failed > 0 ? 'text-red-600' : 'text-chestnut-soft'}`}>
-                      {run.failed}
-                    </td>
-                    <td className="px-2 py-2.5 text-chestnut-soft">{hasDetail && <Chevron open={isOpen} />}</td>
-                  </tr>
+    <div className="overflow-x-auto -mx-2">
+      <table className="w-full text-left border-collapse">
+        <thead>
+          <tr className="font-mono text-[0.55rem] uppercase tracking-[0.12em] text-chestnut-soft">
+            <th className={th}>When</th>
+            <th className={`${th} hidden sm:table-cell`}>Run</th>
+            <th className={th}>Status</th>
+            <th className={`${th} text-right`}>Cached</th>
+            <th className={`${th} text-right`}>Fail</th>
+            <th className="px-2 py-2" />
+          </tr>
+        </thead>
+        <tbody>
+          {runs.map((run) => {
+            const hasDetail = run.sources.length > 0
+            const isOpen = expanded.has(run.runId)
+            return (
+              <Fragment key={run.runId}>
+                <tr
+                  onClick={hasDetail ? () => toggle(run.runId) : undefined}
+                  className={['border-t border-cream-shadow', hasDetail ? 'cursor-pointer hover:bg-cream-deep/60' : ''].join(' ')}
+                >
+                  <td className="px-3 py-2.5 font-mono text-[0.62rem] text-ink whitespace-nowrap">
+                    {new Date(run.startedAt).toLocaleDateString()}
+                    <span className="hidden sm:inline text-chestnut-soft">
+                      {' · '}
+                      {new Date(run.startedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                  </td>
+                  <td className="px-3 py-2.5 font-mono text-[0.62rem] text-chestnut hidden sm:table-cell">
+                    {HARVEST_TRIGGER_LABELS[run.trigger]}
+                  </td>
+                  <td className="px-3 py-2.5">
+                    <span className={`font-mono text-[0.54rem] uppercase tracking-[0.1em] px-2 py-0.5 rounded-full ${statusPill(run.status)}`}>
+                      {HARVEST_STATUS_LABELS[run.status]}
+                    </span>
+                  </td>
+                  <td className="px-3 py-2.5 text-right num text-[0.8rem] text-paprika">{run.inserted}</td>
+                  <td className={`px-3 py-2.5 text-right num text-[0.8rem] ${run.failed > 0 ? 'text-red-600' : 'text-chestnut-soft'}`}>
+                    {run.failed}
+                  </td>
+                  <td className="px-2 py-2.5 text-chestnut-soft">{hasDetail && <Chevron open={isOpen} />}</td>
+                </tr>
 
-                  {hasDetail && isOpen && (
-                    <tr className="bg-cream">
-                      <td colSpan={6} className="px-3 sm:px-4 py-4 border-t border-cream-shadow/60">
-                        <div className="space-y-2">
-                          {run.sources.map((src, i) => (
-                            <div key={i} className="flex items-center justify-between gap-3 font-mono text-[0.62rem]">
-                              <span className="text-chestnut">{src.sourceName || src.host}</span>
-                              {src.error ? (
-                                <span className="text-red-600 text-right break-words">{src.error}</span>
-                              ) : (
-                                <span className="text-paprika-deep">{src.inserted} cached</span>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                      </td>
-                    </tr>
-                  )}
-                </Fragment>
-              )
-            })}
-          </tbody>
-        </table>
-      </div>
+                {hasDetail && isOpen && (
+                  <tr className="bg-cream-deep/50">
+                    <td colSpan={6} className="px-3 sm:px-4 py-4 border-t border-cream-shadow/60">
+                      <div className="space-y-2">
+                        {run.sources.map((src, i) => (
+                          <div key={i} className="flex items-center justify-between gap-3 font-mono text-[0.62rem]">
+                            <span className="text-chestnut">{src.sourceName || src.host}</span>
+                            {src.error ? (
+                              <span className="text-red-600 text-right break-words">{src.error}</span>
+                            ) : (
+                              <span className="text-paprika-deep">{src.inserted} cached</span>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </td>
+                  </tr>
+                )}
+              </Fragment>
+            )
+          })}
+        </tbody>
+      </table>
     </div>
   )
 }
