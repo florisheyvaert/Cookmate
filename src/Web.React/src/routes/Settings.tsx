@@ -373,24 +373,13 @@ function NeverBuySection() {
 // ── Integrations ────────────────────────────────────────────────────────────
 
 function IntegrationsSection() {
+  // Two clearly-titled groups (recipe sources, then store promotions), each a flat
+  // list rather than a stack of bordered cards. Separated by a single hairline so
+  // they read as distinct without nesting box-in-box.
   return (
-    <div>
-      {/* Recipe sites — user-added sites, harvested into your ideas */}
-      <div id="recipe-sites" className="scroll-mt-24">
-        <div className="flex items-baseline gap-2.5 mb-1.5">
-          <span className="eyebrow text-paprika">Recipe sites · meal ideas</span>
-          <span aria-hidden>📖</span>
-        </div>
-        <p className="text-ink-soft text-sm leading-relaxed mb-4">
-          Add any site by its domain — recipe pages are found automatically and harvested into your ideas.
-        </p>
-        <RecipeSourcesPanel />
-      </div>
-
-      {/* Stores — code-defined promotion sources */}
-      <div className="mt-10 pt-8 border-t border-cream-shadow">
-        <PromotionIntegrations />
-      </div>
+    <div className="divide-y divide-cream-shadow [&>*]:py-8 [&>*:first-child]:pt-0 [&>*:last-child]:pb-0">
+      <RecipeSourcesPanel />
+      <PromotionIntegrations />
     </div>
   )
 }
