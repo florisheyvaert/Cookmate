@@ -58,18 +58,17 @@ export function SourceMark({
     'top-left': size === 'sm' ? 'top-1 left-1' : 'top-1.5 left-1.5',
   }[corner]
   const box = size === 'sm' ? 'h-4 w-4' : 'h-5 w-5'
-  const img = size === 'sm' ? 'h-2.5 w-2.5' : 'h-3 w-3'
 
   return (
     <span
-      className={`pointer-events-none absolute ${pos} grid ${box} place-items-center overflow-hidden rounded-full border border-cream/70 bg-cream/85 shadow-sm backdrop-blur-sm ${className ?? ''}`}
+      className={`pointer-events-none absolute ${pos} block ${box} overflow-hidden rounded-full bg-cream ring-1 ring-cream/80 shadow-sm ${className ?? ''}`}
       title={sourceName ?? undefined}
     >
       <img
         src={faviconUrl}
         alt={sourceName ?? ''}
         loading="lazy"
-        className={`${img} object-contain`}
+        className="h-full w-full object-cover"
         onError={() => setBroken(true)}
       />
     </span>
