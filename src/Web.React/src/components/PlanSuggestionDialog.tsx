@@ -10,6 +10,7 @@ import {
 } from '@/api/mealPlan'
 import type { MealEntryDto, MealSlot } from '@/api/mealPlan'
 import { addDays, startOfWeek, toISO } from '@/lib/calendarDates'
+import { SourceMark } from '@/components/SourceMark'
 
 const ease = [0.22, 1, 0.36, 1] as const
 const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
@@ -27,6 +28,9 @@ type Props = {
   baseServings?: number
   /** The dish photo, shown so you can see what you're planning. */
   imageUrl?: string | null
+  /** Source-site favicon + name, for the subtle logo on the header thumbnail. */
+  sourceFaviconUrl?: string | null
+  sourceName?: string | null
   /** Called with the planned day (yyyy-MM-dd) right after a successful add. */
   onPlanned?: (date: string) => void
 }
@@ -44,6 +48,8 @@ export function PlanSuggestionDialog({
   suggestionId,
   baseServings,
   imageUrl,
+  sourceFaviconUrl,
+  sourceName,
   onPlanned,
 }: Props) {
   const qc = useQueryClient()
@@ -153,7 +159,7 @@ export function PlanSuggestionDialog({
             <div className="w-full max-w-xl bg-cream border border-cream-shadow shadow-[0_28px_70px_-18px_rgba(20,30,18,0.45)] pointer-events-auto rounded-2xl flex flex-col max-h-[90vh] overflow-hidden">
               {/* Header — the dish you're planning, with its photo */}
               <header className="px-6 pt-5 pb-4 border-b border-cream-shadow flex items-start gap-4">
-                <DishThumb url={imageUrl ?? null} />
+                <DishThumb url={imageUrl ?? null} faviconUrl={sourceFaviconUrl} sourceName={sourceName} />
                 <div className="min-w-0 flex-1">
                   <p className="eyebrow text-paprika mb-1.5">Add to plan</p>
                   <h2 className="font-display text-ink text-lg leading-tight line-clamp-2" style={{ fontWeight: 700, letterSpacing: '-0.02em' }}>
@@ -376,14 +382,15 @@ function formatDay(iso: string): string {
   return new Intl.DateTimeFormat(undefined, { weekday: 'short', day: 'numeric', month: 'short' }).format(new Date(y, m - 1, d))
 }
 
-function DishThumb({ url }: { url: string | null }) {
+function DishThumb({ url, faviconUrl, sourceName }: { url: string | null; faviconUrl?: string | null; sourceName?: string | null }) {
   return (
-    <span className="shrink-0 w-14 h-14 rounded-xl overflow-hidden border border-cream-shadow bg-cream-deep grid place-items-center">
+    <span className="relative shrink-0 w-14 h-14 rounded-xl overflow-hidden border border-cream-shadow bg-cream-deep grid place-items-center">
       {url ? (
         <img src={url} alt="" className="w-full h-full object-cover" />
       ) : (
         <span aria-hidden className="text-xl leading-none opacity-50">🍽️</span>
       )}
+      <SourceMark faviconUrl={faviconUrl} sourceName={sourceName} size="sm" />
     </span>
   )
 }

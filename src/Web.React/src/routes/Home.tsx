@@ -8,9 +8,10 @@ import { mealPlanApi, MEAL_SLOT_ORDER, MEAL_SLOT_ICON, MEAL_SLOT_LABELS } from '
 import type { MealEntryDto } from '@/api/mealPlan'
 import { DayPlannerDialog } from '@/components/DayPlannerDialog'
 import { Carousel } from '@/components/Carousel'
+import { SourceMark } from '@/components/SourceMark'
 import { suggestionsApi } from '@/api/suggestions'
 import { promotionsApi } from '@/api/promotions'
-import { formatDuration } from '@/lib/format'
+import { formatDuration, formatHostname } from '@/lib/format'
 import type { RecipeSummaryDto } from '@/api/types'
 
 const ease = [0.22, 1, 0.36, 1] as const
@@ -254,7 +255,7 @@ function Planner() {
               </div>
 
               {/* Photo area — reserved so every card is the same height */}
-              <div className="aspect-[3/2] overflow-hidden bg-cream-shadow/20 grid place-items-center">
+              <div className="relative aspect-[3/2] overflow-hidden bg-cream-shadow/20 grid place-items-center">
                 {head?.imageUrl ? (
                   <img
                     src={head.imageUrl}
@@ -265,6 +266,7 @@ function Planner() {
                 ) : (
                   <span aria-hidden className="text-2xl leading-none opacity-25">🍽️</span>
                 )}
+                <SourceMark faviconUrl={head?.sourceFaviconUrl} sourceName={head ? entryLabel(head) : null} size="sm" />
               </div>
 
               <div className="p-3 sm:p-4 bg-cream-deep">
@@ -344,6 +346,7 @@ function FeaturedCard({ recipe }: { recipe: RecipeSummaryDto }) {
                 ❧
               </span>
             )}
+            <SourceMark faviconUrl={detail.data?.sourceFaviconUrl} sourceName={formatHostname(recipe.sourceUrl)} />
           </div>
         </Link>
 
@@ -412,7 +415,7 @@ function SuggestedThisWeek() {
         {days.map((day, i) => {
           const inner = (
             <>
-              <div className="aspect-[4/3] bg-cream-shadow/40 grid place-items-center overflow-hidden">
+              <div className="relative aspect-[4/3] bg-cream-shadow/40 grid place-items-center overflow-hidden">
                 {day.suggestion?.imageUrl ? (
                   <img
                     src={day.suggestion.imageUrl}
@@ -423,6 +426,7 @@ function SuggestedThisWeek() {
                 ) : (
                   <span aria-hidden className="text-2xl leading-none opacity-60">🍽️</span>
                 )}
+                <SourceMark faviconUrl={day.suggestion?.sourceFaviconUrl} sourceName={day.suggestion?.sourceName} size="sm" />
               </div>
               <div className="p-2.5 flex-1 flex flex-col">
                 <span className="font-mono text-[0.56rem] uppercase tracking-[0.16em] text-chestnut-soft">
@@ -540,7 +544,7 @@ function FromTheShelf({ recipes }: { recipes: RecipeSummaryDto[] }) {
           >
             <Link to={`/recipes/${recipe.id}`} className="group flex items-center gap-4 py-3.5 no-underline">
               <span className="num text-chestnut-soft text-sm shrink-0 w-5">{String(i + 1).padStart(2, '0')}</span>
-              <RecipeThumb url={recipe.coverImageUrl} />
+              <RecipeThumb url={recipe.coverImageUrl} faviconUrl={recipe.sourceFaviconUrl} sourceName={formatHostname(recipe.sourceUrl)} />
               <div className="flex-1 min-w-0">
                 <h3
                   className="text-ink text-lg group-hover:text-paprika transition-colors truncate"
@@ -563,14 +567,15 @@ function FromTheShelf({ recipes }: { recipes: RecipeSummaryDto[] }) {
   )
 }
 
-function RecipeThumb({ url }: { url: string | null }) {
+function RecipeThumb({ url, faviconUrl, sourceName }: { url: string | null; faviconUrl?: string | null; sourceName?: string | null }) {
   return (
-    <span className="w-11 h-11 shrink-0 rounded-lg overflow-hidden bg-cream-deep border border-cream-shadow grid place-items-center">
+    <span className="relative w-11 h-11 shrink-0 rounded-lg overflow-hidden bg-cream-deep border border-cream-shadow grid place-items-center">
       {url ? (
         <img src={url} alt="" loading="lazy" className="w-full h-full object-cover" />
       ) : (
         <span aria-hidden className="text-base leading-none opacity-70">🍽️</span>
       )}
+      <SourceMark faviconUrl={faviconUrl} sourceName={sourceName} size="sm" />
     </span>
   )
 }

@@ -1,3 +1,4 @@
+using Cookmate.Application.Common;
 using Cookmate.Application.Common.Interfaces;
 using Cookmate.Application.MealSuggestions.Queries.BrowseMealSuggestions;
 using Microsoft.EntityFrameworkCore;
@@ -83,6 +84,7 @@ public class GetWeeklyIdeasQueryHandler : IRequestHandler<GetWeeklyIdeasQuery, I
             .ToListAsync(cancellationToken);
 
         var byId = rows.ToDictionary(r => r.Id);
+        var favicons = await SourceFaviconLookup.LoadAsync(_context, cancellationToken);
 
         // Preserve the shuffled order.
         return picked
@@ -96,6 +98,7 @@ public class GetWeeklyIdeasQueryHandler : IRequestHandler<GetWeeklyIdeasQuery, I
                 SourceUrl = s.SourceUrl,
                 SourceId = s.SourceId,
                 SourceName = s.SourceName,
+                SourceFaviconUrl = favicons.ForSourceId(s.SourceId),
                 BaseServings = s.BaseServings,
                 TotalTimeMinutes = s.TotalTimeMinutes,
                 Tags = s.Tags,

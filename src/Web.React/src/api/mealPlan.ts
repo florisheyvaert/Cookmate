@@ -49,6 +49,8 @@ export type MealEntryDto = {
   notes: string | null
   /** Dish photo from the linked recipe or suggestion, or null when none. */
   imageUrl: string | null
+  /** Relative URL of the source site's locally-stored favicon, or null. */
+  sourceFaviconUrl: string | null
 }
 
 export type CreateMealEntryInput = {

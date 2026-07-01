@@ -31,6 +31,8 @@ export type MealSuggestionDto = {
   sourceUrl: string
   sourceId: number
   sourceName: string | null
+  /** Relative URL of the source site's locally-stored favicon, or null. */
+  sourceFaviconUrl: string | null
   baseServings: number
   totalTimeMinutes: number | null
   tags: string[]

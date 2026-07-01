@@ -9,6 +9,8 @@ export type RecipeSummaryDto = {
   title: string
   summary: string | null
   sourceUrl: string | null
+  /** Relative URL of the source site's locally-stored favicon, or null. */
+  sourceFaviconUrl: string | null
   baseServings: number
   totalTimeMinutes: number | null
   tags: string[]
@@ -60,6 +62,8 @@ export type RecipeDto = {
   title: string
   summary: string | null
   sourceUrl: string | null
+  /** Relative URL of the source site's locally-stored favicon, or null. */
+  sourceFaviconUrl: string | null
   baseServings: number
   servedFor: number
   totalTimeMinutes: number | null

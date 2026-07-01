@@ -4,8 +4,9 @@ import { useQuery } from '@tanstack/react-query'
 import { AnimatePresence, motion } from 'motion/react'
 import { recipesApi } from '@/api/recipes'
 import { ApiError } from '@/lib/api'
-import { formatDuration } from '@/lib/format'
+import { formatDuration, formatHostname } from '@/lib/format'
 import { PageHeader } from '@/components/PageHeader'
+import { SourceMark } from '@/components/SourceMark'
 
 const ease = [0.22, 1, 0.36, 1] as const
 const TIME_MAX = 180 // minutes — anything ≥ this is treated as "any time"
@@ -246,7 +247,7 @@ export default function Recipes() {
                   to={`/recipes/${recipe.id}`}
                   className="group grid grid-cols-[4.5rem_1fr_auto] md:grid-cols-[5.5rem_1fr_auto] gap-4 md:gap-5 py-4 md:py-5 items-center no-underline"
                 >
-                  <Thumb url={recipe.coverImageUrl} ordinal={i + 1} />
+                  <Thumb url={recipe.coverImageUrl} ordinal={i + 1} faviconUrl={recipe.sourceFaviconUrl} sourceName={formatHostname(recipe.sourceUrl)} />
 
                   <div className="min-w-0">
                     <h2
@@ -293,7 +294,7 @@ function clampTime(n: number): number {
 }
 
 /** Square thumbnail for a recipe row — same dimensions always, so no layout shift. */
-function Thumb({ url, ordinal }: { url: string | null; ordinal: number }) {
+function Thumb({ url, ordinal, faviconUrl, sourceName }: { url: string | null; ordinal: number; faviconUrl?: string | null; sourceName?: string | null }) {
   return (
     <div className="relative w-[4.5rem] h-[4.5rem] md:w-[5.5rem] md:h-[5.5rem] shrink-0 overflow-hidden rounded-lg bg-cream-deep border border-cream-shadow">
       {url ? (
@@ -318,6 +319,7 @@ function Thumb({ url, ordinal }: { url: string | null; ordinal: number }) {
       >
         {String(ordinal).padStart(2, '0')}
       </span>
+      <SourceMark faviconUrl={faviconUrl} sourceName={sourceName} size="sm" />
     </div>
   )
 }
