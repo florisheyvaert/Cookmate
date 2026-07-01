@@ -45,7 +45,7 @@ export function ProductSearchDialog({
         animate={{ y: 0, opacity: 1 }}
         transition={{ type: 'spring', stiffness: 340, damping: 32 }}
         onClick={(e) => e.stopPropagation()}
-        className="w-full sm:max-w-2xl max-h-[88vh] flex flex-col bg-cream rounded-t-3xl sm:rounded-2xl border border-cream-shadow overflow-hidden shadow-2xl shadow-ink/25"
+        className="w-full sm:max-w-2xl h-[85vh] sm:h-[600px] sm:max-h-[85vh] flex flex-col bg-cream rounded-t-3xl sm:rounded-2xl border border-cream-shadow overflow-hidden shadow-2xl shadow-ink/25"
       >
         <header className="shrink-0 px-5 sm:px-6 py-4 sm:py-5 border-b border-cream-shadow">
           <p className="eyebrow text-paprika mb-2.5">{heading}</p>
@@ -60,7 +60,7 @@ export function ProductSearchDialog({
             />
           </div>
         </header>
-        <div className="overflow-y-auto px-4 sm:px-6 py-5 space-y-4">
+        <div className="flex-1 min-h-0 overflow-y-auto px-4 sm:px-6 py-5 space-y-4">
           {/* Free-text add — always the first option, so you can add anything you type. */}
           {onAddText && trimmed.length > 0 && (
             <button

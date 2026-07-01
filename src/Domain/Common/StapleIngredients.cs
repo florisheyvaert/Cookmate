@@ -15,6 +15,8 @@ public static class StapleIngredients
         "olie", "olijfolie", "zonnebloemolie", "arachideolie", "boter",
         // seasoning
         "zout", "peper", "suiker", "bloem", "azijn", "mosterd",
+        // acids you keep on hand (covers "citroensap", "limoensap", zest, etc. via substring)
+        "citroen", "limoen",
         // dried spices / herbs
         "paprikapoeder", "komijn", "kaneel", "nootmuskaat", "kurkuma", "kerrie", "currypoeder",
         "oregano", "tijm", "rozemarijn", "laurier", "chilipoeder", "gemberpoeder", "knoflookpoeder",
