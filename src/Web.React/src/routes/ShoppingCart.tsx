@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { Link } from 'react-router'
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { AnimatePresence, motion, useMotionValue, useTransform } from 'motion/react'
 import { cartApi, type Cart, type CartDish, type CartLine } from '@/api/shoppingCart'
@@ -603,7 +604,7 @@ function DishCard({ dish, onOpen }: { dish: CartDish; onOpen: () => void }) {
     <button
       type="button"
       onClick={onOpen}
-      className="group flex w-full flex-col overflow-hidden rounded-2xl border border-cream-shadow bg-cream text-left transition-colors hover:border-paprika/50"
+      className="group flex h-full w-full flex-col overflow-hidden rounded-2xl border border-cream-shadow bg-cream text-left transition-colors hover:border-paprika/50"
     >
       <span className="relative block aspect-[4/3] w-full overflow-hidden bg-cream-deep">
         {dish.imageUrl ? (
@@ -619,7 +620,8 @@ function DishCard({ dish, onOpen }: { dish: CartDish; onOpen: () => void }) {
         <SourceMark faviconUrl={dish.sourceFaviconUrl} sourceName={formatHostname(dish.sourceUrl)} />
       </span>
       <span className="flex flex-col gap-2.5 p-3.5">
-        <span className="font-display text-ink leading-tight line-clamp-2" style={{ fontWeight: 700, letterSpacing: '-0.02em', fontSize: '1rem' }}>
+        {/* Always reserve two lines so a one-line title doesn't make its card shorter than its neighbours. */}
+        <span className="font-display text-ink leading-tight line-clamp-2 min-h-[2.5rem]" style={{ fontWeight: 700, letterSpacing: '-0.02em', fontSize: '1rem' }}>
           {dish.title}
         </span>
         <span className="block">
@@ -750,13 +752,13 @@ function DishActionDialog({
                 </span>
               </button>
 
-              <a href={dish.sourceUrl} target="_blank" rel="noreferrer" onClick={onClose} className={dishActionRow}>
+              <Link to={`/suggestions/${dish.suggestionId}`} onClick={onClose} className={dishActionRow}>
                 <span aria-hidden className="text-xl">📖</span>
                 <span className="min-w-0">
                   <span className="block font-display text-ink" style={{ fontWeight: 650, fontSize: '0.95rem' }}>View recipe</span>
-                  <span className="block font-mono text-[0.56rem] uppercase tracking-[0.1em] text-chestnut-soft">Open the full recipe ↗</span>
+                  <span className="block font-mono text-[0.56rem] uppercase tracking-[0.1em] text-chestnut-soft">See it here in Cookmate →</span>
                 </span>
-              </a>
+              </Link>
             </div>
           </div>
         </motion.div>

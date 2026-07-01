@@ -33,8 +33,11 @@ public class GetCartDishesQueryHandler : IRequestHandler<GetCartDishesQuery, IRe
             .ToListAsync(cancellationToken);
         if (items.Count == 0) return [];
 
-        // Each cart line reduced to its food stems once.
+        // Each cart line reduced to its food stems once. Pantry staples (oil, lemon, salt…) are
+        // dropped: you almost always have them, so they shouldn't make a dish look "makeable"
+        // or count toward its progress — mirroring the staple filter on the dish side below.
         var cartStems = items
+            .Where(name => !StapleIngredients.IsStaple(IngredientNameNormalizer.Normalize(name)))
             .Select(PromoIngredientMatcher.FoodStems)
             .Where(s => s.Count > 0)
             .ToList();
