@@ -7,6 +7,8 @@ import { PlanSuggestionDialog } from '@/components/PlanSuggestionDialog'
 import { Listbox, type ListboxOption } from '@/components/Listbox'
 import { CartSortToggle } from '@/components/CartSortToggle'
 import { Carousel } from '@/components/Carousel'
+import { SourceMark } from '@/components/SourceMark'
+import { formatHostname } from '@/lib/format'
 import { useCartSort, groupByCategory, sortAZ } from '@/lib/cartSort'
 import { useConfirm } from '@/components/confirm/ConfirmDialog'
 import { btnPrimary, btnGhostSm } from '@/lib/ui'
@@ -585,6 +587,8 @@ function WhatCanIMake() {
         suggestionId={planning?.suggestionId}
         baseServings={planning?.baseServings}
         imageUrl={planning?.imageUrl}
+        sourceFaviconUrl={planning?.sourceFaviconUrl}
+        sourceName={formatHostname(planning?.sourceUrl ?? null)}
       />
     </div>
   )
@@ -602,7 +606,7 @@ function DishCard({ dish, onOpen }: { dish: CartDish; onOpen: () => void }) {
       onClick={onOpen}
       className="group flex w-full flex-col overflow-hidden rounded-2xl border border-cream-shadow bg-cream text-left transition-colors hover:border-paprika/50"
     >
-      <span className="block aspect-[4/3] w-full overflow-hidden bg-cream-deep">
+      <span className="relative block aspect-[4/3] w-full overflow-hidden bg-cream-deep">
         {dish.imageUrl ? (
           <img
             src={dish.imageUrl}
@@ -613,6 +617,7 @@ function DishCard({ dish, onOpen }: { dish: CartDish; onOpen: () => void }) {
         ) : (
           <span aria-hidden className="grid h-full w-full place-items-center text-3xl opacity-40">🍽️</span>
         )}
+        <SourceMark faviconUrl={dish.sourceFaviconUrl} sourceName={formatHostname(dish.sourceUrl)} />
       </span>
       <span className="flex flex-col gap-2.5 p-3.5">
         <span className="font-display text-ink leading-tight line-clamp-2" style={{ fontWeight: 700, letterSpacing: '-0.02em', fontSize: '1rem' }}>

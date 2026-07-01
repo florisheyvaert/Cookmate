@@ -8,6 +8,7 @@ import { formatDuration } from '@/lib/format'
 import { PageHeader } from '@/components/PageHeader'
 import { Listbox, type ListboxOption } from '@/components/Listbox'
 import { PlanSuggestionDialog } from '@/components/PlanSuggestionDialog'
+import { SourceMark } from '@/components/SourceMark'
 
 const ease = [0.22, 1, 0.36, 1] as const
 const TAG_LIMIT = 12 // tags shown before the "+N more" toggle
@@ -325,6 +326,7 @@ function SuggestionCard({ suggestion, index }: { suggestion: MealSuggestionDto; 
     >
       <Link to={to} className="relative block no-underline">
         <CardImage url={suggestion.imageUrl} />
+        <SourceMark faviconUrl={suggestion.sourceFaviconUrl} sourceName={suggestion.sourceName} />
         {time && (
           <span className="absolute bottom-2 left-2 inline-flex items-center gap-1 rounded-full bg-cream/90 px-2.5 py-1 font-mono text-[0.68rem] text-ink shadow-sm backdrop-blur-sm">
             <span aria-hidden>🕒</span>
@@ -398,6 +400,8 @@ function SuggestionCard({ suggestion, index }: { suggestion: MealSuggestionDto; 
         suggestionId={suggestion.id}
         baseServings={suggestion.baseServings}
         imageUrl={suggestion.imageUrl}
+        sourceFaviconUrl={suggestion.sourceFaviconUrl}
+        sourceName={suggestion.sourceName}
       />
     </motion.div>
   )

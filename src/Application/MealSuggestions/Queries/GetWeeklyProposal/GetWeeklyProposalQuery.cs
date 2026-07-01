@@ -1,3 +1,4 @@
+using Cookmate.Application.Common;
 using Cookmate.Application.Common.Interfaces;
 using Cookmate.Application.MealSuggestions.Queries.BrowseMealSuggestions;
 using Microsoft.EntityFrameworkCore;
@@ -53,6 +54,8 @@ public class GetWeeklyProposalQueryHandler : IRequestHandler<GetWeeklyProposalQu
             .AsNoTracking()
             .ToDictionaryAsync(s => s.Id, s => s.Name, cancellationToken);
 
+        var favicons = await SourceFaviconLookup.LoadAsync(_context, cancellationToken);
+
         var days = new List<WeeklyProposalDayDto>(DaysPerWeek);
         for (var i = 0; i < DaysPerWeek; i++)
         {
@@ -68,6 +71,7 @@ public class GetWeeklyProposalQueryHandler : IRequestHandler<GetWeeklyProposalQu
                     SourceUrl = suggestion.SourceUrl,
                     SourceId = suggestion.SourceId,
                     SourceName = sourceNames.GetValueOrDefault(suggestion.SourceId),
+                    SourceFaviconUrl = favicons.ForSourceId(suggestion.SourceId),
                     BaseServings = suggestion.BaseServings,
                     TotalTimeMinutes = suggestion.TotalTimeMinutes,
                     Tags = suggestion.Tags,

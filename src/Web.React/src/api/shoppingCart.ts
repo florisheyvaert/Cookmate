@@ -26,6 +26,8 @@ export type CartDish = {
   title: string
   summary: string | null
   sourceUrl: string
+  /** Relative URL of the source site's locally-stored favicon, or null. */
+  sourceFaviconUrl: string | null
   baseServings: number
   totalTimeMinutes: number | null
   tags: string[]

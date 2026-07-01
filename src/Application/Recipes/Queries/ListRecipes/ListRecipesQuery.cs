@@ -1,3 +1,4 @@
+using Cookmate.Application.Common;
 using Cookmate.Application.Common.Interfaces;
 using Cookmate.Domain.Enums;
 
@@ -76,6 +77,8 @@ public class ListRecipesQueryHandler : IRequestHandler<ListRecipesQuery, IReadOn
             })
             .ToListAsync(cancellationToken);
 
+        var favicons = await SourceFaviconLookup.LoadAsync(_context, cancellationToken);
+
         return rows
             .Select(r => new RecipeSummaryDto
             {
@@ -83,6 +86,7 @@ public class ListRecipesQueryHandler : IRequestHandler<ListRecipesQuery, IReadOn
                 Title = r.Title,
                 Summary = r.Summary,
                 SourceUrl = r.SourceUrl,
+                SourceFaviconUrl = favicons.ForUrl(r.SourceUrl),
                 BaseServings = r.BaseServings,
                 TotalTimeMinutes = r.TotalTimeMinutes,
                 Tags = r.Tags,
@@ -103,6 +107,9 @@ public record RecipeSummaryDto
     public string? Summary { get; init; }
 
     public string? SourceUrl { get; init; }
+
+    /// <summary>Relative URL of the source site's locally-stored favicon, or null (family recipes / unknown host).</summary>
+    public string? SourceFaviconUrl { get; init; }
 
     public int BaseServings { get; init; }
 

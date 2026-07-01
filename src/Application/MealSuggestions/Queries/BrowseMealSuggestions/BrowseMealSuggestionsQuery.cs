@@ -1,3 +1,4 @@
+using Cookmate.Application.Common;
 using Cookmate.Application.Common.Interfaces;
 using Microsoft.EntityFrameworkCore;
 
@@ -66,6 +67,8 @@ public class BrowseMealSuggestionsQueryHandler
             query = query.Where(s => s.TotalTimeMinutes == null || s.TotalTimeMinutes <= max);
         }
 
+        var favicons = await SourceFaviconLookup.LoadAsync(_context, cancellationToken);
+
         var page = Math.Max(1, request.Page);
         var pageSize = Math.Clamp(request.PageSize, 1, 100);
 
@@ -109,6 +112,7 @@ public class BrowseMealSuggestionsQueryHandler
                 SourceUrl = s.SourceUrl,
                 SourceId = s.SourceId,
                 SourceName = s.SourceName,
+                SourceFaviconUrl = favicons.ForSourceId(s.SourceId),
                 BaseServings = s.BaseServings,
                 TotalTimeMinutes = s.TotalTimeMinutes,
                 Tags = s.Tags,
@@ -132,6 +136,9 @@ public record MealSuggestionDto
     public int SourceId { get; init; }
 
     public string? SourceName { get; init; }
+
+    /// <summary>Relative URL of the source site's locally-stored favicon, or null.</summary>
+    public string? SourceFaviconUrl { get; init; }
 
     public int BaseServings { get; init; }
 

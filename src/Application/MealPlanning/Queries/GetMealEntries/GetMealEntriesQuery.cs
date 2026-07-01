@@ -1,3 +1,4 @@
+using Cookmate.Application.Common;
 using Cookmate.Application.Common.Interfaces;
 using Cookmate.Domain.Enums;
 
@@ -45,9 +46,13 @@ public class GetMealEntriesQueryHandler : IRequestHandler<GetMealEntriesQuery, I
                 CoverMediaId = r != null
                     ? r.Media.Where(m => m.Type == MediaType.Photo).OrderBy(m => m.Order).Select(m => (int?)m.Id).FirstOrDefault()
                     : null,
+                RecipeSourceUrl = r != null ? r.SourceUrl : null,
                 SuggestionId = e.MealSuggestionId,
                 SuggestionHasImage = s != null && s.ImageStorageKey != null,
+                SuggestionSourceId = s != null ? (int?)s.SourceId : null,
             }).ToListAsync(cancellationToken);
+
+        var favicons = await SourceFaviconLookup.LoadAsync(_context, cancellationToken);
 
         return rows
             .Select(x => new MealEntryDto
@@ -64,6 +69,13 @@ public class GetMealEntriesQueryHandler : IRequestHandler<GetMealEntriesQuery, I
                     ? $"/api/Recipes/{rid}/media/{mid}/file"
                     : x.SuggestionId is int sid && x.SuggestionHasImage
                         ? $"/api/MealSuggestions/{sid}/image"
+                        : null,
+                // A planned meal is either a recipe (match favicon on its source host) or a
+                // harvested suggestion (match on its owning source id).
+                SourceFaviconUrl = x.RecipeId != null
+                    ? favicons.ForUrl(x.RecipeSourceUrl)
+                    : x.SuggestionSourceId is int ssid
+                        ? favicons.ForSourceId(ssid)
                         : null,
             })
             .ToList();
@@ -90,4 +102,7 @@ public record MealEntryDto
 
     /// <summary>Dish photo (relative API URL) from the linked recipe or suggestion, or null when none.</summary>
     public string? ImageUrl { get; init; }
+
+    /// <summary>Relative URL of the source site's locally-stored favicon, or null.</summary>
+    public string? SourceFaviconUrl { get; init; }
 }

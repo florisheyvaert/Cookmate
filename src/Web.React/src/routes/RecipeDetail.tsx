@@ -5,6 +5,7 @@ import { recipesApi } from '@/api/recipes'
 import { ApiError } from '@/lib/api'
 import { formatAmount, formatDuration, formatHostname } from '@/lib/format'
 import { MediaCarousel } from '@/components/MediaCarousel'
+import { SourceFavicon } from '@/components/SourceMark'
 import { MiseLine } from '@/components/MiseLine'
 import { findStepIngredients } from '@/lib/stepIngredients'
 import type { RecipeDto, RecipeIngredientDto, RecipeStepDto } from '@/api/types'
@@ -54,6 +55,7 @@ export default function RecipeDetail() {
           title={recipe.title}
           sourceHost={sourceHost}
           sourceUrl={recipe.sourceUrl}
+          sourceFaviconUrl={recipe.sourceFaviconUrl}
           cookHref={`/recipes/${recipe.id}/cook${requestedServings ? `?servings=${requestedServings}` : ''}`}
         />
       ) : (
@@ -144,10 +146,11 @@ type FullBleedHeroProps = {
   title: string
   sourceHost: string | null
   sourceUrl: string | null
+  sourceFaviconUrl: string | null
   cookHref: string
 }
 
-function FullBleedHero({ recipeId, image, title, sourceHost, sourceUrl, cookHref }: FullBleedHeroProps) {
+function FullBleedHero({ recipeId, image, title, sourceHost, sourceUrl, sourceFaviconUrl, cookHref }: FullBleedHeroProps) {
   return (
     <header className="relative mt-2 overflow-hidden">
       <HeroControls recipeId={recipeId} />
@@ -175,8 +178,9 @@ function FullBleedHero({ recipeId, image, title, sourceHost, sourceUrl, cookHref
                 href={sourceUrl}
                 target="_blank"
                 rel="noreferrer"
-                className="eyebrow text-paprika hover:underline no-underline mb-3 inline-block"
+                className="eyebrow text-paprika hover:underline no-underline mb-3 inline-flex items-center gap-1.5"
               >
+                <SourceFavicon faviconUrl={sourceFaviconUrl} sourceName={sourceHost} />
                 From {sourceHost}
               </a>
             ) : (
@@ -250,8 +254,9 @@ function PlainHeader({
                 href={recipe.sourceUrl}
                 target="_blank"
                 rel="noreferrer"
-                className="eyebrow text-paprika hover:underline no-underline mb-3 inline-block"
+                className="eyebrow text-paprika hover:underline no-underline mb-3 inline-flex items-center gap-1.5"
               >
+                <SourceFavicon faviconUrl={recipe.sourceFaviconUrl} sourceName={sourceHost} />
                 From {sourceHost}
               </a>
             ) : (

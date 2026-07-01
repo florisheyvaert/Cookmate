@@ -1,3 +1,4 @@
+using Cookmate.Application.Common;
 using Cookmate.Application.Common.Interfaces;
 using Cookmate.Application.Promotions.Common;
 using Cookmate.Domain.Common;
@@ -40,6 +41,7 @@ public class GetCartDishesQueryHandler : IRequestHandler<GetCartDishesQuery, IRe
         if (cartStems.Count == 0) return [];
 
         var suggestions = await _context.MealSuggestions.AsNoTracking().ToListAsync(cancellationToken);
+        var favicons = await SourceFaviconLookup.LoadAsync(_context, cancellationToken);
 
         var dishes = new List<CartDishDto>();
         foreach (var s in suggestions)
@@ -68,6 +70,7 @@ public class GetCartDishesQueryHandler : IRequestHandler<GetCartDishesQuery, IRe
                 Title = s.Title,
                 Summary = s.Summary,
                 SourceUrl = s.SourceUrl,
+                SourceFaviconUrl = favicons.ForSourceId(s.SourceId),
                 BaseServings = s.BaseServings,
                 TotalTimeMinutes = s.TotalTimeMinutes,
                 Tags = s.Tags.ToList(),
@@ -94,6 +97,10 @@ public record CartDishDto
     public string Title { get; init; } = string.Empty;
     public string? Summary { get; init; }
     public string SourceUrl { get; init; } = string.Empty;
+
+    /// <summary>Relative URL of the source site's locally-stored favicon, or null.</summary>
+    public string? SourceFaviconUrl { get; init; }
+
     public int BaseServings { get; init; }
     public int? TotalTimeMinutes { get; init; }
     public IReadOnlyList<string> Tags { get; init; } = [];
