@@ -1,0 +1,61 @@
+# Dependabot keeps dependencies patched so vulnerable packages don't break the
+# Docker build again (NuGetAudit runs as warnings-as-errors, so a vulnerable
+# transitive package fails `dotnet restore` in CI).
+#
+# NuGet versions live centrally in /Directory.Packages.props (CPM) — Dependabot
+# edits the <PackageVersion> entries there. Related packages are grouped so the
+# shared framework (ASP.NET Core / EF Core / Aspire / OpenTelemetry) moves in
+# lockstep; bumping one in isolation triggers transitive downgrade errors.
+version: 2
+updates:
+  # .NET / NuGet — central package management at the repo root.
+  - package-ecosystem: "nuget"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    groups:
+      microsoft-aspnetcore-efcore:
+        patterns:
+          - "Microsoft.AspNetCore.*"
+          - "Microsoft.EntityFrameworkCore*"
+          - "Microsoft.Extensions.*"
+          - "Microsoft.OpenApi"
+          - "System.IdentityModel.Tokens.Jwt"
+      aspire:
+        patterns:
+          - "Aspire.*"
+      opentelemetry:
+        patterns:
+          - "OpenTelemetry.*"
+      test-tooling:
+        patterns:
+          - "Microsoft.NET.Test.Sdk"
+          - "Microsoft.Playwright"
+          - "nunit*"
+          - "NUnit*"
+          - "Moq"
+          - "Shouldly"
+          - "coverlet.*"
+          - "Respawn"
+
+  # React frontend — npm packages live under src/Web.React.
+  - package-ecosystem: "npm"
+    directory: "/src/Web.React"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    groups:
+      react:
+        patterns:
+          - "react"
+          - "react-dom"
+          - "react-router*"
+      dev-dependencies:
+        dependency-type: "development"
+
+  # Keep the GitHub Actions workflows current.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
