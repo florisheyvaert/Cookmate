@@ -29,6 +29,16 @@ an existing local account with the same email. Access control is therefore deleg
 the provider — a user Authentik does not let through never gets a token, so no account is
 created. Local login remains available as a fallback.
 
+> **Trusted first-party IdP? Set `RequireVerifiedEmail=false`.** By default a provider
+> must assert `email_verified: true`, guarding against account takeover via a forged
+> email claim on an *untrusted* IdP. But several trusted first-party IdPs — **Authentik
+> included** — send `email_verified: false` by default. Against such a provider the
+> default rejects every SSO user with `/login?error=unverified`, so they never provision
+> (including the first user, who would otherwise become admin). When the IdP itself is
+> your trust boundary, set `RequireVerifiedEmail=false` for that provider (see the config
+> keys below). Only keep it `true` for providers whose `email_verified` claim you don't
+> control.
+
 ### Configuring an OIDC provider (e.g. Authentik)
 
 1. In Authentik, create an **OAuth2/OpenID Provider** + **Application**. Use a
@@ -52,7 +62,16 @@ created. Local login remains available as a fallback.
    ```
 
    Optional keys per provider: `Scopes` (defaults to `openid`/`profile`/`email`),
-   `RequireVerifiedEmail` (default `true`), `Enabled` (default `true`).
+   `RequireVerifiedEmail` (default `true` — **set to `false` for a trusted IdP such as
+   Authentik that sends `email_verified: false`; see the note above**), `Enabled`
+   (default `true`). Example for Authentik:
+
+   ```bash
+   dotnet user-secrets set "Authentication:Oidc:Providers:0:RequireVerifiedEmail" "false"
+   ```
+
+   The same keys are settable via environment variables in a container deployment, e.g.
+   `Authentication__Oidc__Providers__0__RequireVerifiedEmail=false`.
 
 The SPA's sign-in page renders a button per enabled provider automatically (via
 `GET /api/ExternalLogin/providers`).

@@ -38,8 +38,11 @@ public class OidcProviderOptions
 
     /// <summary>
     /// When true (default), auto-provisioning/linking requires the provider to
-    /// assert <c>email_verified</c>. Guards against account takeover via a forged
-    /// e-mail claim. Only relax this for an IdP you fully trust that omits the claim.
+    /// assert <c>email_verified: true</c>. Guards against account takeover via a forged
+    /// e-mail claim on an untrusted IdP. Set false for a trusted first-party IdP that is
+    /// itself the trust boundary — several (Authentik included) send
+    /// <c>email_verified: false</c> by default, which otherwise rejects every SSO user
+    /// with <c>?error=unverified</c> so they never provision.
     /// </summary>
     public bool RequireVerifiedEmail { get; set; } = true;
 
